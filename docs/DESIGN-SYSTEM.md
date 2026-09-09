@@ -64,8 +64,11 @@ tema claro (3.7:1 — reprova). É por isso que o primário claro é o `700`.
 
 ## 4. Fora da cor
 
-- **Tipografia**: Inter (variável). Escala 12 / 14 / 16 / 20 / 24 / 32 / 48.
-  Números de faturamento em *tabular-nums* — senão o dashboard "treme" ao atualizar.
+- **Tipografia**: **Bricolage Grotesque** (display, 600/800) + **Public Sans**
+  (interface e texto) + **IBM Plex Mono** (números, tokens, códigos). Escala
+  12 / 14 / 16 / 20 / 24 / 32 / 48. Números de faturamento em *tabular-nums* —
+  senão o dashboard "treme" a cada atualização.
+  *Não usar Inter*: é a fonte do Live Fox e o padrão de todo SaaS — não diferencia nada.
 - **Raio**: 10px é o padrão (`--radius-md`); 14px em cards; pill só em badge e avatar.
 - **Espaçamento**: múltiplos de 4. Respiro interno de card = 20px mobile, 24px desktop.
 - **Movimento**: 120ms para hover, 200ms para painel/modal, `--ease-out`.

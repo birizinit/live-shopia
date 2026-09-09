@@ -17,6 +17,13 @@ Fase 0 — fundação. Ainda sem aplicação; o que existe é a base de decisão
 | [`design/tokens.css`](design/tokens.css) | Tokens prontos para uso (CSS custom properties) |
 | [`docs/referencia-livefox.md`](docs/referencia-livefox.md) | Mapeamento do concorrente, usado como especificação |
 
+## Prévia da paleta
+
+Página com a escala, os tokens, o contraste medido e o painel de vendas montado
+só com os tokens — com controle de tema (sistema / claro / escuro):
+
+**https://claude.ai/code/artifact/427db682-c6e0-4cfb-8ec5-864c527942b1**
+
 ## Tema
 
 Um token semântico por decisão visual; os componentes nunca tocam nas primitivas.
