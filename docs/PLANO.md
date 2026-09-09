@@ -4,6 +4,9 @@ Documento de partida. Base: engenharia reversa do **Live Fox IA**
 (`docs/referencia-livefox.md`), que serve como *spec* — o mapa de rotas, o
 contrato da API e o modelo de negócio já estão levantados.
 
+**Decisões tomadas** (09/09/2026): Next.js + Supabase · extensão Chrome como
+canal de distribuição · afiliados multinível de 3 níveis dentro do escopo.
+
 ---
 
 ## 1. O que o Live Fox realmente é
@@ -25,13 +28,6 @@ créditos, permissões, painel.
 É isso que permite vender "live 24h" com custo fixo de ~108k caracteres. Qualquer
 concorrente precisa copiar exatamente essa mecânica ou a margem não fecha.
 
-**O ponto frágil é C.** Uma extensão instalada em *modo desenvolvedor* (o próprio
-manual do Live Fox ensina isso) é sinal de que ela não passa na Chrome Web Store.
-Ela depende do DOM do TikTok LIVE Studio: uma mudança de layout derruba a base
-inteira de clientes em um dia, e a automação tende a violar os Termos do TikTok —
-o risco recai sobre a conta do seu cliente. **Ver a seção 6**, é a decisão mais
-importante do projeto.
-
 ### O que dá para aproveitar
 - O mapa de rotas e a árvore de navegação (26 telas) — vale como backlog pronto.
 - O contrato da API (~60 endpoints) — reimplementável quase 1:1.
@@ -46,7 +42,7 @@ Os achados de segurança do original são reais e evitáveis:
 
 ---
 
-## 2. Stack recomendada
+## 2. Stack — decidida
 
 ### Frontend
 - **Next.js 15 (App Router) + React 19 + TypeScript**
@@ -54,27 +50,18 @@ Os achados de segurança do original são reais e evitáveis:
 - **PWA** (manifest, service worker, Web Push VAPID) — o app é mobile-first
 - Estado de servidor com **TanStack Query**; estado local com Zustand
 
-> *Alternativa*: Vue 3 + Nuxt, espelhando o original. Escolho Next porque a landing
-> precisa de SSR/SEO e porque o shadcn entrega o catálogo de componentes já pronto
-> para receber a paleta verde — economiza semanas de UI.
-
-### Backend
-Duas rotas defensáveis:
-
-**A) Supabase + worker Node** *(recomendado para o MVP)*
-Postgres gerenciado, Auth (com reset de senha e refresh token em cookie), RLS,
-Realtime (substitui o SSE do original), Storage para os áudios. Sobra para nós um
-serviço Node pequeno: jobs de IA/TTS e webhooks de pagamento. Corta ~40% do backend.
-
-**B) Node + Fastify + Prisma + Postgres próprio**
-Controle total, sem lock-in, igual ao original. Mais trabalho de auth e realtime.
+### Backend — Supabase + worker Node
+Postgres gerenciado, Auth (refresh token em cookie, reset de senha), RLS,
+Realtime (substitui o SSE do original), Storage para os áudios. Sobra um serviço
+Node pequeno para o que o Supabase não faz: jobs de IA/TTS, webhooks de pagamento
+e o cálculo de comissões.
 
 ### Infra transversal
-- **Fila**: BullMQ + Redis. Gerar 3h de áudio **não pode ser requisição síncrona** —
-  é job com progresso, retry e idempotência.
+- **Fila**: BullMQ + Redis (Upstash). Gerar 3h de áudio **não pode ser requisição
+  síncrona** — é job com progresso, retry e idempotência.
 - **Storage/CDN**: Cloudflare R2 (egress zero). Áudio de 3h é pesado e é servido
   repetidamente; egress é o custo que surpreende.
-- **Deploy**: Vercel (front) + Fly.io ou Railway (API + worker) + Upstash (Redis).
+- **Deploy**: Vercel (front) + Fly.io ou Railway (API + worker).
 
 ### Autenticação — corrigindo o original
 - Access token de 15 min + **refresh token em cookie `HttpOnly; Secure; SameSite=Lax`**, com rotação.
@@ -84,9 +71,9 @@ Controle total, sem lock-in, igual ao original. Mais trabalho de auth e realtime
 
 ---
 
-## 3. Escopo — MVP vs. depois
+## 3. Escopo
 
-### MVP (é o produto existir)
+### MVP — cobrável
 1. Auth, conta, perfil, planos
 2. Produtos
 3. Roteiro por IA — gancho → oferta → prova → objeções → CTA (Claude)
@@ -96,18 +83,10 @@ Controle total, sem lock-in, igual ao original. Mais trabalho de auth e realtime
 7. Créditos e checkout (PIX + cartão + assinatura)
 8. Tema claro/escuro + PWA
 
-### v2
-9. Clonagem de voz · 10. Ranking · 11. Aulas · 12. Push notifications
-13. Extensão / app desktop (**ver seção 6**)
-
-### v3 — e com cautela
-14. Indique e ganhe · 15. Gerente / multinível
-
-> Sobre 14–15: um programa de comissão em **3 níveis de profundidade**, com ganho
-> derivado do recrutamento, é o desenho que atrai enquadramento como pirâmide
-> (Lei 1.521/51, art. 2º, IX). Vale desenhar com advogado e amarrar a comissão a
-> **venda de assinatura**, não a recrutamento. Não é bloqueio para o MVP — é motivo
-> para deixar por último, e não para copiar o modelo do original sem revisão.
+### v1 completa
+9. **Extensão Chrome** (seção 6)
+10. **Afiliados: indicação em 3 níveis + painel de gerente** (seção 7)
+11. Clonagem de voz · Ranking · Aulas · Push notifications
 
 ---
 
@@ -123,6 +102,7 @@ Controle total, sem lock-in, igual ao original. Mais trabalho de auth e realtime
 | **Upstash Redis** | fila de jobs | ~US$10/mês |
 | **Vercel** | front | US$0–20/mês |
 | **Resend / SES** | e-mail transacional | ~US$0–20/mês |
+| **Chrome Web Store** | publicar a extensão | US$5, taxa única |
 | **Domínio + SSL** | — | ~R$40/ano |
 | **TikTok Shop Partner Center** | dados de venda **legítimos** via API | grátis, mas exige aprovação |
 
@@ -145,40 +125,73 @@ sistema de créditos existe justamente para conter quem gera demais — precisa 
 medido em **caracteres**, debitado *antes* da chamada, e com estimativa mostrada
 ao usuário antes de confirmar.
 
-Recomendo travar essa planilha (custo por plano, limite de créditos, ponto de
-prejuízo) **antes** da fase 1.
+Com o multinível pagando até 60% em comissão, essa planilha fica apertada: o custo
+de aquisição some da margem no mesmo mês. **Travar custo por plano, limite de
+créditos, percentual de comissão por nível e ponto de prejuízo antes da fase 1.**
 
 ---
 
-## 6. A decisão que mais pesa: como o áudio chega no TikTok
+## 6. Extensão Chrome — construir com rede de proteção
 
-**Rota A — extensão Chrome (o que o Live Fox faz).** Injeta áudio no LIVE Studio,
-lê o chat pelo DOM e responde sozinha. Entrega a experiência completa e é o maior
-diferencial percebido. Em troca: instalação em modo desenvolvedor, quebra a cada
-atualização do TikTok, e automação de conta que tende a violar os Termos —
-com o ban recaindo sobre o cliente.
+Rota escolhida: extensão que injeta o áudio no LIVE Studio, lê o chat e responde.
+É o maior diferencial percebido, e carrega dois riscos concretos: **quebra técnica**
+(o TikTok muda o DOM e a base inteira para no mesmo dia) e **risco de conta**
+(automação tende a violar os Termos do TikTok, e o ban recai sobre o cliente).
 
-**Rota B — app desktop "mixer" (Electron/Tauri).** Cria um dispositivo de áudio
-virtual que o usuário seleciona como microfone dentro do LIVE Studio. Não automatiza
-a conta, não raspa o chat, não injeta script em site de terceiro. Perde a resposta
-automática ao chat; mantém roteiro + voz + áudio contínuo + trilha ambiente.
+Nenhum dos dois se elimina. Os dois se **contêm**, e isso é decisão de arquitetura
+tomada no dia 1 — depois fica caro:
 
-**Rota C — só web, no MVP.** O usuário baixa o áudio pronto e toca por conta
-própria. Zero atrito de distribuição, valida o produto em semanas.
+**Contra a quebra técnica**
+- **Mapa de seletores servido pela API**, não compilado na extensão. Quando o TikTok
+  muda o layout, você publica um JSON novo e todo mundo volta a funcionar em minutos,
+  sem republicar nem pedir reinstalação. É a diferença entre 10 minutos e 3 dias parados.
+- **Seletores ancorados em texto, `aria-label` e estrutura** — nunca em classe hasheada
+  (`.css-1x2y3z`), que muda a cada build deles. Cascata de fallback por seletor.
+- **Telemetria de quebra**: a extensão reporta qual seletor falhou. Alerta quando
+  N% dos clientes falham no mesmo ponto — você descobre pelo painel, não pelo WhatsApp.
+- **Kill switch remoto** e *canary*: liberar versão nova para 5% antes de todos.
+- **Autoupdate de verdade**: instalação em modo desenvolvedor não recebe atualização.
+  Publicar na Web Store, ou hospedar com `update_url` próprio. O manual de "modo
+  desenvolvedor" do concorrente é a maior fonte de suporte deles.
+- **MV3**: service worker + *offscreen document* para o áudio (o service worker morre;
+  o offscreen document é o que segura reprodução contínua).
 
-**Minha recomendação: C no MVP, B na v2.** Os blocos A e B da seção 1 já são um
-produto vendável — roteiro que converte + voz ultrarrealista + 3h de áudio contínuo
-— e não dependem de nada que possa ser derrubado por uma atualização do TikTok ou
-por uma denúncia. A resposta automática ao chat é a única coisa que exige a Rota A,
-e é justamente a que carrega o risco.
-
-É uma decisão de negócio, não técnica: se você quiser a Rota A, ela é construível
-e eu construo. Mas ela precisa ser escolhida com o risco na mesa, não por inércia
-de estar copiando o concorrente.
+**Contra o risco de conta**
+- **Separar em dois módulos desde o começo**: (a) mixer de áudio — cria o dispositivo
+  virtual e toca o loop; (b) automação de chat — lê e responde. Se (b) precisar morrer,
+  (a) continua e o produto sobrevive. Se estiverem acoplados, cai tudo junto.
+- **Aviso explícito de risco nos Termos de Uso e no onboarding**, com aceite registrado.
+- Limites de cadência humanos na resposta ao chat (intervalo variável, teto por minuto).
+- Plano B pronto e testado: app desktop mixer, que não automatiza conta.
 
 ---
 
-## 7. Fases
+## 7. Afiliados multinível — o que precisa estar certo
+
+Escopo escolhido: 3 níveis de profundidade + papel de gerente com 60%.
+
+**Risco jurídico, dito uma vez.** Ganho derivado de recrutamento em profundidade é
+o desenho que atrai enquadramento como pirâmide (Lei 1.521/51, art. 2º, IX). O que
+separa um programa legítimo é a comissão estar amarrada a **venda de assinatura
+paga**, não a cadastro. Vale passar por advogado antes de ir ao ar — não é bloqueio
+para construir, é bloqueio para lançar.
+
+**No código, o que evita prejuízo e processo:**
+- Comissão gerada **só em pagamento confirmado**, nunca em cadastro ou promoção.
+- **Clawback**: chargeback ou reembolso estorna a comissão dos três níveis.
+- **Saldo pendente × disponível**, com prazo de liberação (D+30 é o usual) — sem isso
+  você paga comissão de venda que vai ser estornada.
+- **KYC no saque** (CPF, conta bancária no mesmo titular), teto por período,
+  retenção de IR e recibo.
+- **LGPD**: o painel de gerente do Live Fox expõe usernames e valores depositados da
+  downline. O nosso mostra nome de exibição e valores agregados — nunca e-mail, CPF
+  ou telefone de quem o gerente não cadastrou pessoalmente.
+- **Trilha de auditoria** imutável de cada comissão: origem, nível, pagamento que a
+  gerou, estado. É o que responde a uma disputa seis meses depois.
+
+---
+
+## 8. Fases
 
 | Fase | Entrega | Duração |
 |---|---|---|
@@ -187,23 +200,22 @@ de estar copiando o concorrente.
 | **2 — Áudio da live** | Montagem do loop, trilha ambiente, player, download/stream | ~1 semana |
 | **3 — Monetização** | Planos, créditos, checkout PIX/cartão, webhooks, medidor de consumo | ~1 semana |
 | **4 — Dados** | Dashboard de vendas, realtime, ranking, push | ~1 semana |
-| **5 — Distribuição** | Rota B ou A, aulas, onboarding | 1–2 semanas |
-| **6 — Crescimento** | Indicação e, se for o caso, multinível revisado juridicamente | 1–2 semanas |
+| **5 — Extensão** | MV3, mixer de áudio, mapa remoto de seletores, telemetria, chat | 2–3 semanas |
+| **6 — Afiliados** | 3 níveis, gerente, comissões, clawback, saques, KYC | 1,5–2 semanas |
+| **7 — Conteúdo** | Aulas, onboarding, clonagem de voz, landing | ~1 semana |
 
-**MVP vendável ao fim da fase 3 — ~4 semanas.** Fases 0–1 já produzem telas
-navegáveis com dados reais.
+**MVP cobrável ao fim da fase 3 — ~4 semanas. v1 completa — ~10 a 11 semanas.**
+A fase 5 é a de estimativa menos confiável: depende do DOM de um sistema de
+terceiro que ninguém controla.
 
 ---
 
-## 8. O que eu preciso de você para começar
+## 9. O que ainda falta definir
 
-1. **Stack** — confirma Next.js + Supabase, ou prefere Vue/Nuxt e backend próprio?
-2. **Rota de distribuição** — A, B ou C (seção 6)?
-3. **Gateway de pagamento** — Asaas, Mercado Pago, Pagar.me?
-4. **Marca** — "Shopia" é o nome definitivo? Tem logo/tipografia?
-5. **Escopo do MVP** — entra afiliados na v1 ou fica para depois?
-6. **Chaves** — já tem conta Anthropic e ElevenLabs, ou eu deixo a integração
+Nada disso bloqueia as fases 0 a 2:
+
+1. **Gateway de pagamento** — Asaas, Mercado Pago ou Pagar.me? (necessário na fase 3)
+2. **Marca** — "Shopia" é definitivo? Tem logo e domínio?
+3. **Chaves de API** — já tem conta Anthropic e ElevenLabs, ou deixo a integração
    pronta atrás de variáveis de ambiente?
-
-Nada disso bloqueia a **fase 0**: o design system verde nos dois temas e o
-scaffolding da aplicação podem começar hoje.
+4. **Tabela de planos e comissões** — os números da seção 5, fechados.
