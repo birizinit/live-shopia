@@ -1,0 +1,241 @@
+/* =============================================================
+   Shopia — Design Tokens
+   Paleta verde · tema claro e escuro
+   -------------------------------------------------------------
+   Camada 1 — primitivas: escalas cruas. NÃO usar direto na UI.
+   Camada 2 — semânticas: o que os componentes consomem.
+   Trocar o tema = redefinir só a camada 2.
+   ============================================================= */
+
+:root {
+  /* ---------- Camada 1 — primitivas ---------- */
+
+  /* Verde da marca */
+  --green-50:  #ECFDF3;
+  --green-100: #D1FADF;
+  --green-200: #A6F4C5;
+  --green-300: #6CE9A6;
+  --green-400: #32D583;
+  --green-500: #12B76A;
+  --green-600: #039855;
+  --green-700: #027A48;
+  --green-800: #05603A;
+  --green-900: #054F31;
+  --green-950: #032B1C;
+
+  /* Neutros com leve viés verde (evita cinza "sujo" ao lado da marca) */
+  --gray-50:  #F6FAF7;
+  --gray-100: #EDF3EF;
+  --gray-200: #DCE7E0;
+  --gray-300: #C0D1C7;
+  --gray-400: #90A699;
+  --gray-500: #6A8073;
+  --gray-600: #4E6157;
+  --gray-700: #3A4A41;
+  --gray-800: #26322C;
+  --gray-900: #151E19;
+  --gray-950: #0A100D;
+
+  /* Feedback */
+  --amber-400: #FDB022;
+  --amber-600: #DC6803;
+  --red-300:   #FDA29B;
+  --red-500:   #F04438;
+  --red-600:   #D92D20;
+  --blue-300:  #84CAFF;
+  --blue-500:  #2E90FA;
+  --blue-600:  #1570EF;
+
+  /* Tipografia */
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: ui-monospace, "JetBrains Mono", "SF Mono", Menlo, monospace;
+
+  /* Raio */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
+  --radius-full: 999px;
+
+  /* Movimento */
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+
+  /* ---------- Camada 2 — semânticas (TEMA CLARO = padrão) ---------- */
+  color-scheme: light;
+
+  --bg:             var(--gray-50);
+  --bg-subtle:      var(--gray-100);
+  --surface:        #FFFFFF;
+  --surface-raised: #FFFFFF;
+  --surface-hover:  var(--gray-100);
+
+  --border:         var(--gray-200);
+  --border-strong:  var(--gray-300);
+
+  --text:           var(--gray-900);
+  --text-muted:     var(--gray-600);
+  --text-subtle:    var(--gray-500);
+  --text-inverse:   #FFFFFF;
+
+  --primary:        var(--green-700);   /* 5.4:1 com texto branco */
+  --primary-hover:  var(--green-800);
+  --primary-active: var(--green-900);
+  --primary-fg:     #FFFFFF;
+  --primary-soft:   var(--green-50);
+  --primary-soft-fg:var(--green-800);
+  --primary-border: var(--green-200);
+
+  --accent:         var(--green-500);   /* gráficos, barras, destaques */
+  --accent-2:       var(--green-300);
+
+  --success:        var(--green-600);
+  --success-soft:   var(--green-50);
+  --warning:        var(--amber-600);
+  --warning-soft:   #FFFAEB;
+  --danger:         var(--red-600);
+  --danger-soft:    #FEF3F2;
+  --info:           var(--blue-600);
+  --info-soft:      #EFF8FF;
+
+  --ring:           var(--green-500);
+  --overlay:        rgb(10 16 13 / 0.45);
+
+  --shadow-sm: 0 1px 2px rgb(10 16 13 / 0.06);
+  --shadow-md: 0 4px 12px rgb(10 16 13 / 0.08);
+  --shadow-lg: 0 16px 40px rgb(10 16 13 / 0.12);
+
+  /* Gradiente de marca (hero, botão principal da landing) */
+  --brand-gradient: linear-gradient(135deg, var(--green-600) 0%, var(--green-800) 100%);
+}
+
+/* ---------- TEMA ESCURO ----------
+   Duas portas: preferência do SO (quando não há escolha explícita)
+   e o atributo data-theme="dark" (escolha do usuário).           */
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+
+    --bg:             var(--gray-950);
+    --bg-subtle:      #070B09;
+    --surface:        var(--gray-900);
+    --surface-raised: var(--gray-800);
+    --surface-hover:  #1B241E;
+
+    --border:         var(--gray-800);
+    --border-strong:  var(--gray-700);
+
+    --text:           var(--gray-50);
+    --text-muted:     #A8BCB0;
+    --text-subtle:    var(--gray-400);
+    --text-inverse:   var(--gray-950);
+
+    --primary:        var(--green-400);   /* 7.8:1 com --primary-fg */
+    --primary-hover:  var(--green-300);
+    --primary-active: var(--green-200);
+    --primary-fg:     #042E1C;
+    --primary-soft:   #0E2B1E;
+    --primary-soft-fg:var(--green-300);
+    --primary-border: #17402B;
+
+    --accent:         var(--green-400);
+    --accent-2:       var(--green-600);
+
+    --success:        var(--green-400);
+    --success-soft:   #0E2B1E;
+    --warning:        var(--amber-400);
+    --warning-soft:   #2E1F05;
+    --danger:         var(--red-300);
+    --danger-soft:    #34110E;
+    --info:           var(--blue-300);
+    --info-soft:      #0C2440;
+
+    --ring:           var(--green-400);
+    --overlay:        rgb(0 0 0 / 0.65);
+
+    --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-md: 0 4px 12px rgb(0 0 0 / 0.5);
+    --shadow-lg: 0 16px 40px rgb(0 0 0 / 0.6);
+
+    --brand-gradient: linear-gradient(135deg, var(--green-500) 0%, var(--green-800) 100%);
+  }
+}
+
+/* Escolha explícita do usuário vence a preferência do SO, nos dois sentidos. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --bg:             var(--gray-950);
+  --bg-subtle:      #070B09;
+  --surface:        var(--gray-900);
+  --surface-raised: var(--gray-800);
+  --surface-hover:  #1B241E;
+
+  --border:         var(--gray-800);
+  --border-strong:  var(--gray-700);
+
+  --text:           var(--gray-50);
+  --text-muted:     #A8BCB0;
+  --text-subtle:    var(--gray-400);
+  --text-inverse:   var(--gray-950);
+
+  --primary:        var(--green-400);
+  --primary-hover:  var(--green-300);
+  --primary-active: var(--green-200);
+  --primary-fg:     #042E1C;
+  --primary-soft:   #0E2B1E;
+  --primary-soft-fg:var(--green-300);
+  --primary-border: #17402B;
+
+  --accent:         var(--green-400);
+  --accent-2:       var(--green-600);
+
+  --success:        var(--green-400);
+  --success-soft:   #0E2B1E;
+  --warning:        var(--amber-400);
+  --warning-soft:   #2E1F05;
+  --danger:         var(--red-300);
+  --danger-soft:    #34110E;
+  --info:           var(--blue-300);
+  --info-soft:      #0C2440;
+
+  --ring:           var(--green-400);
+  --overlay:        rgb(0 0 0 / 0.65);
+
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-md: 0 4px 12px rgb(0 0 0 / 0.5);
+  --shadow-lg: 0 16px 40px rgb(0 0 0 / 0.6);
+
+  --brand-gradient: linear-gradient(135deg, var(--green-500) 0%, var(--green-800) 100%);
+}
+
+/* ---------- Séries de gráfico (dashboard de vendas) ----------
+   Ordem pensada para leitura sequencial; a 1ª é sempre a marca. */
+:root {
+  --chart-1: var(--green-600);
+  --chart-2: #0E9384;   /* teal */
+  --chart-3: #6172F3;   /* indigo */
+  --chart-4: var(--amber-600);
+  --chart-5: #7A5AF8;   /* violet */
+  --chart-6: var(--gray-400);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --chart-1: var(--green-400);
+    --chart-2: #2ED3B7;
+    --chart-3: #8098F9;
+    --chart-4: var(--amber-400);
+    --chart-5: #A48AFB;
+    --chart-6: var(--gray-500);
+  }
+}
+:root[data-theme="dark"] {
+  --chart-1: var(--green-400);
+  --chart-2: #2ED3B7;
+  --chart-3: #8098F9;
+  --chart-4: var(--amber-400);
+  --chart-5: #A48AFB;
+  --chart-6: var(--gray-500);
+}
