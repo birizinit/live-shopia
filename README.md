@@ -33,11 +33,12 @@ caracteres) para ver cada papel. Para ligar no banco de verdade, copie
 guiado de onboarding. 61 tabelas, fila de jobs em Postgres, worker no próprio
 processo, Claude e ElevenLabs integrados.
 
-Três coisas não rodam de verdade ainda, e não é por falta de código:
-`/dashboard` e `/ranking` sobem vazios porque a única origem de venda é a
-extensão, que ainda não existe; `/planos` e `/creditos` têm o checkout
-desabilitado até o gateway ser escolhido; e o roteiro e o áudio saem como
-exemplo rotulado até as chaves de IA entrarem. Detalhe em
+O que **não** está pronto para cobrar de um cliente, dito sem rodeio:
+a corrente de pagamento não existe (não há adaptador de gateway, rota de
+webhook, criação de assinatura nem handler de crédito); `/dashboard` e
+`/ranking` sobem vazios porque a única origem de venda é a extensão, que ainda
+não foi escrita; e roteiro e áudio saem como exemplo rotulado até as chaves de
+IA entrarem. A lista completa, com esforço por item, está em
 [`docs/PLANO.md`](docs/PLANO.md) §10.
 
 | Onde | O quê |

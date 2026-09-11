@@ -272,6 +272,30 @@ de coisas que ainda não existem, e isso não se resolve com código:
 | **Chaves de IA e voz** | `/roteiro`, `/estudio`, `/clonar`, `/vozes` | Funcionam de ponta a ponta com exemplo rotulado. Com a chave, passam a gerar de verdade sem mudar uma linha |
 | **Parecer jurídico** (§7) | `/indique`, `/gerente`, `/afiliado` | Construídas e funcionando, com aviso no topo. Nenhum pagamento sai automaticamente: saque cria pendência de aprovação |
 
-A extensão em si (pacote MV3) é o próximo bloco de trabalho e não foi iniciada.
-O lado web que ela vai consumir está pronto: licença, mapa remoto de seletores,
-telemetria de quebra e ingestão de venda, tudo em `/api/ext/*`.
+### Correção de duas afirmações erradas deste documento
+
+**A ingestão de venda NÃO está pronta.** Uma versão anterior desta seção dizia
+que sim. As rotas que existem em `/api/ext/` são quatro — `licenca`,
+`seletores`, `telemetria` e `baixar`. Não há rota para a extensão abrir ou
+fechar sessão, mandar batimento, registrar evento de chat ou registrar venda.
+O schema e os gatilhos de rollup existem (0006); os endpoints, não. São 3 a 5
+dias de trabalho que ninguém fez.
+
+**A extensão não são 2 a 3 semanas.** A estimativa da fase 5 está errada por um
+fator de 3 a 4. A conta honesta, de uma auditoria de prontidão feita em
+11/09/2026: 6 a 10 semanas de um dev só para o pacote MV3, e ela sozinha não
+fecha nada — some o spike de injeção de áudio (3 a 5 dias, e é ele que pode
+dizer que não dá para fazer com extensão), os endpoints de ingestão (3 a 5
+dias), a metade servidor do "responde o chat" (1 a 1,5 semana), o console para
+publicar versão e mapa (3 a 5 dias) e a revisão da Chrome Web Store.
+
+### A conta de margem do §5 está otimista
+
+Um áudio de 3h custa 108.000 caracteres ≈ US$16,20. O ponto de equilíbrio do
+Premium sem afiliado é **3,3 gerações/mês**; com afiliado de nível 1, 2,3; com
+a cadeia cheia mais gerente (63% da venda), **1,2**. As "10 a 15 gerações com
+margem saudável" que este documento prometia dão **prejuízo de ~US$107 por
+cliente por mês**. E o preço de US$0,15/1.000 caracteres só vale em volume de
+Scale — nos primeiros clientes você está em Creator/Pro, a US$0,20–0,31/1.000.
+
+**Decidir `planos.creditos_mes` com esses números é pré-requisito de cobrar.**

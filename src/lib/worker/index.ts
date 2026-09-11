@@ -138,11 +138,46 @@ async function processarLote(): Promise<number> {
   return jobs.length;
 }
 
+/**
+ * Tipo de job declarado no banco que ninguem sabe executar.
+ *
+ * `TIPOS` sai das chaves de HANDLERS e vai direto para `reservar_jobs`, entao
+ * um job de tipo sem handler nunca e reservado: fica `pendente` para sempre,
+ * sem falhar, sem estourar tentativa e sem aparecer em lugar nenhum. E o pior
+ * tipo de defeito — o silencioso. Hoje isso vale para 'comissao', 'montagem' e
+ * 'push', que a migracao 0003 declara e o codigo ainda nao implementa.
+ */
+async function avisarTiposOrfaos() {
+  try {
+    const orfaos = await bd()<{ tipo: string; pendentes: number }[]>`
+      select t.tipo,
+             (select count(*)::int from jobs j
+               where j.tipo = t.tipo and j.estado = 'pendente') as pendentes
+        from job_tipos t
+       where t.ativo and not (t.tipo = any (${TIPOS}))
+    `;
+
+    if (orfaos.length === 0) return;
+
+    const presos = orfaos.filter((o) => o.pendentes > 0);
+    console.warn(
+      `[worker] tipos sem handler: ${orfaos.map((o) => o.tipo).join(", ")}` +
+        (presos.length
+          ? ` — ATENCAO: ${presos.map((o) => `${o.pendentes} job(s) de ${o.tipo}`).join(", ")} ` +
+            "parado(s) na fila e ninguem vai processar."
+          : " (nenhum job preso por enquanto)"),
+    );
+  } catch (erro) {
+    console.error("[worker] não foi possível checar tipos órfãos:", erro);
+  }
+}
+
 export async function iniciarWorker() {
   if (rodando || modoDemo || !env.workerLigado) return;
   rodando = true;
 
   console.log(`[worker] ligado (${IDENTIDADE}), tipos: ${TIPOS.join(", ")}`);
+  void avisarTiposOrfaos();
 
   let acordar: (() => void) | null = null;
 
@@ -185,6 +220,7 @@ export async function iniciarWorker() {
         const agoraMs = Date.now();
         if (agoraMs - ultimaFaxina > INTERVALO_FAXINA_MS) {
           ultimaFaxina = agoraMs;
+          void avisarTiposOrfaos();
           const hora = new Date(agoraMs).toISOString().slice(0, 13);
           await bd()`
             insert into jobs (tipo, chave_idempotencia, entrada)
