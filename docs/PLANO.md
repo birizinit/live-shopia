@@ -7,6 +7,9 @@ contrato da API e o modelo de negócio já estão levantados.
 **Decisões tomadas** (09/09/2026): Next.js + Supabase · extensão Chrome como
 canal de distribuição · afiliados multinível de 3 níveis dentro do escopo.
 
+**Fase 0 entregue** (10/09/2026): aplicação de pé, navegação das 26 telas, tema
+claro/escuro, autenticação, guard de rota e de papel, schema com RLS.
+
 ---
 
 ## 1. O que o Live Fox realmente é
@@ -45,7 +48,10 @@ Os achados de segurança do original são reais e evitáveis:
 ## 2. Stack — decidida
 
 ### Frontend
-- **Next.js 15 (App Router) + React 19 + TypeScript**
+- **Next.js 16 (App Router) + React 19 + TypeScript** — o plano dizia 15; a 16 é
+  a estável no dia da fundação e não se começa projeto novo numa major anterior.
+  O que muda na prática: Turbopack por padrão, `params`/`cookies` assíncronos e
+  `middleware.ts` renomeado para `proxy.ts`.
 - **Tailwind v4 + shadcn/ui**, tematizado pelos tokens de `design/tokens.css`
 - **PWA** (manifest, service worker, Web Push VAPID) — o app é mobile-first
 - Estado de servidor com **TanStack Query**; estado local com Zustand
@@ -195,7 +201,7 @@ para construir, é bloqueio para lançar.
 
 | Fase | Entrega | Duração |
 |---|---|---|
-| **0 — Fundação** | Repo, design system verde claro/escuro, layout, auth, banco, deploy | 3–5 dias |
+| ✅ **0 — Fundação** | Repo, design system verde claro/escuro, layout, auth, banco | **feito** |
 | **1 — Núcleo de IA** | Produtos, roteiro (Claude), vozes, TTS, biblioteca, fila de jobs | 1–1,5 semana |
 | **2 — Áudio da live** | Montagem do loop, trilha ambiente, player, download/stream | ~1 semana |
 | **3 — Monetização** | Planos, créditos, checkout PIX/cartão, webhooks, medidor de consumo | ~1 semana |
@@ -212,10 +218,18 @@ terceiro que ninguém controla.
 
 ## 9. O que ainda falta definir
 
-Nada disso bloqueia as fases 0 a 2:
+Nada disso bloqueia as fases 1 e 2:
 
-1. **Gateway de pagamento** — Asaas, Mercado Pago ou Pagar.me? (necessário na fase 3)
-2. **Marca** — "Shopia" é definitivo? Tem logo e domínio?
-3. **Chaves de API** — já tem conta Anthropic e ElevenLabs, ou deixo a integração
-   pronta atrás de variáveis de ambiente?
+1. **Gateway de pagamento** — Asaas, Mercado Pago ou Pagar.me? *(bloqueia a fase 3)*
+2. **Marca** — "Shopia" está no código, no manifesto do PWA e no ícone. Falta
+   dizer se é definitivo, e se há logo e domínio.
+3. **Chaves de API** — Anthropic e ElevenLabs ficaram atrás de variáveis de
+   ambiente (`.env.example`). O código de integração entra na fase 1; a conta
+   precisa existir antes de testar de ponta a ponta.
 4. **Tabela de planos e comissões** — os números da seção 5, fechados.
+   `supabase/migrations/0002_planos_seed.sql` semeia só os dois preços que o
+   levantamento confirmou; o tier intermediário e o teto de créditos por plano
+   (`planos.creditos_mes`, em caracteres) estão nulos de propósito.
+5. **Projeto Supabase** — criar, aplicar as migrações e ajustar o JWT expiry,
+   a rotação de refresh token e os rate limits (ver `supabase/README.md`).
+   Até lá o app roda em modo demo.

@@ -112,5 +112,12 @@ O tema tem que ser aplicado **antes** da primeira pintura. Script inline no `<he
 </script>
 ```
 
-E `<meta name="theme-color">` em duas versões (`media="(prefers-color-scheme: dark)"`)
-para a barra do navegador no PWA acompanhar o tema.
+Para a barra do navegador no PWA: um único `<meta name="theme-color">`, que o
+mesmo script ajusta antes da primeira pintura e o provider mantém em dia. Duas
+tags com `media="(prefers-color-scheme: …)"` só resolveriam o caso "seguir o
+sistema" — quando o usuário escolhe explicitamente o tema oposto ao do SO, o
+navegador continua casando pela media query e a barra fica com a cor errada.
+
+Implementado em `src/components/theme/` — `theme-script.tsx` (antes da pintura),
+`theme-provider.tsx` (estado, via `useSyncExternalStore`) e `theme-toggle.tsx`
+(os três estados).
