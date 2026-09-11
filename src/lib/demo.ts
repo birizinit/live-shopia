@@ -27,6 +27,7 @@ function montar(usuario: string, nome: string, papel: Papel): Usuario {
     papel,
     plano: papel === "user" ? "Copy Live" : "Premium",
     creditos: papel === "user" ? 1_000 : 40_000,
+    emailVerificado: true,
     demo: true,
   };
 }

@@ -2,8 +2,13 @@
 
 import { redirect } from "next/navigation";
 import { z } from "zod";
-import { modoDemo, env } from "@/lib/env";
+import { criarTokenEmail, consumirTokenEmail } from "@/lib/auth/tokens";
+import { criarSessao, encerrarSessao, encerrarTodasAsSessoes } from "@/lib/auth/sessoes";
+import { bd } from "@/lib/db";
+import { emailDeConfirmacao, emailDeRecuperacao } from "@/lib/email";
+import { modoDemo } from "@/lib/env";
 import { ROTA_POS_LOGIN } from "@/lib/rotas";
+import { conferirSenha, gastarTempoDeConferencia, gerarHash } from "@/lib/senha";
 
 export type EstadoForm = {
   erro?: string;
@@ -57,7 +62,9 @@ export async function entrar(
   const proximo = destinoSeguro(formData.get("proximo"));
 
   const parsed = esquemaEntrar.safeParse(dados);
-  if (!parsed.success) return { erro: primeiroErro(parsed.error), campos: { email: dados.email } };
+  if (!parsed.success) {
+    return { erro: primeiroErro(parsed.error), campos: { email: dados.email } };
+  }
 
   if (modoDemo) {
     if (dados.senha.length < SENHA_MINIMA) {
@@ -68,17 +75,23 @@ export async function entrar(
     redirect(proximo);
   }
 
-  const { clienteServidor } = await import("@/lib/supabase/server");
-  const supabase = await clienteServidor();
-  const { error } = await supabase.auth.signInWithPassword({
-    email: dados.email,
-    password: dados.senha,
-  });
+  const linhas = await bd()<{ id: string; senha_hash: string }[]>`
+    select id, senha_hash from perfis where lower(email) = lower(${dados.email})
+  `;
+  const perfil = linhas[0];
 
-  // Mensagem genérica de propósito: dizer "e-mail não existe" entrega quais
-  // contas existem para quem está testando lista de e-mails.
-  if (error) return { erro: "E-mail ou senha incorretos", campos: { email: dados.email } };
+  // Mensagem e tempo de resposta iguais nos dois casos: dizer "este e-mail não
+  // existe" — ou só responder mais rápido — entrega a lista de clientes.
+  if (!perfil) {
+    await gastarTempoDeConferencia(dados.senha);
+    return { erro: "E-mail ou senha incorretos", campos: { email: dados.email } };
+  }
 
+  if (!(await conferirSenha(perfil.senha_hash, dados.senha))) {
+    return { erro: "E-mail ou senha incorretos", campos: { email: dados.email } };
+  }
+
+  await criarSessao(perfil.id);
   redirect(proximo);
 }
 
@@ -110,31 +123,36 @@ export async function cadastrar(
     redirect(ROTA_POS_LOGIN);
   }
 
-  const { clienteServidor } = await import("@/lib/supabase/server");
-  const supabase = await clienteServidor();
-  const { error } = await supabase.auth.signUp({
-    email: dados.email,
-    password: dados.senha,
-    options: {
-      // Lido pelo trigger handle_new_user (supabase/migrations) para criar
-      // a linha em `perfis`. Papel NUNCA vem daqui — o banco define "user".
-      data: { nome: dados.nome, usuario: dados.usuario, ref: dados.ref ?? null },
-      emailRedirectTo: `${env.siteUrl}/inicio`,
-    },
-  });
+  const senhaHash = await gerarHash(dados.senha);
 
-  if (error) {
-    const duplicado = /already registered|already been registered/i.test(error.message);
-    return {
-      erro: duplicado ? "Já existe uma conta com este e-mail" : "Não foi possível criar a conta",
-      campos: { nome: dados.nome, usuario: dados.usuario, email: dados.email },
-    };
+  let perfilId: string;
+  try {
+    // A função resolve colisão de @usuario e gera o código de indicação numa
+    // transação só — ver db/migrations/0001.
+    const linhas = await bd()<{ id: string }[]>`
+      select id from criar_perfil(
+        ${dados.email}, ${senhaHash}, ${dados.nome}, ${dados.usuario}, ${dados.ref ?? null}
+      )
+    `;
+    perfilId = linhas[0]!.id;
+  } catch (erro) {
+    const detalhe = erro instanceof Error ? erro.message : String(erro);
+    if (detalhe.includes("perfis_email_unico")) {
+      return {
+        erro: "Já existe uma conta com este e-mail",
+        campos: { nome: dados.nome, usuario: dados.usuario, email: dados.email },
+      };
+    }
+    throw erro;
   }
 
-  return {
-    mensagem:
-      "Conta criada. Confira seu e-mail para confirmar o endereço e já pode entrar.",
-  };
+  // O envio pode não sair (sem provedor configurado). O cadastro não depende
+  // disso: a conta entra, e a confirmação fica pendente.
+  const token = await criarTokenEmail(perfilId, "verificacao");
+  await emailDeConfirmacao(dados.email, token);
+
+  await criarSessao(perfilId);
+  redirect(ROTA_POS_LOGIN);
 }
 
 export async function solicitarRecuperacao(
@@ -145,11 +163,14 @@ export async function solicitarRecuperacao(
   if (!z.email().safeParse(email).success) return { erro: "E-mail inválido" };
 
   if (!modoDemo) {
-    const { clienteServidor } = await import("@/lib/supabase/server");
-    const supabase = await clienteServidor();
-    await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${env.siteUrl}/redefinir`,
-    });
+    const linhas = await bd()<{ id: string }[]>`
+      select id from perfis where lower(email) = lower(${email})
+    `;
+    const perfil = linhas[0];
+    if (perfil) {
+      const token = await criarTokenEmail(perfil.id, "recuperacao");
+      await emailDeRecuperacao(email, token);
+    }
   }
 
   // Resposta idêntica exista ou não a conta — senão isto vira um oráculo de
@@ -163,6 +184,7 @@ export async function redefinirSenha(
   _anterior: EstadoForm,
   formData: FormData,
 ): Promise<EstadoForm> {
+  const token = String(formData.get("token") ?? "");
   const senha = String(formData.get("senha") ?? "");
   const confirmacao = String(formData.get("confirmacao") ?? "");
 
@@ -173,15 +195,27 @@ export async function redefinirSenha(
 
   if (modoDemo) return { mensagem: "Senha redefinida (modo demo)." };
 
-  const { clienteServidor } = await import("@/lib/supabase/server");
-  const supabase = await clienteServidor();
-  const { error } = await supabase.auth.updateUser({ password: senha });
+  if (!token) return { erro: "Link inválido. Peça um novo e-mail de redefinição." };
 
-  if (error) {
-    return { erro: "O link expirou. Peça um novo e-mail de redefinição." };
+  const perfilId = await consumirTokenEmail("recuperacao", token);
+  if (!perfilId) {
+    return { erro: "O link expirou ou já foi usado. Peça um novo." };
   }
 
-  redirect(ROTA_POS_LOGIN);
+  const senhaHash = await gerarHash(senha);
+
+  // Quem recebeu o e-mail provou que o endereço é dele.
+  await bd()`
+    update perfis
+       set senha_hash = ${senhaHash},
+           email_verificado_em = coalesce(email_verificado_em, now())
+     where id = ${perfilId}
+  `;
+
+  // Trocar a senha derruba tudo: se alguém tinha o cookie, perde agora.
+  await encerrarTodasAsSessoes(perfilId);
+
+  return { mensagem: "Senha alterada. Entre com a nova senha." };
 }
 
 export async function sair() {
@@ -189,9 +223,7 @@ export async function sair() {
     const { sairDemo } = await import("@/lib/demo");
     await sairDemo();
   } else {
-    const { clienteServidor } = await import("@/lib/supabase/server");
-    const supabase = await clienteServidor();
-    await supabase.auth.signOut();
+    await encerrarSessao();
   }
   redirect("/login");
 }

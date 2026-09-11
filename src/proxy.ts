@@ -8,42 +8,47 @@ import {
   ehPublica,
 } from "@/lib/rotas";
 
+const COOKIE_SESSAO = "shopia_sessao";
+const COOKIE_DEMO = "shopia_demo";
+
 /**
- * Guard de sessão + rotação do refresh token.
+ * Guard de rota.
  *
- * O que este arquivo NÃO faz: checar papel. Papel mora no banco e é checado
- * no servidor, por rota (ver exigirPapel em src/lib/sessao.ts). Fazer isso
- * aqui significaria ou consultar o banco a cada requisição, ou confiar num
- * claim do token — que é exatamente o erro do original.
+ * Só olha se existe cookie de sessão — não valida e não consulta banco. Isso
+ * é de propósito: o proxy roda em toda requisição, inclusive nas que não
+ * renderizam nada, e uma ida ao banco por requisição sairia cara para um
+ * ganho nenhum. Quem valida a sessão de verdade (e o papel) é o servidor da
+ * página, em `obterUsuario`/`exigirPapel`.
+ *
+ * O pior caso aqui é deixar passar um cookie expirado até a página redirecionar
+ * — nunca deixar passar sem sessão.
  */
-export async function proxy(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
-  const resposta = NextResponse.next({ request });
 
   if (ehEmBreve(pathname)) {
     return NextResponse.redirect(new URL(ROTA_POS_LOGIN, request.url));
   }
 
-  const temSessao = modoDemo
-    ? Boolean(request.cookies.get("shopia_demo")?.value)
-    : Boolean(await (await import("@/lib/supabase/proxy")).renovarSessao(request, resposta));
+  const cookie = modoDemo ? COOKIE_DEMO : COOKIE_SESSAO;
+  const temCookie = Boolean(request.cookies.get(cookie)?.value);
 
-  if (!temSessao && !ehPublica(pathname)) {
+  if (!temCookie && !ehPublica(pathname)) {
     const destino = new URL(ROTA_LOGIN, request.url);
     destino.searchParams.set("proximo", `${pathname}${search}`);
     return NextResponse.redirect(destino);
   }
 
-  if (temSessao && ehAutenticacao(pathname)) {
+  if (temCookie && ehAutenticacao(pathname)) {
     return NextResponse.redirect(new URL(ROTA_POS_LOGIN, request.url));
   }
 
-  return resposta;
+  return NextResponse.next();
 }
 
 export const config = {
   matcher: [
     // Tudo, menos estáticos, imagens otimizadas, arquivos do PWA e assets.
-    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|icons/|.*\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?)$).*)",
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|sw.js|icons/|api/saude|.*\.(?:svg|png|jpg|jpeg|gif|webp|ico|woff2?)$).*)",
   ],
 };

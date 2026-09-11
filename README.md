@@ -15,9 +15,9 @@ npm run dev
 
 Sem `.env.local`, o app sobe em **modo demo**: sessão falsa, qualquer e-mail
 entra, nada persiste. Use `demo@`, `afiliado@` ou `gerente@` (senha de 8+
-caracteres) para ver cada papel. Para ligar no Supabase de verdade, copie
-`.env.example` para `.env.local` e aplique as migrações de
-[`supabase/`](supabase/README.md).
+caracteres) para ver cada papel. Para ligar no banco de verdade, copie
+`.env.example` para `.env.local`, preencha `DATABASE_URL` e rode
+`npm run db:migrate` (ver [`db/`](db/README.md)).
 
 | Comando | O que faz |
 |---|---|
@@ -25,6 +25,7 @@ caracteres) para ver cada papel. Para ligar no Supabase de verdade, copie
 | `npm run build` | Build de produção |
 | `npm run lint` | ESLint |
 | `npm run typecheck` | `tsc --noEmit` |
+| `npm run db:migrate` | Aplica as migrações pendentes |
 
 ## Estado
 
@@ -38,13 +39,17 @@ que vai fazer e em que fase entra, e vira tela de verdade na sua fase.
 | [`docs/PLANO.md`](docs/PLANO.md) | Análise, stack, escopo, custos e fases |
 | [`docs/DESIGN-SYSTEM.md`](docs/DESIGN-SYSTEM.md) | Paleta verde, claro/escuro, contraste verificado |
 | [`design/tokens.css`](design/tokens.css) | Tokens em duas camadas |
-| [`supabase/`](supabase/README.md) | Migrações, RLS e configuração do projeto |
+| [`db/`](db/README.md) | Migrações e as decisões fixadas no schema |
 | [`docs/referencia-livefox.md`](docs/referencia-livefox.md) | Mapeamento do concorrente, usado como spec |
 
 ## Stack
 
-Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · Supabase
-(Postgres + Auth + RLS) · TanStack Query.
+Next.js 16 (App Router) · React 19 · TypeScript · Tailwind v4 · Postgres
+(Railway) · TanStack Query.
+
+Autenticação é nossa: Argon2id para senha, sessão opaca no banco, token de
+confirmação e de recuperação por e-mail. Não há cliente de banco no navegador —
+toda leitura passa por Server Component ou Server Action.
 
 ## Como o código está organizado
 
@@ -63,7 +68,9 @@ src/
 │   ├── nav.ts           árvore de navegação — fonte única do menu
 │   ├── rotas.ts         mapa do guard (privado por padrão)
 │   ├── sessao.ts        quem está pedindo + guard de papel
-│   └── supabase/        clientes por requisição
+│   ├── auth/            sessões e tokens de e-mail
+│   ├── db.ts            conexão com o Postgres
+│   └── senha.ts         Argon2id
 └── proxy.ts             guard de sessão e rotação do refresh token
 ```
 
@@ -84,15 +91,25 @@ reais. As correções são estruturais e estão no lugar desde a fase 0:
 
 | Lá | Aqui |
 |---|---|
-| JWT de 30 dias em `localStorage` | Cookie `HttpOnly` + `Secure` + `SameSite=Lax`, com rotação no proxy. O token não é legível por JavaScript de página — nem por um XSS |
-| Flag `admin` dentro do JWT | Papel mora em `perfis.papel`, lido do banco sob RLS a cada requisição |
-| `device_id` aceito sem validação | Tabela `dispositivos` com registro por conta |
+| JWT de 30 dias em `localStorage` | Sessão opaca em cookie `HttpOnly` + `Secure` + `SameSite=Lax`. O banco guarda só o hash do token; sair revoga na hora. Nada legível por JavaScript de página — nem por um XSS |
+| Flag `admin` dentro do JWT | Papel mora em `perfis.papel`, lido do banco a cada requisição |
+| `device_id` aceito sem validação | Cookie de dispositivo próprio, gravado em `dispositivos` e carimbado na sessão |
+| Senha em esquema não declarado | Argon2id com os parâmetros da OWASP; resposta de login com tempo constante, para não entregar quais e-mails têm conta |
 | Painel expondo username e depósito da downline | Nome de exibição e valores agregados; nada de e-mail, CPF ou telefone |
 | — | Saldo de crédito é razão append-only com idempotência, não um campo que se sobrescreve |
 
-Rate limit em `/login`, `/cadastro` e recuperação de senha é do lado do
-Supabase e entra junto com a configuração do projeto (ver
-[`supabase/README.md`](supabase/README.md)).
+Rate limit em login, cadastro e recuperação ainda não existe — era o que o
+Supabase dava de graça e agora é nosso; entra junto com o Redis da fase 1.
+
+## Deploy
+
+Railway, com o serviço apontado para este repositório.
+[`railway.json`](railway.json) já define build, start, healthcheck em
+`/api/saude` e `npm run db:migrate` como pre-deploy — todo deploy migra o banco
+antes de trocar a versão no ar.
+
+Variáveis necessárias no serviço: `DATABASE_URL` (referenciando o serviço
+Postgres) e, opcionalmente, `RESEND_API_KEY` para o e-mail sair de verdade.
 
 ## Prévia da paleta
 

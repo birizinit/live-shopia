@@ -53,6 +53,16 @@ export default async function PerfilPage() {
               rotulo="Papel"
               valor={<Badge tom="marca">{ROTULO_PAPEL[usuario.papel]}</Badge>}
             />
+            <Linha
+              rotulo="E-mail confirmado"
+              valor={
+                usuario.emailVerificado ? (
+                  <Badge tom="sucesso">Confirmado</Badge>
+                ) : (
+                  <Badge tom="alerta">Pendente</Badge>
+                )
+              }
+            />
           </dl>
         </Card>
 
@@ -95,9 +105,10 @@ export default async function PerfilPage() {
         <Card>
           <CardTitulo>Sessão</CardTitulo>
           <CardDescricao>
-            O token fica num cookie <code className="font-[family-name:var(--font-mono)] text-xs">HttpOnly</code>,
-            fora do alcance do JavaScript da página.
-            {usuario.demo && " Esta sessão é do modo demo, não do Supabase."}
+            A sessão é um token opaco guardado no banco só como hash, num cookie{" "}
+            <code className="font-[family-name:var(--font-mono)] text-xs">HttpOnly</code> —
+            fora do alcance do JavaScript da página, e revogável na hora.
+            {usuario.demo && " Esta sessão é do modo demo, não do banco."}
           </CardDescricao>
           <form action={sair} className="mt-4">
             <Button type="submit" variante="secondary">

@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useActionState } from "react";
 import { redefinirSenha, type EstadoForm } from "../actions";
 import { Alerta } from "@/components/ui/alerta";
@@ -8,13 +9,28 @@ import { Campo, Input } from "@/components/ui/input";
 
 const INICIAL: EstadoForm = {};
 
-export function FormRedefinir() {
+export function FormRedefinir({ token }: { token: string }) {
   const [estado, acao, enviando] = useActionState(redefinirSenha, INICIAL);
+
+  if (estado.mensagem) {
+    return (
+      <div className="space-y-6">
+        <Alerta tom="sucesso">{estado.mensagem}</Alerta>
+        <Link
+          href="/login"
+          className="inline-flex h-12 w-full items-center justify-center rounded-md bg-primary px-6 text-base font-medium text-primary-fg shadow-sm transition-colors duration-[--dur-fast] hover:bg-primary-hover"
+        >
+          Ir para o login
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <form action={acao} className="space-y-4">
+      <input type="hidden" name="token" value={token} />
+
       {estado.erro && <Alerta tom="erro">{estado.erro}</Alerta>}
-      {estado.mensagem && <Alerta tom="sucesso">{estado.mensagem}</Alerta>}
 
       <Campo rotulo="Nova senha" htmlFor="senha" dica="Mínimo de 8 caracteres">
         <Input

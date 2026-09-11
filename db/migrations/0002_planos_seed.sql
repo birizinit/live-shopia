@@ -1,10 +1,10 @@
 -- =============================================================================
 -- Planos — semente.
 --
--- Só os dois preços que existem de fato no levantamento do concorrente
+-- Só os dois preços que o levantamento do concorrente confirmou
 -- (docs/referencia-livefox.md §8). O tier intermediário e os tetos de crédito
--- ficam em branco de propósito: são a pendência §9.4 do PLANO.md, e chutar
--- número aqui vira número errado no checkout depois.
+-- ficam nulos de propósito: são a pendência §9.4 do PLANO.md, e chutar número
+-- aqui vira número errado no checkout depois.
 --
 -- `creditos_mes` é em CARACTERES. Referência: ~600 chars/min de fala,
 -- 108.000 chars ≈ 3h ≈ US$16 de ElevenLabs por geração.

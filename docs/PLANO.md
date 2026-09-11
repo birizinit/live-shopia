@@ -8,7 +8,10 @@ contrato da API e o modelo de negócio já estão levantados.
 canal de distribuição · afiliados multinível de 3 níveis dentro do escopo.
 
 **Fase 0 entregue** (10/09/2026): aplicação de pé, navegação das 26 telas, tema
-claro/escuro, autenticação, guard de rota e de papel, schema com RLS.
+claro/escuro, autenticação, guard de rota e de papel, schema aplicado.
+
+**Correção de rota** (11/09/2026): saiu o Supabase, entrou **Postgres puro na
+Railway** — o mesmo lugar onde a aplicação já ia rodar. Ver §2.
 
 ---
 
@@ -56,24 +59,40 @@ Os achados de segurança do original são reais e evitáveis:
 - **PWA** (manifest, service worker, Web Push VAPID) — o app é mobile-first
 - Estado de servidor com **TanStack Query**; estado local com Zustand
 
-### Backend — Supabase + worker Node
-Postgres gerenciado, Auth (refresh token em cookie, reset de senha), RLS,
-Realtime (substitui o SSE do original), Storage para os áudios. Sobra um serviço
-Node pequeno para o que o Supabase não faz: jobs de IA/TTS, webhooks de pagamento
-e o cálculo de comissões.
+### Backend — Postgres na Railway + worker Node
+*Decidido em 11/09/2026, no lugar do Supabase.* A aplicação já ia para a
+Railway; manter banco e app no mesmo projeto tira uma conta, um fornecedor e a
+latência entre os dois. O preço foi escrever o que vinha pronto:
+
+| Vinha do Supabase | Ficou |
+|---|---|
+| Auth | Nosso: Argon2id, sessão opaca no banco, tokens de e-mail |
+| RLS | Escopo por `perfilId` em cada consulta — ver `db/README.md` |
+| Realtime | SSE próprio na fase 4 (é o que o concorrente faz) |
+| Storage | Já era R2 no plano |
+| Rate limit | Pendente; entra com o Redis da fase 1 |
+
+Foram ~2 dias de trabalho a mais e uma rede de proteção a menos (a RLS). Em
+troca: um fornecedor, sem vendor lock-in de auth, e o banco a um hop da
+aplicação. Sobra o mesmo serviço Node para jobs de IA/TTS, webhooks de
+pagamento e cálculo de comissões.
 
 ### Infra transversal
 - **Fila**: BullMQ + Redis (Upstash). Gerar 3h de áudio **não pode ser requisição
   síncrona** — é job com progresso, retry e idempotência.
 - **Storage/CDN**: Cloudflare R2 (egress zero). Áudio de 3h é pesado e é servido
   repetidamente; egress é o custo que surpreende.
-- **Deploy**: Vercel (front) + Fly.io ou Railway (API + worker).
+- **Deploy**: Railway — app, Postgres e, depois, o worker no mesmo projeto.
 
 ### Autenticação — corrigindo o original
-- Access token de 15 min + **refresh token em cookie `HttpOnly; Secure; SameSite=Lax`**, com rotação.
-- Papéis no banco, validados no servidor a cada requisição (RLS no Supabase).
-- `device_id` registrado e **efetivamente validado** no login.
-- Rate limit em `/login`, `/cadastro`, `/senha/*`. Senha com Argon2id.
+- **Sessão opaca em cookie `HttpOnly; Secure; SameSite=Lax`**, com o hash no
+  banco. Substitui o par access/refresh: rotação de refresh token é mitigação
+  para token que não dá para revogar — sessão no banco revoga na hora, que é a
+  garantia mais forte.
+- Papéis no banco, lidos no servidor a cada requisição.
+- `device_id` registrado e carimbado na sessão.
+- Senha com **Argon2id** (parâmetros OWASP) e resposta de login com tempo
+  constante. Rate limit pendente, com o Redis da fase 1.
 
 ---
 
@@ -103,7 +122,7 @@ e o cálculo de comissões.
 | **Anthropic (Claude)** | roteiro de vendas | pago por uso; um roteiro custa centavos |
 | **ElevenLabs** | TTS + clonagem de voz | **principal custo variável** — ver seção 5 |
 | **Gateway BR** (Asaas / Mercado Pago / Pagar.me) | PIX + cartão + **assinatura recorrente** | ~1% PIX, ~3,5% cartão |
-| **Supabase** | banco, auth, storage, realtime | ~US$25/mês |
+| **Railway** (app + Postgres) | banco e aplicação | ~US$10–20/mês |
 | **Cloudflare R2** | áudios + CDN | ~US$5/mês |
 | **Upstash Redis** | fila de jobs | ~US$10/mês |
 | **Vercel** | front | US$0–20/mês |
@@ -230,6 +249,6 @@ Nada disso bloqueia as fases 1 e 2:
    `supabase/migrations/0002_planos_seed.sql` semeia só os dois preços que o
    levantamento confirmou; o tier intermediário e o teto de créditos por plano
    (`planos.creditos_mes`, em caracteres) estão nulos de propósito.
-5. **Projeto Supabase** — criar, aplicar as migrações e ajustar o JWT expiry,
-   a rotação de refresh token e os rate limits (ver `supabase/README.md`).
-   Até lá o app roda em modo demo.
+5. **E-mail transacional** — o fluxo de confirmação e recuperação está pronto,
+   com token no banco. Falta o provedor: sem `RESEND_API_KEY` o conteúdo vai
+   para o log do servidor e nenhum e-mail sai.

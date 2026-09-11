@@ -14,6 +14,7 @@ export const ROTAS_PUBLICAS = [
   "/cadastro",
   "/esqueci",
   "/redefinir",
+  "/confirmar",
   "/planos",
 ] as const;
 
