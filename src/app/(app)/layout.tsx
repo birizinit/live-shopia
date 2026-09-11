@@ -1,6 +1,8 @@
+import { FaixaServico } from "@/components/layout/faixa-servico";
 import { Sidebar } from "@/components/layout/sidebar";
 import { TabBar } from "@/components/layout/tab-bar";
 import { Topbar } from "@/components/layout/topbar";
+import { ProvedorAvisos, RegiaoAvisos } from "@/components/ui/avisos";
 import { obterUsuario } from "@/lib/sessao";
 
 /**
@@ -13,16 +15,21 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const papel = usuario?.papel ?? null;
 
   return (
-    <div className="flex min-h-dvh">
-      <Sidebar papel={papel} />
+    <ProvedorAvisos>
+      <div className="flex min-h-dvh">
+        <Sidebar papel={papel} />
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar usuario={usuario} />
-        <main className="flex-1 px-4 pt-6 pb-28 lg:px-8 lg:pt-8 lg:pb-12">
-          <div className="mx-auto w-full max-w-6xl">{children}</div>
-        </main>
-        <TabBar papel={papel} />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <Topbar usuario={usuario} />
+          <FaixaServico />
+          <main className="flex-1 px-4 pt-6 pb-28 lg:px-8 lg:pt-8 lg:pb-12">
+            <div className="mx-auto w-full max-w-6xl">{children}</div>
+          </main>
+          <TabBar papel={papel} />
+        </div>
       </div>
-    </div>
+
+      <RegiaoAvisos />
+    </ProvedorAvisos>
   );
 }

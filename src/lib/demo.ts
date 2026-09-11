@@ -18,9 +18,20 @@ export const CONTAS_DEMO: readonly { usuario: string; nome: string; papel: Papel
   { usuario: "gerente", nome: "Carla Gerente", papel: "manager" },
 ];
 
+/**
+ * UUIDs fixos. O id da sessão demo entra em `where perfil_id = $1` de dezenas
+ * de consultas; um id que não é uuid estoura 22P02 e quebra a tela em vez de
+ * mostrar exemplo — que é justamente o que o modo demo existe para evitar.
+ */
+const IDS_DEMO: Record<string, string> = {
+  demo: "00000000-0000-4000-8000-000000000001",
+  afiliado: "00000000-0000-4000-8000-000000000002",
+  gerente: "00000000-0000-4000-8000-000000000003",
+};
+
 function montar(usuario: string, nome: string, papel: Papel): Usuario {
   return {
-    id: `demo-${usuario}`,
+    id: IDS_DEMO[usuario] ?? "00000000-0000-4000-8000-0000000000ff",
     email: `${usuario}@shopia.demo`,
     nome,
     usuario,

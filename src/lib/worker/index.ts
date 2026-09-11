@@ -1,0 +1,185 @@
+import "server-only";
+import { bd } from "@/lib/db";
+import { comoJson } from "@/lib/dados/comum";
+import { env, modoDemo } from "@/lib/env";
+import { ErroDominio } from "@/lib/dados/erros";
+import { executarRoteiro } from "./trabalhos/roteiro";
+import { executarTts } from "./trabalhos/tts";
+import { executarFaxina } from "./trabalhos/faxina";
+
+/**
+ * O worker da fila.
+ *
+ * Roda DENTRO do processo Next, ligado por instrumentation.ts. Isso e possivel
+ * porque `next start` na Railway e um processo Node longo-vivo — nao e Vercel,
+ * um laco de fundo sobrevive de verdade. E evita duplicar em JavaScript solto
+ * tudo que ja existe em TypeScript aqui dentro.
+ *
+ * Varias replicas nao se atrapalham: a reserva usa FOR UPDATE SKIP LOCKED, que
+ * e o mecanismo, nao uma convencao. Para mover o worker para um servico
+ * separado depois, basta um processo que chame `iniciarWorker()` e nada mais.
+ */
+
+export type Contexto = {
+  jobId: string;
+  perfilId: string | null;
+  entrada: Record<string, unknown>;
+  progresso: (porcentagem: number) => Promise<void>;
+};
+
+type Handler = (ctx: Contexto) => Promise<Record<string, unknown> | void>;
+
+const HANDLERS: Record<string, Handler> = {
+  roteiro: executarRoteiro,
+  tts: executarTts,
+  faxina: executarFaxina,
+};
+
+const TIPOS = Object.keys(HANDLERS);
+
+const IDENTIDADE = `worker-${process.pid}`;
+const INTERVALO_OCIOSO_MS = 5_000;
+const INTERVALO_RECUPERACAO_MS = 60_000;
+
+let rodando = false;
+
+type LinhaJob = {
+  id: string;
+  perfil_id: string | null;
+  tipo: string;
+  entrada: Record<string, unknown>;
+};
+
+async function marcarProgresso(jobId: string, porcentagem: number) {
+  const valor = Math.max(0, Math.min(100, Math.round(porcentagem)));
+  await bd()`update jobs set progresso = ${valor} where id = ${jobId}`;
+}
+
+async function registrarTentativa(job: LinhaJob, inicio: number, resultado: string, erro?: string) {
+  const sql = bd();
+  await sql`
+    insert into jobs_tentativas (job_id, numero, worker, terminada_em, resultado, erro, duracao_ms)
+    select ${job.id},
+           (select coalesce(max(numero), 0) + 1 from jobs_tentativas where job_id = ${job.id}),
+           ${IDENTIDADE}, now(), ${resultado}::estado_job, ${erro ?? null},
+           ${Math.round(performance.now() - inicio)}
+  `;
+}
+
+/** Falha que nao adianta repetir: chave invalida, sem saldo no provedor. */
+async function falharDeVez(jobId: string, mensagem: string) {
+  await bd()`
+    update jobs
+       set estado = 'falhou', erro = ${mensagem}, tentativas = max_tentativas,
+           reservado_por = null, reservado_ate = null, concluido_em = now()
+     where id = ${jobId}
+  `;
+}
+
+/** Devolve o credito quando o trabalho morreu de vez. */
+async function estornarSePreciso(job: LinhaJob, motivo: string) {
+  const lancamento = job.entrada?.lancamento_id;
+  if (typeof lancamento === "string") {
+    await bd()`select estornar_creditos(${lancamento}, ${motivo})`;
+  }
+}
+
+async function executarUm(job: LinhaJob) {
+  const inicio = performance.now();
+  const handler = HANDLERS[job.tipo];
+
+  if (!handler) {
+    await falharDeVez(job.id, `sem handler para o tipo ${job.tipo}`);
+    return;
+  }
+
+  try {
+    const resultado = await handler({
+      jobId: job.id,
+      perfilId: job.perfil_id,
+      entrada: job.entrada ?? {},
+      progresso: (p) => marcarProgresso(job.id, p),
+    });
+
+    const sql = bd();
+    await sql`select concluir_job(${job.id}, ${comoJson(resultado ?? {})})`;
+    await registrarTentativa(job, inicio, "concluido");
+  } catch (erro) {
+    const mensagem = erro instanceof Error ? erro.message : String(erro);
+    const permanente = erro instanceof ErroDominio && erro.codigo === "sem_permissao";
+
+    if (permanente) {
+      await falharDeVez(job.id, mensagem);
+      await estornarSePreciso(job, mensagem);
+    } else {
+      const estado = await bd()<{ estado: string | null }[]>`
+        select falhar_job(${job.id}, ${mensagem}) as estado
+      `;
+      if (estado[0]?.estado === "falhou") await estornarSePreciso(job, mensagem);
+    }
+
+    await registrarTentativa(job, inicio, permanente ? "falhou" : "pendente", mensagem);
+    console.error(`[worker] job ${job.id} (${job.tipo}) falhou:`, mensagem);
+  }
+}
+
+async function processarLote(): Promise<number> {
+  const jobs = await bd()<LinhaJob[]>`
+    select id, perfil_id, tipo, entrada from reservar_jobs(${IDENTIDADE}, ${TIPOS}, 3)
+  `;
+
+  // Em serie de proposito: as chamadas externas sao pagas e o container e
+  // pequeno. Paralelismo aqui compra latencia e vende estabilidade.
+  for (const job of jobs) await executarUm(job);
+  return jobs.length;
+}
+
+export async function iniciarWorker() {
+  if (rodando || modoDemo || !env.workerLigado) return;
+  rodando = true;
+
+  console.log(`[worker] ligado (${IDENTIDADE}), tipos: ${TIPOS.join(", ")}`);
+
+  let acordar: (() => void) | null = null;
+
+  // Acorda por evento; o intervalo ocioso e so a rede de seguranca.
+  try {
+    await bd().listen("shopia_jobs", () => acordar?.());
+  } catch (erro) {
+    console.warn("[worker] LISTEN indisponível, seguindo por intervalo:", erro);
+  }
+
+  const esperar = (ms: number) =>
+    new Promise<void>((resolve) => {
+      const t = setTimeout(() => {
+        acordar = null;
+        resolve();
+      }, ms);
+      acordar = () => {
+        clearTimeout(t);
+        acordar = null;
+        resolve();
+      };
+    });
+
+  let ultimaRecuperacao = 0;
+
+  // Laço perpétuo: nenhum erro aqui pode derrubar o processo do app.
+  void (async () => {
+    for (;;) {
+      try {
+        const agora = performance.now();
+        if (agora - ultimaRecuperacao > INTERVALO_RECUPERACAO_MS) {
+          ultimaRecuperacao = agora;
+          await bd()`select recuperar_jobs_travados()`;
+        }
+
+        const feitos = await processarLote();
+        if (feitos === 0) await esperar(INTERVALO_OCIOSO_MS);
+      } catch (erro) {
+        console.error("[worker] laço falhou, seguindo:", erro);
+        await esperar(INTERVALO_OCIOSO_MS);
+      }
+    }
+  })();
+}

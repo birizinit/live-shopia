@@ -27,6 +27,10 @@ export function bd() {
     connect_timeout: 15,
     ssl: env.databaseSsl ? "require" : false,
     onnotice: () => {},
+    // Fuso resolvido na conexão, não em cada consulta. Sem isto o "dia" de um
+    // rollup sai em UTC e o "hoje" da tela em BRT — das 21h à meia-noite os
+    // dois discordam, todos os dias.
+    connection: { timezone: "America/Sao_Paulo" },
   });
 
   if (!env.producao) globalThis.__shopia_sql = cliente;
