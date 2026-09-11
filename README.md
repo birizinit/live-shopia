@@ -29,10 +29,16 @@ caracteres) para ver cada papel. Para ligar no banco de verdade, copie
 
 ## Estado
 
-**Fase 0 — fundação: concluída.** Existe aplicação: navegação completa das 26
-telas, tema claro/escuro, autenticação, guard de rota e de papel, schema do
-banco com RLS. As telas de produto ainda são especificação — cada uma mostra o
-que vai fazer e em que fase entra, e vira tela de verdade na sua fase.
+**Fases 0 a 7 construídas.** As 26 telas existem e funcionam, mais um tour
+guiado de onboarding. 61 tabelas, fila de jobs em Postgres, worker no próprio
+processo, Claude e ElevenLabs integrados.
+
+Três coisas não rodam de verdade ainda, e não é por falta de código:
+`/dashboard` e `/ranking` sobem vazios porque a única origem de venda é a
+extensão, que ainda não existe; `/planos` e `/creditos` têm o checkout
+desabilitado até o gateway ser escolhido; e o roteiro e o áudio saem como
+exemplo rotulado até as chaves de IA entrarem. Detalhe em
+[`docs/PLANO.md`](docs/PLANO.md) §10.
 
 | Onde | O quê |
 |---|---|
@@ -69,6 +75,11 @@ src/
 │   ├── rotas.ts         mapa do guard (privado por padrão)
 │   ├── sessao.ts        quem está pedindo + guard de papel
 │   ├── auth/            sessões e tokens de e-mail
+│   ├── dados/           um módulo por domínio; perfilId é sempre o 1º argumento
+│   ├── integracoes/     Claude e ElevenLabs, com exemplo quando falta a chave
+│   ├── worker/          fila de jobs e os handlers
+│   ├── armazenamento.ts áudio em blocos, hoje no próprio Postgres
+│   ├── caracteres.ts    a contagem canônica — crédito é medido aqui
 │   ├── db.ts            conexão com o Postgres
 │   └── senha.ts         Argon2id
 └── proxy.ts             guard de sessão e rotação do refresh token
@@ -83,6 +94,15 @@ Três coisas que valem saber antes de mexer:
 - **Componente nunca toca em primitiva de cor.** Só nos tokens semânticos
   (`--surface`, `--primary`, `--text`…). Trocar o tema é redefinir uma lista de
   variáveis, não caçar cor no código.
+- **Sem RLS, o escopo é da consulta.** Toda função em `src/lib/dados/` recebe
+  `perfilId` como primeiro argumento e usa no `where`. Sem exceção.
+- **Crédito só sai por uma porta**: `debitarEEnfileirar()`. O débito e o
+  enfileiramento acontecem no mesmo commit, e a chave de idempotência nasce no
+  render do formulário — não dentro da action, senão o duplo clique cobra duas
+  vezes.
+- **O áudio de 3h não existe como arquivo.** São ~45 blocos de ~2 MB tocados em
+  ordem. Repetir a lista em laço não gasta crédito, e é isso que sustenta a
+  margem do produto.
 
 ## Segurança — o que foi feito diferente do original
 

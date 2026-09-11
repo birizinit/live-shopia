@@ -5,6 +5,7 @@ import {
   ROTA_POS_LOGIN,
   ehAutenticacao,
   ehEmBreve,
+  ehPorToken,
   ehPublica,
 } from "@/lib/rotas";
 
@@ -29,6 +30,10 @@ export function proxy(request: NextRequest) {
   if (ehEmBreve(pathname)) {
     return NextResponse.redirect(new URL(ROTA_POS_LOGIN, request.url));
   }
+
+  // A extensão autentica por token no cabeçalho e não tem cookie nenhum.
+  // Mandá-la para /login mataria a superfície inteira.
+  if (ehPorToken(pathname)) return NextResponse.next();
 
   const cookie = modoDemo ? COOKIE_DEMO : COOKIE_SESSAO;
   const temCookie = Boolean(request.cookies.get(cookie)?.value);

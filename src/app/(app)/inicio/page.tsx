@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Radio, Sparkles, Zap } from "lucide-react";
+import { ArrowRight, Compass, Radio, Sparkles, Zap } from "lucide-react";
+import { dispensarCartaoTour } from "@/app/(app)/bem-vindo/actions";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { resumoTour, type ResumoTour } from "@/lib/dados/onboarding";
 import { exigirUsuario } from "@/lib/sessao";
 import { numero } from "@/lib/utils";
 
@@ -43,9 +45,72 @@ const PASSOS = [
   },
 ] as const;
 
+/**
+ * Retomada do tour.
+ *
+ * Discreto de proposito: quem ja entendeu a ferramenta nao precisa de um
+ * banner na cara todo dia — por isso "Agora nao" existe e fica guardado em
+ * `dicas_vistas`, na conta.
+ */
+function CartaoTour({ resumo }: { resumo: ResumoTour }) {
+  // Tour todo lido e aceite desatualizado: o aviso de risco foi reescrito e
+  // precisa ser aceito de novo. A cobranca muda de texto.
+  const soAceite = resumo.pendentes === 0 && !resumo.riscoEmDia;
+
+  return (
+    <Card className="mt-4 flex flex-wrap items-center gap-4 bg-bg-subtle shadow-none">
+      <span
+        className="grid size-10 shrink-0 place-items-center rounded-md bg-surface text-primary"
+        aria-hidden
+      >
+        <Compass className="size-5" />
+      </span>
+
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold">
+          {soAceite
+            ? "Falta registrar o aceite do aviso de automação"
+            : "Continue o tour de boas-vindas"}
+        </p>
+        <p className="mt-0.5 text-sm text-fg-muted">
+          {soAceite ? (
+            "O texto do aviso mudou. Ele explica o risco de automatizar o LIVE Studio, e o seu aceite fica registrado com data e versão."
+          ) : (
+            <>
+              {resumo.pendentes === 1 ? "Falta" : "Faltam"}{" "}
+              <span className="num">{resumo.pendentes}</span> de{" "}
+              <span className="num">{resumo.total}</span> passos
+              {resumo.proximoTitulo ? `, a começar por “${resumo.proximoTitulo}”` : ""}.
+              O passo do loop e o do crédito são os que evitam gastar à toa.
+            </>
+          )}
+        </p>
+      </div>
+
+      <div className="flex shrink-0 gap-2">
+        <Link
+          href="/bem-vindo"
+          className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-fg hover:bg-primary-hover"
+        >
+          {soAceite ? "Ler o aviso" : "Continuar"}
+        </Link>
+        <form action={dispensarCartaoTour}>
+          <button
+            type="submit"
+            className="inline-flex h-9 items-center rounded-md px-3 text-sm font-medium text-fg-muted transition-colors duration-[--dur-fast] hover:bg-surface hover:text-fg"
+          >
+            Agora não
+          </button>
+        </form>
+      </div>
+    </Card>
+  );
+}
+
 export default async function InicioPage() {
   const usuario = await exigirUsuario("/inicio");
   const primeiroNome = (usuario.nome || usuario.usuario).split(" ")[0];
+  const tour = await resumoTour(usuario.id);
 
   return (
     <>
@@ -86,6 +151,8 @@ export default async function InicioPage() {
         </Card>
       </div>
 
+      {tour.pendente && !tour.cartaoDispensado && <CartaoTour resumo={tour} />}
+
       <section className="mt-6">
         <div className="mb-3 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Montar a live</h2>
@@ -116,6 +183,18 @@ export default async function InicioPage() {
             </li>
           ))}
         </ol>
+
+        <p className="mt-4 text-sm text-fg-muted">
+          Não sabe por onde começar?{" "}
+          <Link
+            href="/bem-vindo"
+            className="font-medium text-primary underline-offset-4 hover:underline"
+          >
+            Veja o tour de boas-vindas
+          </Link>{" "}
+          — ele explica por que o loop não cobra de novo e como o crédito é medido.
+          Fica salvo na sua conta e pode ser revisto quando quiser.
+        </p>
       </section>
     </>
   );

@@ -6,6 +6,7 @@ import { ErroDominio } from "@/lib/dados/erros";
 import { executarRoteiro } from "./trabalhos/roteiro";
 import { executarTts } from "./trabalhos/tts";
 import { executarFaxina } from "./trabalhos/faxina";
+import { executarClonagem } from "./trabalhos/clonagem";
 
 /**
  * O worker da fila.
@@ -32,6 +33,7 @@ type Handler = (ctx: Contexto) => Promise<Record<string, unknown> | void>;
 const HANDLERS: Record<string, Handler> = {
   roteiro: executarRoteiro,
   tts: executarTts,
+  clonagem: executarClonagem,
   faxina: executarFaxina,
 };
 
@@ -40,6 +42,8 @@ const TIPOS = Object.keys(HANDLERS);
 const IDENTIDADE = `worker-${process.pid}`;
 const INTERVALO_OCIOSO_MS = 5_000;
 const INTERVALO_RECUPERACAO_MS = 60_000;
+/** A faxina nao precisa ser pontual; precisa acontecer. */
+const INTERVALO_FAXINA_MS = 60 * 60 * 1000;
 
 let rodando = false;
 
@@ -163,6 +167,7 @@ export async function iniciarWorker() {
     });
 
   let ultimaRecuperacao = 0;
+  let ultimaFaxina = 0;
 
   // Laço perpétuo: nenhum erro aqui pode derrubar o processo do app.
   void (async () => {
@@ -172,6 +177,21 @@ export async function iniciarWorker() {
         if (agora - ultimaRecuperacao > INTERVALO_RECUPERACAO_MS) {
           ultimaRecuperacao = agora;
           await bd()`select recuperar_jobs_travados()`;
+        }
+
+        // Enfileirar a faxina em vez de executar direto mantem a rotina no
+        // mesmo trilho dos outros trabalhos: tem tentativa, lease e registro.
+        // A chave por hora impede duas replicas agendarem a mesma faxina.
+        const agoraMs = Date.now();
+        if (agoraMs - ultimaFaxina > INTERVALO_FAXINA_MS) {
+          ultimaFaxina = agoraMs;
+          const hora = new Date(agoraMs).toISOString().slice(0, 13);
+          await bd()`
+            insert into jobs (tipo, chave_idempotencia, entrada)
+            values ('faxina', ${`faxina:${hora}`}, '{}'::jsonb)
+            on conflict (tipo, chave_idempotencia) where chave_idempotencia is not null
+              do nothing
+          `;
         }
 
         const feitos = await processarLote();

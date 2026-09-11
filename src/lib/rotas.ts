@@ -26,6 +26,24 @@ export const ROTAS_AUTENTICACAO = [
   "/redefinir",
 ] as const;
 
+/**
+ * Rotas que autenticam por TOKEN, não por cookie de sessão.
+ *
+ * A extensão de navegador não tem sessão: ela manda o token da licença num
+ * cabeçalho, e cada handler confere. Passar pelo guard de cookie mandaria a
+ * extensão para a tela de login, que é o que ela menos precisa — e o produto
+ * inteiro depende dela conseguir falar com o servidor.
+ *
+ * "Aberto ao guard" não é "aberto": a autorização acontece dentro do handler.
+ */
+export const ROTAS_POR_TOKEN = ["/api/ext"] as const;
+
+export function ehPorToken(caminho: string) {
+  return ROTAS_POR_TOKEN.some(
+    (rota) => caminho === rota || caminho.startsWith(`${rota}/`),
+  );
+}
+
 /** Existe no menu, ainda não existe de verdade. */
 export const ROTAS_EM_BREVE = ["/assistente"] as const;
 

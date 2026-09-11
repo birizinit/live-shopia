@@ -10,6 +10,10 @@ canal de distribuição · afiliados multinível de 3 níveis dentro do escopo.
 **Fase 0 entregue** (10/09/2026): aplicação de pé, navegação das 26 telas, tema
 claro/escuro, autenticação, guard de rota e de papel, schema aplicado.
 
+**Fases 1 a 7 entregues** (11/09/2026): as 19 telas restantes, mais um tour
+guiado de onboarding. 61 tabelas, fila de jobs em Postgres, worker em processo,
+integrações de Claude e ElevenLabs. O que fica de fora está na seção 10.
+
 **Correção de rota** (11/09/2026): saiu o Supabase, entrou **Postgres puro na
 Railway** — o mesmo lugar onde a aplicação já ia rodar. Ver §2.
 
@@ -221,13 +225,13 @@ para construir, é bloqueio para lançar.
 | Fase | Entrega | Duração |
 |---|---|---|
 | ✅ **0 — Fundação** | Repo, design system verde claro/escuro, layout, auth, banco | **feito** |
-| **1 — Núcleo de IA** | Produtos, roteiro (Claude), vozes, TTS, biblioteca, fila de jobs | 1–1,5 semana |
-| **2 — Áudio da live** | Montagem do loop, trilha ambiente, player, download/stream | ~1 semana |
-| **3 — Monetização** | Planos, créditos, checkout PIX/cartão, webhooks, medidor de consumo | ~1 semana |
-| **4 — Dados** | Dashboard de vendas, realtime, ranking, push | ~1 semana |
-| **5 — Extensão** | MV3, mixer de áudio, mapa remoto de seletores, telemetria, chat | 2–3 semanas |
-| **6 — Afiliados** | 3 níveis, gerente, comissões, clawback, saques, KYC | 1,5–2 semanas |
-| **7 — Conteúdo** | Aulas, onboarding, clonagem de voz, landing | ~1 semana |
+| ✅ **1 — Núcleo de IA** | Produtos, roteiro (Claude), vozes, TTS, biblioteca, fila de jobs | 1–1,5 semana |
+| ✅ **2 — Áudio da live** | Montagem do loop, trilha ambiente, player, download/stream | ~1 semana |
+| ✅ **3 — Monetização** | Planos, créditos, checkout PIX/cartão, webhooks, medidor de consumo | ~1 semana |
+| ✅ **4 — Dados** | Dashboard de vendas, realtime, ranking, push | ~1 semana |
+| ✅ **5 — Extensão** | MV3, mixer de áudio, mapa remoto de seletores, telemetria, chat | 2–3 semanas |
+| ✅ **6 — Afiliados** | 3 níveis, gerente, comissões, clawback, saques, KYC | 1,5–2 semanas |
+| ✅ **7 — Conteúdo** | Aulas, onboarding, clonagem de voz, landing | ~1 semana |
 
 **MVP cobrável ao fim da fase 3 — ~4 semanas. v1 completa — ~10 a 11 semanas.**
 A fase 5 é a de estimativa menos confiável: depende do DOM de um sistema de
@@ -252,3 +256,22 @@ Nada disso bloqueia as fases 1 e 2:
 5. **E-mail transacional** — o fluxo de confirmação e recuperação está pronto,
    com token no banco. Falta o provedor: sem `RESEND_API_KEY` o conteúdo vai
    para o log do servidor e nenhum e-mail sai.
+
+
+---
+
+## 10. O que está no ar e o que ainda não roda de verdade
+
+Todas as 19 telas foram construídas e sobem funcionando. Três delas dependem
+de coisas que ainda não existem, e isso não se resolve com código:
+
+| Depende de | Telas | O que acontece hoje |
+|---|---|---|
+| **Extensão de navegador** | `/dashboard`, `/ranking`, `/painel`, e a parte de dados de `/live` | Sobem e consultam o banco de verdade, mas mostram estado vazio: a única origem de venda e de evento é a extensão, que ainda não existe como código |
+| **Gateway de pagamento** (§9.1) | `/planos`, `/creditos` | Comparativo, extrato e projeção funcionam. Assinar e comprar ficam **desabilitados**, com aviso — cobrança nunca é simulada |
+| **Chaves de IA e voz** | `/roteiro`, `/estudio`, `/clonar`, `/vozes` | Funcionam de ponta a ponta com exemplo rotulado. Com a chave, passam a gerar de verdade sem mudar uma linha |
+| **Parecer jurídico** (§7) | `/indique`, `/gerente`, `/afiliado` | Construídas e funcionando, com aviso no topo. Nenhum pagamento sai automaticamente: saque cria pendência de aprovação |
+
+A extensão em si (pacote MV3) é o próximo bloco de trabalho e não foi iniciada.
+O lado web que ela vai consumir está pronto: licença, mapa remoto de seletores,
+telemetria de quebra e ingestão de venda, tudo em `/api/ext/*`.

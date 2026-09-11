@@ -61,7 +61,19 @@ export const env = {
   resendApiKey: texto(process.env.RESEND_API_KEY),
 
   // Operacao
-  workerLigado: process.env.SHOPIA_WORKER !== "0",
+  /**
+   * A fila mora no banco, e banco de desenvolvimento apontado para produção é
+   * o caso comum aqui. Se o worker ligasse sozinho em dev, uma máquina de
+   * desenvolvedor passaria a processar job de cliente com código não
+   * publicado — e foi exatamente o que aconteceu na primeira vez.
+   *
+   * Em produção liga sozinho (desligue com SHOPIA_WORKER=0); fora dela, só
+   * com SHOPIA_WORKER=1 explícito.
+   */
+  workerLigado:
+    process.env.NODE_ENV === "production"
+      ? process.env.SHOPIA_WORKER !== "0"
+      : process.env.SHOPIA_WORKER === "1",
   cronSegredo: texto(process.env.CRON_SEGREDO),
 
   producao: process.env.NODE_ENV === "production",

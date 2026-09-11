@@ -70,3 +70,19 @@ comissões entram nas fases 1 a 6.
   volume é pequeno as linhas mortas não incomodam; passa a incomodar.
 - Rate limit em login, cadastro e recuperação. Era do Supabase; agora é nosso,
   e entra junto com o Redis da fase 1.
+
+
+## A fila é compartilhada — cuidado no desenvolvimento
+
+A fila de jobs mora no próprio banco. Se o seu `.env.local` aponta para o
+Postgres de produção (que é o caso quando você usa o proxy público da Railway),
+**um worker local disputa os jobs dos clientes** — e os processa com o código
+que está na sua máquina, não com o que foi publicado.
+
+Isso aconteceu de verdade durante a construção: um job enfileirado localmente
+foi executado pelo worker de produção (`worker-15`, PID de container), e a
+versão nova do handler nunca rodava por aqui.
+
+Por isso o worker é **opt-in fora de produção**: só sobe com `SHOPIA_WORKER=1`.
+Ligue quando for exatamente isso que você quer, e prefira um banco separado
+para desenvolvimento assim que houver cliente de verdade.

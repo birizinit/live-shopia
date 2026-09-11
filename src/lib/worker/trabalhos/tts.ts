@@ -2,6 +2,7 @@ import "server-only";
 import { bd } from "@/lib/db";
 import { guardar } from "@/lib/armazenamento";
 import { sintetizar } from "@/lib/integracoes/elevenlabs";
+import { servicos } from "@/lib/env";
 import { ErroDominio } from "@/lib/dados/erros";
 import type { Contexto } from "../index";
 
@@ -15,6 +16,17 @@ import type { Contexto } from "../index";
 export async function executarTts({ perfilId, entrada, progresso }: Contexto) {
   const audioId = String(entrada.audio_id ?? "");
   if (!perfilId || !audioId) throw new ErroDominio("dado_invalido", "job de tts sem áudio");
+
+  // Sem chave, sintetizar() devolve um tom de exemplo — e o crédito JA FOI
+  // debitado quando o job entrou na fila. Gravar o exemplo como bloco pronto
+  // fecharia o job com sucesso e o usuário teria pago por bipes. "sem_permissao"
+  // é o código que o worker trata como falha permanente: estorna e não repete.
+  if (!servicos.voz) {
+    throw new ErroDominio(
+      "sem_permissao",
+      "A síntese de voz depende de ELEVENLABS_API_KEY, que não está configurada.",
+    );
+  }
 
   const sql = bd();
 

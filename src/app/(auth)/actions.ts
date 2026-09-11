@@ -9,6 +9,9 @@ import { emailDeConfirmacao, emailDeRecuperacao } from "@/lib/email";
 import { modoDemo } from "@/lib/env";
 import { ROTA_POS_LOGIN } from "@/lib/rotas";
 import { conferirSenha, gastarTempoDeConferencia, gerarHash } from "@/lib/senha";
+import { consumirLimite } from "@/lib/dados/comum";
+import { ipDoPedido } from "@/lib/rede";
+import { headers } from "next/headers";
 
 export type EstadoForm = {
   erro?: string;
@@ -45,6 +48,28 @@ function primeiroErro(erro: z.ZodError): string {
   return erro.issues[0]?.message ?? "Confira os dados informados";
 }
 
+/**
+ * Teto de tentativas. Era o que o Supabase dava de graça e agora é nosso.
+ *
+ * Dois baldes de propósito: por origem, que barra o varredor; e por e-mail
+ * alvo, que barra a força bruta distribuída contra uma conta específica —
+ * botnet troca de IP, não troca de alvo.
+ *
+ * Importa mais aqui do que em API comum: cada tentativa de login custa uma
+ * verificação Argon2id de 19 MiB, então o próprio custo que protege a senha
+ * viraria a arma contra o servidor.
+ */
+async function dentroDoLimite(acao: string, alvo: string, teto: number, janelaS: number) {
+  const ip = ipDoPedido(await headers()) ?? "sem-ip";
+  const [porOrigem, porAlvo] = await Promise.all([
+    consumirLimite(`${acao}:ip:${ip}`, teto * 2, janelaS),
+    consumirLimite(`${acao}:alvo:${alvo.toLowerCase()}`, teto, janelaS),
+  ]);
+  return porOrigem && porAlvo;
+}
+
+const EXCESSO = "Muitas tentativas. Espere alguns minutos e tente de novo.";
+
 function destinoSeguro(bruto: FormDataEntryValue | null): string {
   const valor = typeof bruto === "string" ? bruto : "";
   // Só caminho interno: "//evil.com" e "https://…" viram redirect aberto.
@@ -64,6 +89,10 @@ export async function entrar(
   const parsed = esquemaEntrar.safeParse(dados);
   if (!parsed.success) {
     return { erro: primeiroErro(parsed.error), campos: { email: dados.email } };
+  }
+
+  if (!(await dentroDoLimite("login", dados.email, 10, 900))) {
+    return { erro: EXCESSO, campos: { email: dados.email } };
   }
 
   if (modoDemo) {
@@ -117,6 +146,13 @@ export async function cadastrar(
     };
   }
 
+  if (!(await dentroDoLimite("cadastro", dados.email, 5, 3600))) {
+    return {
+      erro: EXCESSO,
+      campos: { nome: dados.nome, usuario: dados.usuario, email: dados.email },
+    };
+  }
+
   if (modoDemo) {
     const { entrarDemo } = await import("@/lib/demo");
     await entrarDemo(dados.usuario, dados.nome);
@@ -152,7 +188,11 @@ export async function cadastrar(
   await emailDeConfirmacao(dados.email, token);
 
   await criarSessao(perfilId);
-  redirect(ROTA_POS_LOGIN);
+
+  // Conta nova vai para o tour, e nao para /inicio: o aviso de risco de
+  // automacao e o funcionamento do credito precisam ser lidos ANTES da
+  // primeira geracao. Quem ja tem conta continua caindo em ROTA_POS_LOGIN.
+  redirect("/bem-vindo");
 }
 
 export async function solicitarRecuperacao(
@@ -162,7 +202,11 @@ export async function solicitarRecuperacao(
   const email = String(formData.get("email") ?? "").trim();
   if (!z.email().safeParse(email).success) return { erro: "E-mail inválido" };
 
-  if (!modoDemo) {
+  // Mesmo estourando o teto, a resposta final é a genérica de sempre — dizer
+  // "muitas tentativas" só para e-mail existente viraria um oráculo de conta.
+  const podeSeguir = await dentroDoLimite("recuperacao", email, 5, 3600);
+
+  if (!modoDemo && podeSeguir) {
     const linhas = await bd()<{ id: string }[]>`
       select id from perfis where lower(email) = lower(${email})
     `;

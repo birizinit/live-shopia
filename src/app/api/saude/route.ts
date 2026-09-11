@@ -17,9 +17,9 @@ export async function GET() {
     await bd()`select 1`;
     return NextResponse.json({ ok: true, modo: "banco" });
   } catch (erro) {
-    return NextResponse.json(
-      { ok: false, erro: erro instanceof Error ? erro.message : "desconhecido" },
-      { status: 503 },
-    );
+    // O detalhe vai para o log de quem opera o deploy. A resposta publica nao
+    // carrega nome de host interno nem mensagem crua do driver.
+    console.error("[saude] banco indisponível:", erro);
+    return NextResponse.json({ ok: false, modo: "banco" }, { status: 503 });
   }
 }

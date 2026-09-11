@@ -91,3 +91,23 @@ export async function configuracao(chave: string, padrao: number): Promise<numbe
 export function comoJson(valor: unknown) {
   return bd().json(valor as Parameters<ReturnType<typeof bd>["json"]>[0]);
 }
+
+/**
+ * Teto de tentativas por janela, direto no banco (funcao consumir_limite).
+ *
+ * Devolve true quando pode seguir. Era o que o Supabase dava de graca e agora
+ * e nosso: sem isto, /login aceita forca bruta e cada tentativa custa uma
+ * verificacao Argon2id de 19 MiB — o proprio custo que protege a senha vira a
+ * arma contra o servidor.
+ */
+export async function consumirLimite(chave: string, teto: number, janelaSegundos: number) {
+  try {
+    const linhas = await bd()<{ ok: boolean }[]>`
+      select consumir_limite(${chave}, ${teto}, ${janelaSegundos}) as ok
+    `;
+    return linhas[0]?.ok ?? true;
+  } catch {
+    // Banco indisponivel nao pode virar porta trancada para todo mundo.
+    return true;
+  }
+}

@@ -3,6 +3,7 @@ import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { cookies, headers } from "next/headers";
 import { bd } from "../db";
 import { env } from "../env";
+import { ipDoPedido } from "../rede";
 import type { Papel } from "../roles";
 import type { Usuario } from "../sessao";
 
@@ -26,16 +27,6 @@ const MINUTOS_ENTRE_TOQUES = 10;
 
 function hashDoToken(token: string) {
   return createHash("sha256").update(token).digest();
-}
-
-function primeiroIp(encaminhado: string | null) {
-  const bruto = encaminhado?.split(",")[0]?.trim();
-  if (!bruto) return null;
-  // A coluna é `inet`: valor malformado derruba o insert, então só passa o
-  // que se parece com IP.
-  const ehIpv4 = /^\d{1,3}(\.\d{1,3}){3}$/.test(bruto);
-  const ehIpv6 = /^[0-9a-f:]+$/i.test(bruto) && bruto.includes(":");
-  return ehIpv4 || ehIpv6 ? bruto : null;
 }
 
 /** Id estável do navegador — é o que dá lastro à trava de dispositivo. */
@@ -62,7 +53,7 @@ export async function criarSessao(perfilId: string) {
 
   const token = randomBytes(32).toString("base64url");
   const userAgent = cabecalhos.get("user-agent")?.slice(0, 500) ?? null;
-  const ip = primeiroIp(cabecalhos.get("x-forwarded-for"));
+  const ip = ipDoPedido(cabecalhos);
   const deviceId = await idDoDispositivo();
 
   await sql`
