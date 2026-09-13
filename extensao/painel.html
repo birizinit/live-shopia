@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Shopia</title>
+    <link rel="stylesheet" href="painel.css" />
+  </head>
+  <body>
+    <header class="topo">
+      <span class="marca">
+        <svg viewBox="0 0 512 512" aria-hidden="true" class="logo">
+          <rect width="512" height="512" rx="116" fill="var(--primary)" />
+          <g stroke="var(--primary-fg)" stroke-width="34" stroke-linecap="round" fill="none">
+            <path d="M146 216v80" />
+            <path d="M212 168v176" />
+            <path d="M278 136v240" />
+            <path d="M344 192v128" />
+          </g>
+        </svg>
+        Shopia
+      </span>
+      <span class="versao" id="versao"></span>
+    </header>
+
+    <main>
+      <!-- ENTRAR -->
+      <section id="tela-entrar" hidden>
+        <h1>Conectar esta máquina</h1>
+        <p class="ajuda">
+          Abra <strong>Extensão</strong> no painel da Shopia, copie o código da
+          licença e cole aqui. Ele fica guardado só neste navegador.
+        </p>
+        <label class="campo">
+          <span>Código da licença</span>
+          <input id="token" type="password" placeholder="shpx_…" autocomplete="off" spellcheck="false" />
+        </label>
+        <button id="btn-entrar" class="botao primario">Conectar</button>
+        <p id="erro-entrar" class="erro" role="alert" hidden></p>
+      </section>
+
+      <!-- OPERAR -->
+      <section id="tela-operar" hidden>
+        <div class="estado" id="estado-licenca">
+          <span class="ponto" id="ponto-licenca"></span>
+          <span id="texto-licenca">Conferindo a licença…</span>
+        </div>
+
+        <div id="aviso-parar" class="aviso perigo" role="alert" hidden></div>
+        <div id="aviso-versao" class="aviso alerta" hidden></div>
+
+        <!-- Cabo virtual -->
+        <div class="bloco">
+          <div class="bloco-topo">
+            <h2>Cabo de áudio</h2>
+            <button id="btn-procurar" class="botao pequeno">Procurar</button>
+          </div>
+          <p class="ajuda" id="ajuda-cabo">
+            A voz sai por um cabo virtual, e o LIVE Studio escuta esse cabo como
+            se fosse um microfone.
+          </p>
+          <label class="campo">
+            <span>Saída de áudio</span>
+            <select id="saidas" aria-describedby="ajuda-cabo"></select>
+          </label>
+          <p id="cabo-nao-achado" class="aviso alerta" hidden>
+            Nenhum cabo virtual encontrado. Instale o
+            <a href="https://vb-audio.com/Cable/" target="_blank" rel="noopener">VB-Cable</a>
+            no Windows ou o
+            <a href="https://existential.audio/blackhole/" target="_blank" rel="noopener">BlackHole</a>
+            no macOS, e clique em Procurar.
+          </p>
+        </div>
+
+        <!-- Áudio da live -->
+        <div class="bloco">
+          <div class="bloco-topo">
+            <h2>Áudio da live</h2>
+            <button id="btn-recarregar" class="botao pequeno">Recarregar</button>
+          </div>
+          <p id="montagem-nome" class="destaque">—</p>
+          <p id="montagem-resumo" class="ajuda"></p>
+        </div>
+
+        <!-- Controle -->
+        <div class="bloco">
+          <button id="btn-tocar" class="botao primario grande">Entrar no ar</button>
+          <button id="btn-parar" class="botao perigo grande" hidden>Encerrar</button>
+          <dl class="medidas">
+            <div><dt>Tocando</dt><dd id="m-fala">—</dd></div>
+            <div><dt>Voltas</dt><dd id="m-voltas" class="num">0</dd></div>
+            <div><dt>Chat lido</dt><dd id="m-chat" class="num">0</dd></div>
+          </dl>
+        </div>
+
+        <p id="erro-operar" class="erro" role="alert" hidden></p>
+
+        <details class="riscos">
+          <summary>Aviso sobre automação</summary>
+          <p>
+            Automatizar o LIVE Studio tende a violar os Termos do TikTok, e um
+            eventual bloqueio recai sobre a sua conta. Você aceitou esse risco
+            ao ligar a extensão no painel.
+          </p>
+        </details>
+
+        <button id="btn-sair" class="botao texto">Desconectar esta máquina</button>
+      </section>
+    </main>
+
+    <script type="module" src="painel.js"></script>
+  </body>
+</html>
