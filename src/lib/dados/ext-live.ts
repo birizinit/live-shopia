@@ -200,7 +200,7 @@ export async function abrirSessaoExtensao(
     await sql`
       update live_sessoes
          set visto_em = now(),
-             estado = case when estado = 'iniciando' then 'no_ar'::estado_live else estado end
+             estado = case when estado = 'iniciando' then 'ativa'::estado_live else estado end
        where id = ${abertas[0].id} and perfil_id = ${perfilId}
     `;
     return { sessaoId: abertas[0].id, jaEstavaAberta: true };
@@ -216,7 +216,7 @@ export async function abrirSessaoExtensao(
         where m.id = ${dados.montagemId} and m.perfil_id = ${perfilId}),
       (select c.id from contas_tiktok c
         where c.id = ${dados.contaTikTokId} and c.perfil_id = ${perfilId}),
-      'no_ar',
+      'ativa',
       'extensao'
     )
     returning id
@@ -242,7 +242,7 @@ export async function baterSessaoExtensao(
   const linhas = await bd()<{ id: string }[]>`
     update live_sessoes
        set visto_em = now(),
-           estado = case when estado = 'iniciando' then 'no_ar'::estado_live else estado end,
+           estado = case when estado = 'iniciando' then 'ativa'::estado_live else estado end,
            espectadores_pico = greatest(espectadores_pico, ${espectadores ?? 0})
      where id = ${sessaoId} and perfil_id = ${perfilId} and fim is null
     returning id
@@ -257,11 +257,14 @@ export async function fecharSessaoExtensao(
 ): Promise<boolean> {
   const sql = bd();
 
+  // Encerrar com erro é "caiu", não "encerrada": para quem lê o dashboard, a
+  // diferença entre a live que o dono desligou e a que morreu sozinha é a
+  // informação inteira. O texto do erro fica na coluna `erro`.
   const linhas = await sql<{ id: string }[]>`
     update live_sessoes
        set fim = now(),
            visto_em = now(),
-           estado = ${erro ? "erro" : "encerrada"}::estado_live,
+           estado = ${erro ? "caiu" : "encerrada"}::estado_live,
            erro = ${erro}
      where id = ${sessaoId} and perfil_id = ${perfilId} and fim is null
     returning id
