@@ -24,6 +24,17 @@ import {
 import { obterUsuario } from "@/lib/sessao";
 import { cn, numero } from "@/lib/utils";
 
+/**
+ * Como cada plano se apresenta, dado que agora há três periodicidades do mesmo
+ * produto. Escrever "/mês" no plano anual diria ao cliente que ele custa R$497
+ * por mês — informação de preço errada, que volta como estorno e como Procon.
+ */
+function periodicidade(meses: number) {
+  if (meses === 12) return { sufixo: "por ano", cada: "cobrado uma vez por ano" };
+  if (meses === 3) return { sufixo: "a cada 3 meses", cada: "cobrado a cada três meses" };
+  return { sufixo: "/mês", cada: "cobrado todo mês" };
+}
+
 export const metadata: Metadata = { title: "Planos" };
 
 const STATUS: Record<
@@ -79,8 +90,8 @@ function BlocoAssinatura({ assinatura }: { assinatura: Assinatura }) {
       <Propriedades className="mt-4" colunas={2}>
         <Propriedade rotulo="Plano" valor={plano.nome} />
         <Propriedade
-          rotulo="Mensalidade"
-          valor={`${formatarPreco(plano.precoCentavos)}/mês`}
+          rotulo="Cobrança"
+          valor={`${formatarPreco(plano.precoCentavos)} ${periodicidade(plano.meses).sufixo}`}
           numerica
         />
         <Propriedade
@@ -186,8 +197,19 @@ function CartaoPlano({
         <span className="num text-3xl font-bold tracking-tight">
           {formatarPreco(plano.precoCentavos)}
         </span>
-        <span className="text-sm text-fg-muted">/mês</span>
+        <span className="text-sm text-fg-muted">
+          {periodicidade(plano.meses).sufixo}
+        </span>
       </p>
+      {plano.meses > 1 && (
+        <p className="mt-1 text-sm text-fg-muted">
+          equivale a{" "}
+          <span className="num font-medium text-fg">
+            {formatarPreco(plano.precoMensalCentavos)}
+          </span>{" "}
+          por mês
+        </p>
+      )}
 
       <dl className="mt-4 grid grid-cols-2 gap-3 border-y border-border py-3 text-sm">
         <div>
@@ -355,10 +377,22 @@ export default async function PlanosPage() {
               }
             >
               <Linha>
-                <Celula linha>Mensalidade</Celula>
+                <Celula linha>Cobrança</Celula>
                 {planos.map((plano) => (
                   <Celula key={plano.id} numerica>
-                    {formatarPreco(plano.precoCentavos)}
+                    {formatarPreco(plano.precoCentavos)}{" "}
+                    <span className="text-fg-subtle">
+                      {periodicidade(plano.meses).sufixo}
+                    </span>
+                  </Celula>
+                ))}
+              </Linha>
+
+              <Linha>
+                <Celula linha>Equivale por mês</Celula>
+                {planos.map((plano) => (
+                  <Celula key={plano.id} numerica>
+                    {formatarPreco(plano.precoMensalCentavos)}
                   </Celula>
                 ))}
               </Linha>

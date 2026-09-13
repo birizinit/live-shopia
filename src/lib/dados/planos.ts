@@ -42,6 +42,10 @@ export type Plano = {
   nome: string;
   descricao: string | null;
   precoCentavos: number;
+  /** Meses cobertos por cobrança: 1, 3 ou 12. */
+  meses: number;
+  /** Preço dividido pelos meses — é o número que permite comparar planos. */
+  precoMensalCentavos: number;
   contasTiktok: number;
   vozPremium: boolean;
   /**
@@ -166,35 +170,67 @@ export function precoPorMil(precoCentavos: number, caracteres: number) {
 const PLANOS_DEMO: Plano[] = [
   {
     id: "00000000-0000-4000-8000-0000000a1001",
-    slug: "copy-live",
-    nome: "Copy Live",
-    descricao: "Só a IA de copy: roteiro de vendas pronto para narrar.",
-    precoCentavos: 2990,
-    contasTiktok: 1,
-    vozPremium: false,
-    creditosMes: null,
-    recursos: ["Roteiro de vendas por IA", "1 conta TikTok", "Extensão liberada"],
+    slug: "mensal",
+    nome: "Mensal",
+    descricao: "Acesso a tudo, cobrado todo mês. Cancele quando quiser.",
+    precoCentavos: 9700,
+    meses: 1,
+    precoMensalCentavos: 9700,
+    contasTiktok: 3,
+    vozPremium: true,
+    creditosMes: 30000,
+    recursos: [
+      "Acesso a tudo",
+      "Voz premium",
+      "Roteiro por IA",
+      "Áudio contínuo da live",
+      "3 contas TikTok",
+      "30 mil caracteres por mês",
+    ],
   },
   {
     id: "00000000-0000-4000-8000-0000000a1002",
-    slug: "premium",
-    nome: "Premium",
-    descricao: "A live inteira no automático, com voz premium e extensão premium.",
-    precoCentavos: 29700,
+    slug: "trimestral",
+    nome: "Trimestral",
+    descricao: "Os mesmos recursos, cobrados a cada três meses.",
+    precoCentavos: 19700,
+    meses: 3,
+    precoMensalCentavos: 6567,
     contasTiktok: 3,
     vozPremium: true,
-    creditosMes: null,
+    creditosMes: 30000,
     recursos: [
+      "Acesso a tudo",
       "Voz premium",
-      "Respostas no chat",
-      "Sons naturais",
-      "Câmera virtual",
-      "Extensão premium",
+      "Roteiro por IA",
+      "Áudio contínuo da live",
       "3 contas TikTok",
+      "30 mil caracteres por mês",
+      "Economia de 32% sobre o mensal",
+    ],
+  },
+  {
+    id: "00000000-0000-4000-8000-0000000a1003",
+    slug: "anual",
+    nome: "Anual",
+    descricao: "Os mesmos recursos, cobrados uma vez por ano.",
+    precoCentavos: 49700,
+    meses: 12,
+    precoMensalCentavos: 4142,
+    contasTiktok: 3,
+    vozPremium: true,
+    creditosMes: 30000,
+    recursos: [
+      "Acesso a tudo",
+      "Voz premium",
+      "Roteiro por IA",
+      "Áudio contínuo da live",
+      "3 contas TikTok",
+      "30 mil caracteres por mês",
+      "Economia de 57% sobre o mensal",
     ],
   },
 ];
-
 const PACOTES_DEMO: PacoteCreditos[] = [
   {
     id: "00000000-0000-4000-8000-0000000b2001",
@@ -294,6 +330,7 @@ type LinhaPlano = {
   nome: string;
   descricao: string | null;
   preco_centavos: number;
+  meses: number;
   contas_tiktok: number;
   voz_premium: boolean;
   creditos_mes: string | null;
@@ -307,6 +344,14 @@ function montarPlano(l: LinhaPlano): Plano {
     nome: l.nome,
     descricao: l.descricao,
     precoCentavos: numeroDe(l.preco_centavos),
+    meses: numeroDe(l.meses, 1),
+    // Preço mensalizado. Existe porque a tela precisa comparar planos de
+    // periodicidades diferentes sem mentir: escrever "R$497,00/mês" num plano
+    // anual é informação de preço errada, e informação de preço errada volta
+    // como estorno.
+    precoMensalCentavos: Math.round(
+      numeroDe(l.preco_centavos) / Math.max(1, numeroDe(l.meses, 1)),
+    ),
     contasTiktok: numeroDe(l.contas_tiktok, 1),
     vozPremium: l.voz_premium,
     // `numeroDe(null)` devolveria 0, e 0 aqui mentiria: "plano sem crédito
@@ -322,7 +367,7 @@ export async function listarPlanos(): Promise<Plano[]> {
     () => PLANOS_DEMO,
     async () => {
       const linhas = await bd()<LinhaPlano[]>`
-        select id, slug, nome, descricao, preco_centavos, contas_tiktok,
+        select id, slug, nome, descricao, preco_centavos, meses, contas_tiktok,
                voz_premium, creditos_mes, recursos
           from planos
          where ativo
@@ -397,7 +442,7 @@ export async function assinaturaDoPerfil(perfilId: string): Promise<Assinatura |
                a.status,
                a.inicio,
                a.fim,
-               p.id, p.slug, p.nome, p.descricao, p.preco_centavos,
+               p.id, p.slug, p.nome, p.descricao, p.preco_centavos, p.meses,
                p.contas_tiktok, p.voz_premium, p.creditos_mes, p.recursos,
                c.id as ciclo_id,
                c.inicio as ciclo_inicio,

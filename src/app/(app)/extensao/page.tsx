@@ -4,15 +4,17 @@ import {
   Ban,
   CircleCheck,
   CircleX,
-  Download,
   MonitorSmartphone,
-  PackageOpen,
   Puzzle,
-  Wrench,
+  ShieldAlert,
 } from "lucide-react";
 import { esquecerInstalacaoAcao } from "./actions";
-import { PainelLicenca, PassosInstalacao } from "./instalacao";
-import { PageHeader } from "@/components/layout/page-header";
+import { CaboVirtual } from "./cabo-virtual";
+import { Faq } from "./faq";
+import { Hero } from "./hero";
+import { PainelLicenca } from "./instalacao";
+import { PassoAPasso } from "./passo-a-passo";
+import { Recursos } from "./recursos";
 import { Alerta } from "@/components/ui/alerta";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,6 +30,7 @@ import {
   type Instalacao,
   type RecursosExtensao,
 } from "@/lib/dados/extensao";
+import { resumoTour } from "@/lib/dados/onboarding";
 import { exigirUsuario } from "@/lib/sessao";
 import { numero } from "@/lib/utils";
 
@@ -47,12 +50,12 @@ const INDICADOR: Record<EstadoLicenca, EstadoIndicador> = {
   revogada: "erro",
 };
 
-/** Os recursos na ordem em que o cliente pensa neles. */
-const RECURSOS: { chave: keyof RecursosExtensao; rotulo: string; resumo: string }[] = [
+/** O que o PLANO libera — diferente do que a extensão faz, que está em Recursos. */
+const DO_PLANO: { chave: keyof RecursosExtensao; rotulo: string; resumo: string }[] = [
   {
     chave: "mixer",
-    rotulo: "Mixer de áudio",
-    resumo: "Cria a saída virtual e toca o loop dentro do LIVE Studio.",
+    rotulo: "Áudio no LIVE Studio",
+    resumo: "Toca a montagem em laço e entrega a voz pelo cabo virtual.",
   },
   {
     chave: "chat",
@@ -91,7 +94,7 @@ function data(iso: string) {
   }).format(new Date(iso));
 }
 
-/** "há 3 min", "em 4 dias". Prazo em dias é o que o cliente lê nesta tela. */
+/** “há 3 min”, “em 4 dias”. Prazo em dias é o que o cliente lê nesta tela. */
 function quando(iso: string) {
   const diferencaMs = new Date(iso).getTime() - Date.now();
   const formato = new Intl.RelativeTimeFormat("pt-BR", { numeric: "auto" });
@@ -103,9 +106,44 @@ function quando(iso: string) {
   return formato.format(Math.round(diferencaMs / 86_400_000), "day");
 }
 
+/**
+ * Cabeçalho de seção.
+ *
+ * A página virou documento longo — a maioria chega nela pelo celular, antes de
+ * ir para o computador instalar. Um <h2> com âncora própria é o que deixa a
+ * rolagem ter marcos e os links internos da página funcionarem.
+ */
+function Secao({
+  id,
+  titulo,
+  descricao,
+  children,
+}: {
+  id: string;
+  titulo: string;
+  descricao?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section id={id} aria-labelledby={`${id}-titulo`} className="mt-10 scroll-mt-6">
+      <h2 id={`${id}-titulo`} className="text-xl font-semibold sm:text-2xl">
+        {titulo}
+      </h2>
+      {descricao && <p className="mt-1.5 max-w-2xl text-sm text-fg-muted">{descricao}</p>}
+      <div className="mt-4">{children}</div>
+    </section>
+  );
+}
+
 export default async function ExtensaoPage() {
   const usuario = await exigirUsuario("/extensao");
-  const estado = await estadoExtensao(usuario.id);
+
+  // Duas consultas independentes: o aceite do aviso de risco vive no tour, e é
+  // ele que decide se a seção 7 chega gritando ou apenas presente.
+  const [estado, tour] = await Promise.all([
+    estadoExtensao(usuario.id),
+    resumoTour(usuario.id),
+  ]);
 
   const { licenca, versao, instalacoes } = estado;
   const estadoLicenca: EstadoLicenca = licenca?.estado ?? "sem_licenca";
@@ -122,21 +160,6 @@ export default async function ExtensaoPage() {
 
   return (
     <>
-      <PageHeader
-        titulo="Extensão"
-        descricao="É ela que joga o áudio no LIVE Studio e responde o chat. Aqui ficam a licença, o pacote e o passo a passo da instalação."
-        acoes={
-          versao ? (
-            <Badge tom="marca">
-              <span className="num">v{versao.versao}</span>
-              {versao.canal === "canario" && " · canário"}
-            </Badge>
-          ) : (
-            <Badge>Sem versão publicada</Badge>
-          )
-        }
-      />
-
       {paradas.length > 0 && (
         <Alerta tom="erro" className="mb-4">
           <strong>Desligamos a versão que você está rodando.</strong>{" "}
@@ -149,8 +172,8 @@ export default async function ExtensaoPage() {
 
       {estadoLicenca === "expirada" && (
         <Alerta tom="erro" className="mb-4">
-          <strong>A janela offline acabou.</strong> A extensão parou de operar. A janela
-          só é renovada enquanto a assinatura está ativa —{" "}
+          <strong>A janela offline acabou.</strong> A extensão parou de operar. A janela só
+          é renovada enquanto a assinatura está ativa —{" "}
           <Link href="/planos" className="font-medium underline underline-offset-2">
             confira o seu plano
           </Link>
@@ -168,276 +191,216 @@ export default async function ExtensaoPage() {
 
       {estado.chatDesligadoNaBase && (
         <Alerta tom="info" className="mb-4">
-          As respostas automáticas no chat estão desligadas para toda a base neste
-          momento. O mixer de áudio continua funcionando normalmente.
+          As respostas automáticas no chat estão desligadas para toda a base neste momento.
+          O áudio no LIVE Studio continua funcionando normalmente.
         </Alerta>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-[1fr_340px] lg:items-start">
-        <div className="space-y-4">
-          <Card>
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
-                <CardTitulo>Licença</CardTitulo>
-                <CardDescricao>
-                  A extensão prova quem é apresentando um token. Guardamos só um
-                  resumo criptográfico dele, como fazemos com a sua sessão.
-                </CardDescricao>
+      {/* 1 — Hero: selo da versão, o que a extensão faz e a área de download. */}
+      <Hero versao={versao} temPacote={temPacote} ticket={ticket} />
+
+      {/* 2 — O que a extensão faz, com o selo que a realidade permite. */}
+      <Secao
+        id="recursos"
+        titulo="O que a extensão faz"
+        descricao="Cada cartão diz em que pé está de verdade — nada aqui é marcado como pronto por otimismo."
+      >
+        <Recursos
+          temPacote={temPacote}
+          recursos={licenca?.recursos ?? null}
+          chatDesligadoNaBase={estado.chatDesligadoNaBase}
+        />
+      </Secao>
+
+      {/* 3 — Licença, plano e máquinas: o que já operava antes desta reescrita. */}
+      <Secao
+        id="licenca"
+        titulo="Licença e instalações"
+        descricao="O token que prova quem você é, o que o seu plano libera e as máquinas que já se apresentaram."
+      >
+        <div className="grid gap-4 lg:grid-cols-[1fr_340px] lg:items-start">
+          <div className="space-y-4">
+            <Card>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <CardTitulo>Licença</CardTitulo>
+                  <CardDescricao>
+                    A extensão prova quem é apresentando um token. Guardamos só um resumo
+                    criptográfico dele, como fazemos com a sua sessão.
+                  </CardDescricao>
+                </div>
+                <Indicador
+                  estado={INDICADOR[estadoLicenca]}
+                  texto={ROTULO_ESTADO[estadoLicenca]}
+                />
               </div>
-              <Indicador
-                estado={INDICADOR[estadoLicenca]}
-                texto={ROTULO_ESTADO[estadoLicenca]}
-              />
-            </div>
 
-            {licenca && (
-              <Propriedades className="mt-4" colunas={2}>
-                <Propriedade
-                  rotulo="Token"
-                  valor={
-                    licenca.dica ? (
-                      <span className="font-[family-name:var(--font-mono)]">
-                        shpx_…{licenca.dica}
-                      </span>
-                    ) : (
-                      "—"
-                    )
-                  }
-                />
-                <Propriedade
-                  rotulo="Canal"
-                  valor={licenca.canal === "canario" ? "Canário" : "Estável"}
-                />
-                <Propriedade rotulo="Emitida em" valor={data(licenca.emitidaEm)} numerica />
-                <Propriedade
-                  rotulo="Rotacionada em"
-                  valor={licenca.rotacionadaEm ? data(licenca.rotacionadaEm) : "Nunca"}
-                  numerica
-                />
-                <Propriedade
-                  rotulo="Janela offline"
-                  valor={`${data(licenca.expiraEm)} (${quando(licenca.expiraEm)})`}
-                  numerica
-                />
-                <Propriedade
-                  rotulo="Contas TikTok"
-                  valor={numero(licenca.recursos.contas_tiktok)}
-                  numerica
-                />
-              </Propriedades>
-            )}
-
-            <div className="mt-4">
-              <PainelLicenca estado={estadoLicenca} demo={usuario.demo === true} />
-            </div>
-
-            {licenca && !estado.assinaturaAtiva && (
-              <p className="mt-4 text-xs text-fg-subtle">
-                A janela offline é o quanto a extensão aguenta sem falar com a gente. Ela
-                é empurrada a cada contato <strong>enquanto houver assinatura ativa</strong>
-                ; sem assinatura, ela corre até o fim e a extensão para.
-              </p>
-            )}
-          </Card>
-
-          <Card>
-            <CardTitulo>Recursos liberados</CardTitulo>
-            <CardDescricao>
-              O retrato do plano no momento em que o token foi emitido. Mudar de plano
-              exige gerar um token novo para a extensão enxergar a diferença.
-            </CardDescricao>
-
-            {licenca ? (
-              <ul className="mt-4 space-y-2.5">
-                {RECURSOS.map((recurso) => {
-                  const ligadoNoPlano = licenca.recursos[recurso.chave] === true;
-                  // O chat morre por conta (`ext_licencas.chat`) ou na base
-                  // inteira (`ext.chat_desligado`) sem derrubar o mixer junto.
-                  const ligado =
-                    recurso.chave === "chat"
-                      ? ligadoNoPlano && licenca.chat && !estado.chatDesligadoNaBase
-                      : ligadoNoPlano;
-
-                  return (
-                    <li key={recurso.chave} className="flex gap-3">
-                      {ligado ? (
-                        <CircleCheck
-                          className="mt-0.5 size-4 shrink-0 text-success"
-                          aria-hidden
-                        />
+              {licenca && (
+                <Propriedades className="mt-4" colunas={2}>
+                  <Propriedade
+                    rotulo="Token"
+                    valor={
+                      licenca.dica ? (
+                        <span className="font-[family-name:var(--font-mono)]">
+                          shpx_…{licenca.dica}
+                        </span>
                       ) : (
-                        <CircleX
-                          className="mt-0.5 size-4 shrink-0 text-fg-subtle"
-                          aria-hidden
-                        />
-                      )}
-                      <span className="min-w-0">
-                        <span className="block text-sm font-medium text-fg">
-                          {recurso.rotulo}
-                          <span className="sr-only">
-                            {ligado ? " — liberado" : " — não liberado"}
-                          </span>
-                        </span>
-                        <span className="mt-0.5 block text-sm text-fg-muted">
-                          {recurso.resumo}
-                          {recurso.chave === "chat" &&
-                            ligadoNoPlano &&
-                            estado.chatDesligadoNaBase &&
-                            " Desligado para toda a base agora."}
-                        </span>
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : (
-              <p className="mt-4 text-sm text-fg-muted">
-                Gere o token acima para ver o que o seu plano libera.
-              </p>
-            )}
-
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <Badge tom={licenca?.recursos.plano ? "marca" : "neutro"}>
-                {usuario.plano ?? "Sem plano"}
-              </Badge>
-              <Link
-                href="/planos"
-                className="text-sm text-fg-muted underline-offset-4 hover:text-primary hover:underline"
-              >
-                Comparar planos
-              </Link>
-            </div>
-          </Card>
-
-          <Card>
-            <CardTitulo>Instalação</CardTitulo>
-            <CardDescricao>
-              O caminho muda entre Windows e Mac no meio do processo. Escolha o seu.
-            </CardDescricao>
-            <div className="mt-4">
-              <PassosInstalacao temPacote={temPacote} />
-            </div>
-          </Card>
-
-          <Card>
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div className="min-w-0">
-                <CardTitulo>Suas máquinas</CardTitulo>
-                <CardDescricao>
-                  Cada instalação se apresenta a cada{" "}
-                  <span className="num">{estado.heartbeatSegundos}</span> segundos. É
-                  esse contato que nos deixa avisar de uma quebra antes de você
-                  perceber.
-                </CardDescricao>
-              </div>
-              {desatualizadas.length > 0 && (
-                <Badge tom="alerta">
-                  <span className="num">{desatualizadas.length}</span> desatualizada
-                  {desatualizadas.length > 1 ? "s" : ""}
-                </Badge>
-              )}
-            </div>
-
-            <div className="mt-4">
-              {instalacoes.length === 0 ? (
-                <EstadoVazio
-                  icone={MonitorSmartphone}
-                  titulo="Nenhuma máquina conectada"
-                  texto="Depois de instalar a extensão e colar o token, a máquina aparece aqui em até dois minutos."
-                />
-              ) : (
-                <TabelaInstalacoes
-                  instalacoes={instalacoes}
-                  versaoPublicada={versao?.versao ?? null}
-                  demo={usuario.demo === true}
-                />
-              )}
-            </div>
-          </Card>
-        </div>
-
-        <div className="space-y-4">
-          <Card>
-            <CardTitulo>Pacote</CardTitulo>
-
-            {versao ? (
-              <>
-                <Propriedades className="mt-3">
-                  <Propriedade rotulo="Versão" valor={`v${versao.versao}`} numerica />
+                        "—"
+                      )
+                    }
+                  />
                   <Propriedade
                     rotulo="Canal"
-                    valor={versao.canal === "canario" ? "Canário" : "Estável"}
+                    valor={licenca.canal === "canario" ? "Canário" : "Estável"}
                   />
-                  {versao.publicadaEm && (
-                    <Propriedade
-                      rotulo="Publicada em"
-                      valor={data(versao.publicadaEm)}
-                      numerica
-                    />
-                  )}
+                  <Propriedade
+                    rotulo="Emitida em"
+                    valor={data(licenca.emitidaEm)}
+                    numerica
+                  />
+                  <Propriedade
+                    rotulo="Rotacionada em"
+                    valor={licenca.rotacionadaEm ? data(licenca.rotacionadaEm) : "Nunca"}
+                    numerica
+                  />
+                  <Propriedade
+                    rotulo="Janela offline"
+                    valor={`${data(licenca.expiraEm)} (${quando(licenca.expiraEm)})`}
+                    numerica
+                  />
+                  <Propriedade
+                    rotulo="Contas TikTok"
+                    valor={numero(licenca.recursos.contas_tiktok)}
+                    numerica
+                  />
                 </Propriedades>
+              )}
 
-                {versao.notas && (
-                  <p className="mt-3 text-sm text-fg-muted">{versao.notas}</p>
-                )}
+              <div className="mt-4">
+                <PainelLicenca estado={estadoLicenca} demo={usuario.demo === true} />
+              </div>
 
-                {versao.obrigatoria && (
-                  <Alerta tom="info" className="mt-3">
-                    Atualização obrigatória: versões anteriores param de operar.
-                  </Alerta>
-                )}
+              {licenca && !estado.assinaturaAtiva && (
+                <p className="mt-4 text-xs text-fg-subtle">
+                  A janela offline é o quanto a extensão aguenta sem falar com a gente. Ela
+                  é empurrada a cada contato{" "}
+                  <strong>enquanto houver assinatura ativa</strong>; sem assinatura, ela
+                  corre até o fim e a extensão para.
+                </p>
+              )}
+            </Card>
 
-                <div className="mt-4">
-                  {!temPacote ? (
-                    // Honestidade acima de conveniência: um botão que baixa nada
-                    // é pior do que não ter botão.
-                    <Alerta tom="info">
-                      O arquivo desta versão ainda não está disponível para download.
-                      Assim que o pacote for publicado, o botão aparece aqui.
-                    </Alerta>
-                  ) : ticket ? (
-                    <a
-                      href={`/api/ext/baixar?t=${encodeURIComponent(ticket)}`}
-                      className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-fg shadow-sm transition-colors duration-[--dur-fast] hover:bg-primary-hover"
-                    >
-                      <Download className="size-4" aria-hidden />
-                      Baixar v{versao.versao}
-                    </a>
-                  ) : (
-                    <>
-                      <Button bloco disabled>
-                        <Download className="size-4" aria-hidden />
-                        Baixar v{versao.versao}
-                      </Button>
-                      <Alerta tom="info" className="mt-2">
-                        O download pelo navegador precisa de{" "}
-                        <code className="font-[family-name:var(--font-mono)] text-xs">
-                          EXTENSAO_SEGREDO
-                        </code>{" "}
-                        no ambiente — é ele que assina o link temporário. Sem essa
-                        variável, o botão fica desligado em vez de servir um arquivo
-                        sem nenhuma prova de quem pediu.
-                      </Alerta>
-                    </>
-                  )}
+            <Card>
+              <CardTitulo>Recursos liberados</CardTitulo>
+              <CardDescricao>
+                O retrato do plano no momento em que o token foi emitido. Mudar de plano
+                exige gerar um token novo para a extensão enxergar a diferença.
+              </CardDescricao>
+
+              {licenca ? (
+                <ul className="mt-4 space-y-2.5">
+                  {DO_PLANO.map((recurso) => {
+                    const ligadoNoPlano = licenca.recursos[recurso.chave] === true;
+                    // O chat morre por conta (`ext_licencas.chat`) ou na base
+                    // inteira (`ext.chat_desligado`) sem derrubar o áudio junto.
+                    const ligado =
+                      recurso.chave === "chat"
+                        ? ligadoNoPlano && licenca.chat && !estado.chatDesligadoNaBase
+                        : ligadoNoPlano;
+
+                    return (
+                      <li key={recurso.chave} className="flex gap-3">
+                        {ligado ? (
+                          <CircleCheck
+                            className="mt-0.5 size-4 shrink-0 text-success"
+                            aria-hidden
+                          />
+                        ) : (
+                          <CircleX
+                            className="mt-0.5 size-4 shrink-0 text-fg-subtle"
+                            aria-hidden
+                          />
+                        )}
+                        <span className="min-w-0">
+                          <span className="block text-sm font-medium text-fg">
+                            {recurso.rotulo}
+                            <span className="sr-only">
+                              {ligado ? " — liberado" : " — não liberado"}
+                            </span>
+                          </span>
+                          <span className="mt-0.5 block text-sm text-fg-muted">
+                            {recurso.resumo}
+                            {recurso.chave === "chat" &&
+                              ligadoNoPlano &&
+                              estado.chatDesligadoNaBase &&
+                              " Desligado para toda a base agora."}
+                          </span>
+                        </span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="mt-4 text-sm text-fg-muted">
+                  Gere o token acima para ver o que o seu plano libera.
+                </p>
+              )}
+
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <Badge tom={licenca?.recursos.plano ? "marca" : "neutro"}>
+                  {usuario.plano ?? "Sem plano"}
+                </Badge>
+                <Link
+                  href="/planos"
+                  className="text-sm text-fg-muted underline-offset-4 hover:text-primary hover:underline"
+                >
+                  Comparar planos
+                </Link>
+              </div>
+            </Card>
+
+            <Card id="instalacoes" className="scroll-mt-6">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <CardTitulo>Suas máquinas</CardTitulo>
+                  <CardDescricao>
+                    Cada instalação se apresenta a cada{" "}
+                    <span className="num">{estado.heartbeatSegundos}</span> segundos. É
+                    esse contato que nos deixa avisar de uma quebra antes de você perceber.
+                  </CardDescricao>
                 </div>
-              </>
-            ) : (
-              <EstadoVazio
-                icone={PackageOpen}
-                titulo="Nenhuma versão publicada"
-                texto="O pacote da extensão ainda não foi publicado. Não há nada para baixar até lá — e preferimos dizer isso a oferecer um botão que não faz nada."
-                className="mt-3 border-0 px-0 py-6"
-              />
-            )}
-          </Card>
+                {desatualizadas.length > 0 && (
+                  <Badge tom="alerta">
+                    <span className="num">{desatualizadas.length}</span> desatualizada
+                    {desatualizadas.length > 1 ? "s" : ""}
+                  </Badge>
+                )}
+              </div>
 
-          <Card>
+              <div className="mt-4">
+                {instalacoes.length === 0 ? (
+                  <EstadoVazio
+                    icone={MonitorSmartphone}
+                    titulo="Nenhuma máquina conectada"
+                    texto="Depois de instalar a extensão e colar o token, a máquina aparece aqui em até dois minutos."
+                  />
+                ) : (
+                  <TabelaInstalacoes
+                    instalacoes={instalacoes}
+                    versaoPublicada={versao?.versao ?? null}
+                    demo={usuario.demo === true}
+                  />
+                )}
+              </div>
+            </Card>
+          </div>
+
+          <Card className="lg:sticky lg:top-6">
             <CardTitulo>Mapa de seletores</CardTitulo>
             <CardDescricao>
-              A extensão não traz os pontos de ancoragem do TikTok compilados dentro
-              dela: busca o mapa no servidor. Quando o TikTok muda o layout, o conserto
-              vai ao ar em minutos, sem reinstalação.
+              A extensão não traz os pontos de ancoragem do TikTok compilados dentro dela:
+              busca o mapa no servidor. Quando o TikTok muda o layout, o conserto vai ao ar
+              em minutos, sem reinstalação.
             </CardDescricao>
             <Propriedades className="mt-3">
               <Propriedade
@@ -447,21 +410,113 @@ export default async function ExtensaoPage() {
               />
             </Propriedades>
           </Card>
+        </div>
+      </Secao>
 
-          <Card className="bg-bg-subtle shadow-none">
-            <div className="flex gap-3">
-              <Wrench className="mt-0.5 size-4 shrink-0 text-fg-subtle" aria-hidden />
-              <p className="text-sm text-fg-muted">
-                Automatizar ações na sua conta contraria os Termos do TikTok, e o risco
-                de bloqueio é seu. O mixer de áudio e as respostas no chat são recursos
-                separados justamente para você poder desligar o segundo sem perder o
-                primeiro.
+      {/* 4 — Instalação passo a passo. */}
+      <Secao
+        id="instalacao"
+        titulo="Passo a passo da instalação"
+        descricao="Do arquivo baixado até a conta conectada. Leva uns dez minutos na primeira vez."
+      >
+        <Card>
+          <PassoAPasso temPacote={temPacote} />
+        </Card>
+      </Secao>
+
+      {/* 5 — A seção que mais gera dúvida. */}
+      <Secao
+        id="cabo-virtual"
+        titulo="Cabo virtual e LIVE Studio"
+        descricao="É a peça que leva a voz da Shopia até a transmissão. Funciona com ou sem a extensão instalada."
+      >
+        <Card>
+          <CaboVirtual />
+        </Card>
+      </Secao>
+
+      {/* 6 — Perguntas frequentes. */}
+      <Secao id="faq" titulo="Perguntas frequentes">
+        <Faq />
+      </Secao>
+
+      {/* 7 — Aviso de risco. Nunca no rodapé, nunca em letra miúda. */}
+      <Secao id="risco" titulo="Antes de automatizar: o risco é seu">
+        <AvisoDeRisco aceito={tour.riscoEmDia} />
+      </Secao>
+    </>
+  );
+}
+
+/**
+ * O aviso que não pode ser encontrado por acaso.
+ *
+ * Sem aceite registrado ele chega com peso de erro, porque é informação que
+ * muda a decisão de usar o produto e precisa ser lida ANTES da primeira live,
+ * não depois do primeiro bloqueio. Com aceite, continua visível — some da tela
+ * só o que o cliente já leu e assinou, e isso aqui não some.
+ */
+function AvisoDeRisco({ aceito }: { aceito: boolean }) {
+  return (
+    <div
+      className={
+        aceito
+          ? "rounded-lg border border-border bg-bg-subtle p-5 sm:p-6"
+          : "rounded-lg border-2 border-danger bg-danger-soft p-5 sm:p-6"
+      }
+    >
+      <div className="flex gap-3">
+        <ShieldAlert
+          className={`mt-0.5 size-5 shrink-0 ${aceito ? "text-fg-subtle" : "text-danger"}`}
+          aria-hidden
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3
+              className={`text-base font-semibold ${aceito ? "text-fg" : "text-danger"}`}
+            >
+              Automatizar o LIVE Studio pode custar a sua conta do TikTok
+            </h3>
+            {aceito && <Badge tom="sucesso">Aceite registrado</Badge>}
+          </div>
+
+          <p className="mt-2 text-sm text-fg-muted">
+            Não existe modo oficial de automatizar o LIVE Studio. Fazer isso tende a violar
+            os Termos de Serviço do TikTok, e a consequência — restrição de alcance,
+            suspensão da live ou bloqueio da conta — recai sobre{" "}
+            <strong className="font-semibold text-fg">a sua conta</strong>, não sobre a
+            Shopia. Não temos como recorrer por você nem como devolver uma conta bloqueada.
+          </p>
+
+          <p className="mt-2.5 text-sm text-fg-muted">
+            A gente reduz o que dá para reduzir: cadência variável no chat em vez de rajada,
+            áudio e chat em módulos separados para você desligar um sem perder o outro, e
+            um botão de parar que não depende de nós. Reduzir não é eliminar, e quem decide
+            correr o risco é você, sabendo disto.
+          </p>
+
+          {!aceito && (
+            <>
+              <p className="mt-3 text-sm font-medium text-danger">
+                O seu aceite ainda não está registrado.
               </p>
-            </div>
-          </Card>
+              <p className="mt-1 text-sm text-fg-muted">
+                Leia o texto completo e registre o aceite — fica gravado com data e versão,
+                para você e para a gente.
+              </p>
+              {/* Link estilizado, e não <Button> dentro de <Link>: âncora com
+                  botão dentro é interativo aninhado, e o teclado para em dois. */}
+              <Link
+                href="/bem-vindo"
+                className="mt-3 inline-flex h-10 w-full items-center justify-center rounded-md bg-danger px-4 text-sm font-medium text-fg-inverse transition-[filter] duration-[--dur-fast] hover:brightness-110 sm:w-auto"
+              >
+                Ler o aviso e registrar o aceite
+              </Link>
+            </>
+          )}
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -506,7 +561,11 @@ function TabelaInstalacoes({
                   Desligada
                 </Badge>
               ) : !instalacao.conhecida ? (
-                <Badge tom="alerta" className="ml-2" title="Instalada em modo desenvolvedor">
+                <Badge
+                  tom="alerta"
+                  className="ml-2"
+                  title="Instalada em modo desenvolvedor"
+                >
                   Fora do catálogo
                 </Badge>
               ) : versaoPublicada && instalacao.versao !== versaoPublicada ? (
@@ -544,8 +603,8 @@ function TabelaInstalacoes({
 
       <p className="mt-3 text-xs text-fg-subtle">
         <Puzzle className="mr-1 inline size-3" aria-hidden />
-        Esquecer só limpa a lista. Uma máquina que ainda roda a extensão volta a aparecer
-        no próximo contato — use para a máquina que você não usa mais.
+        Esquecer só limpa a lista. Uma máquina que ainda roda a extensão volta a aparecer no
+        próximo contato — use para a máquina que você não usa mais.
       </p>
     </>
   );
