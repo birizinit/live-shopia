@@ -79,6 +79,23 @@ export const env = {
       : process.env.SHOPIA_WORKER === "1",
   cronSegredo: texto(process.env.CRON_SEGREDO),
 
+  /**
+   * Quem nasce admin. Resolve o problema do ovo e da galinha: a tela de
+   * operação só abre para admin, e no banco novo não existe nenhum — sem isto
+   * o primeiro acesso sairia de um UPDATE manual em produção, que é
+   * exatamente o que a tela existe para evitar.
+   *
+   * Fica em variável de ambiente, e não em migração, por dois motivos: e-mail
+   * pessoal não vai para o repositório, e tirar alguém da lista é editar uma
+   * variável em vez de escrever migração nova. A promoção roda a cada boot,
+   * é idempotente, e grava em auditoria — quem for retirado da lista NÃO é
+   * rebaixado sozinho: rebaixar é ato deliberado, feito pela tela.
+   */
+  adminsIniciais: texto(process.env.SHOPIA_ADMINS)
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean),
+
   producao: process.env.NODE_ENV === "production",
 } as const;
 

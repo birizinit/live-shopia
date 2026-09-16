@@ -10,4 +10,11 @@ export async function register() {
 
   const { iniciarWorker } = await import("@/lib/worker");
   void iniciarWorker();
+
+  // Banco fora do ar nao pode impedir o servidor de subir: sem admin a
+  // aplicacao inteira continua funcionando, so a tela de operacao fica fechada.
+  const { promoverAdminsIniciais } = await import("@/lib/admin-inicial");
+  void promoverAdminsIniciais().catch((erro) =>
+    console.error("[admin-inicial] falhou:", erro),
+  );
 }
