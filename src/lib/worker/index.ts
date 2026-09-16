@@ -7,6 +7,7 @@ import { executarRoteiro } from "./trabalhos/roteiro";
 import { executarTts } from "./trabalhos/tts";
 import { executarFaxina } from "./trabalhos/faxina";
 import { executarClonagem } from "./trabalhos/clonagem";
+import { executarPush } from "./trabalhos/push";
 
 /**
  * O worker da fila.
@@ -34,6 +35,7 @@ const HANDLERS: Record<string, Handler> = {
   roteiro: executarRoteiro,
   tts: executarTts,
   clonagem: executarClonagem,
+  push: executarPush,
   faxina: executarFaxina,
 };
 

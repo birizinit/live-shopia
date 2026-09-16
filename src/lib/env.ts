@@ -48,6 +48,9 @@ export const env = {
   // Fase 4 — push
   vapidPublica: texto(process.env.VAPID_PUBLIC_KEY),
   vapidPrivada: texto(process.env.VAPID_PRIVATE_KEY),
+  // O padrão VAPID exige um contato do remetente: é por onde o serviço de push
+  // do navegador fala com a gente se o nosso envio começar a dar problema.
+  vapidAssunto: texto(process.env.VAPID_ASSUNTO) || "mailto:nao-responda@influpay.com.br",
 
   // Fase 5 — extensao
   extensaoSegredo: texto(process.env.EXTENSAO_SEGREDO),
