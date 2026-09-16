@@ -182,6 +182,19 @@ export async function cadastrar(
     throw erro;
   }
 
+  // Convite de acesso, quando veio pelo link. Falhar aqui NÃO desfaz o
+  // cadastro: a conta existe, e código errado ou vencido é problema de acesso,
+  // não de identidade. Quem errou o código pede outro; quem perdeu a conta
+  // perde a senha que acabou de escolher.
+  const codigoConvite = String(formData.get("convite") ?? "").trim();
+  if (codigoConvite) {
+    try {
+      await bd()`select resgatar_convite(${perfilId}, ${codigoConvite})`;
+    } catch (erro) {
+      console.error("[cadastro] convite não resgatado:", erro);
+    }
+  }
+
   // O envio pode não sair (sem provedor configurado). O cadastro não depende
   // disso: a conta entra, e a confirmação fica pendente.
   const token = await criarTokenEmail(perfilId, "verificacao");

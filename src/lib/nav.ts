@@ -16,6 +16,7 @@ import {
   Package,
   Puzzle,
   Radio,
+  ShieldCheck,
   SlidersHorizontal,
   Star,
   Trophy,
@@ -88,6 +89,18 @@ export const NAVEGACAO: readonly GrupoNav[] = [
       { href: "/planos", rotulo: "Planos", icone: CreditCard, descricao: "Assinatura e checkout" },
       { href: "/notificacoes", rotulo: "Notificações", icone: Bell, descricao: "Push no celular" },
       { href: "/perfil", rotulo: "Perfil", icone: User, descricao: "Dados da conta e dispositivo" },
+    ],
+  },
+  {
+    titulo: "Operação",
+    itens: [
+      {
+        href: "/admin",
+        rotulo: "Operação",
+        icone: ShieldCheck,
+        papeis: ["admin"],
+        descricao: "Convites de acesso, cortesias e contas",
+      },
     ],
   },
 ];

@@ -9,7 +9,13 @@ import { Campo, Input } from "@/components/ui/input";
 
 const INICIAL: EstadoForm = {};
 
-export function FormCadastro({ indicacao }: { indicacao?: string }) {
+export function FormCadastro({
+  indicacao,
+  convite,
+}: {
+  indicacao?: string;
+  convite?: string;
+}) {
   const [estado, acao, enviando] = useActionState(cadastrar, INICIAL);
 
   if (estado.mensagem) {
@@ -29,8 +35,16 @@ export function FormCadastro({ indicacao }: { indicacao?: string }) {
   return (
     <form action={acao} className="space-y-4">
       {indicacao && <input type="hidden" name="ref" value={indicacao} />}
+      {convite && <input type="hidden" name="convite" value={convite} />}
 
       {estado.erro && <Alerta tom="erro">{estado.erro}</Alerta>}
+      {convite && (
+        <Alerta tom="sucesso">
+          Convite{" "}
+          <strong className="font-[family-name:var(--font-mono)]">{convite}</strong>{" "}
+          aplicado. O acesso é liberado assim que a conta for criada.
+        </Alerta>
+      )}
       {indicacao && (
         <Alerta tom="info">
           Você foi indicado por{" "}
