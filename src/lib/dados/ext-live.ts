@@ -1,7 +1,7 @@
 import "server-only";
 import { bd } from "@/lib/db";
 import { ErroDominio } from "./erros";
-import { numeroDe } from "./comum";
+import { comoJson, numeroDe } from "./comum";
 
 /**
  * O que a extensão precisa do servidor para operar a live.
@@ -321,7 +321,9 @@ export async function registrarEventosDaExtensao(
     apelido: e.apelido ?? null,
     texto: e.texto ?? null,
     espectadores: e.espectadores ?? null,
-    dados: JSON.stringify(e.dados ?? {}),
+    // comoJson mantem o jsonb como OBJETO. JSON.stringify aqui gravaria uma
+    // string JSON, e `dados->>chave` devolveria null em toda leitura.
+    dados: comoJson(e.dados ?? {}),
   }));
 
   const gravados = await sql`

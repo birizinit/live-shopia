@@ -1,6 +1,6 @@
 import "server-only";
 import { bd } from "@/lib/db";
-import { numeroDe } from "./comum";
+import { comoJson, numeroDe } from "./comum";
 
 /**
  * A decisão de responder — e de calar.
@@ -206,10 +206,13 @@ export async function registrarResposta(
   texto: string,
   tema: string | null,
 ): Promise<void> {
+  // comoJson e não JSON.stringify: com `${JSON.stringify(obj)}::jsonb` o
+  // postgres.js codifica a string de novo e o que fica gravado é um jsonb do
+  // tipo STRING — `dados->>'tema'` devolve null e o histórico perde o tema.
   await bd()`
     insert into live_eventos (live_sessao_id, perfil_id, tipo, texto, dados)
     select ${sessaoId}, ${perfilId}, 'resposta_ia', ${texto.slice(0, 500)},
-           ${JSON.stringify({ tema })}::jsonb
+           ${comoJson({ tema })}
      where exists (
        select 1 from live_sessoes
         where id = ${sessaoId} and perfil_id = ${perfilId} and fim is null
