@@ -166,3 +166,5 @@ input:focus-visible, select:focus-visible, button:focus-visible, summary:focus-v
 @media (prefers-reduced-motion: reduce) {
   * { transition-duration: 0.01ms !important; }
 }
+
+.medidas-4 { grid-template-columns: repeat(2, 1fr); }

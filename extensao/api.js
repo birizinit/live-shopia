@@ -186,6 +186,28 @@ export async function enviarEventos(sessaoId, eventos) {
 }
 
 /**
+ * Pergunta ao servidor o que fazer com um comentário ou uma entrada.
+ *
+ * A extensão NUNCA decide sozinha se responde, o que responde ou quando: as
+ * três decisões protegem a conta do cliente contra bloqueio, e regra que
+ * protege alguém não pode morar na máquina dessa pessoa.
+ */
+export async function decidirResposta({ sessaoId, tipo, apelido, texto, produtoId }) {
+  return chamar("/api/ext/responder", {
+    metodo: "POST",
+    corpo: { sessaoId, tipo, apelido, texto, produtoId },
+  });
+}
+
+/** Confirma que a resposta saiu. É o que faz a cadência contar. */
+export async function confirmarResposta(sessaoId, texto, tema) {
+  return chamar("/api/ext/responder", {
+    metodo: "POST",
+    corpo: { acao: "registrar", sessaoId, texto, tema },
+  });
+}
+
+/**
  * Telemetria de quebra.
  *
  * Não lança: se a telemetria falhar, a live continua. Ela existe para nós

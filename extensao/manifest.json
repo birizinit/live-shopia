@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Shopia — apresentadora de IA para lives",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "description": "Toca o áudio da sua live no LIVE Studio pelo cabo virtual, lê o chat e reporta — com a voz que você escolheu no painel.",
   "default_locale": "pt_BR",
 

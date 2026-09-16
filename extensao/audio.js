@@ -91,6 +91,7 @@ export class Reprodutor {
     this.sinkId = null;
     this.tocando = false;
     this.parando = false;
+    this.falando = false;
     this.voltas = 0;
     this.falaAtual = null;
 
@@ -227,6 +228,60 @@ export class Reprodutor {
       this.aoErro(erro?.message || "Falha ao tocar o áudio.", erro);
     } finally {
       this.#limpar();
+    }
+  }
+
+  /**
+   * Fala uma resposta por cima do laço, e devolve o laço de onde parou.
+   *
+   * Esperar o bloco atual terminar não serve: um bloco tem vários minutos, e
+   * resposta que chega depois disso já não é resposta. Então o laço PAUSA — o
+   * elemento guarda o currentTime sozinho — a resposta toca num segundo
+   * elemento apontando para o mesmo cabo, e o laço volta de onde estava.
+   *
+   * Devolve true quando a resposta saiu inteira.
+   */
+  async falar(blocos) {
+    if (!Array.isArray(blocos) || blocos.length === 0) return false;
+    if (this.falando) return false;
+
+    this.falando = true;
+    const laco = this.elemento;
+    const estavaTocando = laco && !laco.paused;
+
+    if (estavaTocando) laco.pause();
+
+    try {
+      for (const bloco of blocos) {
+        if (this.parando) break;
+
+        const blob = await this.buscarBlob(bloco.arquivoId);
+        const url = URL.createObjectURL(blob);
+        const voz = new Audio(url);
+        await this.#aplicarSaida(voz);
+
+        try {
+          await voz.play();
+          await new Promise((resolve) => {
+            voz.onended = resolve;
+            voz.onerror = resolve;
+          });
+        } finally {
+          URL.revokeObjectURL(url);
+        }
+      }
+      return true;
+    } catch (erro) {
+      this.aoErro("Não deu para falar a resposta.", erro);
+      return false;
+    } finally {
+      this.falando = false;
+      // Só retoma se o laço ainda é o mesmo elemento: se a montagem trocou ou
+      // a live parou enquanto a resposta tocava, retomar ressuscitaria áudio
+      // que já devia estar morto.
+      if (estavaTocando && laco === this.elemento && !this.parando) {
+        laco.play().catch(() => {});
+      }
     }
   }
 

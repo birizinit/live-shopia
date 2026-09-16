@@ -203,6 +203,47 @@ chrome.runtime.onMessage.addListener((mensagem, _remetente, responder) => {
         responder({ ok: true });
         break;
 
+      case "decidir": {
+        // O content script pergunta, o servidor decide. Aqui é só o carteiro:
+        // quem tem o token é este worker, e o content script roda numa página
+        // de terceiro onde credencial não pode entrar.
+        const sessaoId = await api.lerLocal(api.CHAVES.sessao);
+        if (!sessaoId) {
+          responder({ ok: false, acao: "ignorar", motivo: "sem_sessao" });
+          break;
+        }
+
+        try {
+          const decisao = await api.decidirResposta({ sessaoId, ...mensagem.evento });
+
+          // Falar é com o painel: é lá que o motor de áudio vive. O content
+          // script não tem como tocar nada.
+          if (decisao.acao === "falar") {
+            chrome.runtime
+              .sendMessage({ tipo: "falar", decisao, sessaoId })
+              .catch(() => {});
+            responder({ ok: true, acao: "falando" });
+            break;
+          }
+
+          responder({ ok: true, ...decisao });
+        } catch (erro) {
+          responder({ ok: false, acao: "ignorar", motivo: erro.codigo ?? "falhou" });
+        }
+        break;
+      }
+
+      case "respondeu": {
+        const sessaoId = await api.lerLocal(api.CHAVES.sessao);
+        if (sessaoId) {
+          await api
+            .confirmarResposta(sessaoId, mensagem.texto ?? "", mensagem.tema ?? null)
+            .catch(() => {});
+        }
+        responder({ ok: true });
+        break;
+      }
+
       case "sessao":
         await api.gravarLocal({ [api.CHAVES.sessao]: mensagem.sessaoId ?? null });
         responder({ ok: true });

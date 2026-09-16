@@ -13,6 +13,7 @@ const tela = { entrar: $("tela-entrar"), operar: $("tela-operar") };
 let montagem = null;
 let sessaoId = null;
 let comentariosLidos = 0;
+let respostasDadas = 0;
 
 const reprodutor = new Reprodutor({
   aoMudar: pintarReproducao,
@@ -270,9 +271,33 @@ $("btn-sair").addEventListener("click", async () => {
   mostrar("entrar");
 });
 
+/**
+ * Fala uma resposta decidida pelo servidor.
+ *
+ * O áudio do tema foi gerado UMA vez, no estúdio, com a cota do cliente.
+ * Tocá-lo aqui não escreve nada na razão de crédito — é a mesma mecânica do
+ * laço, e é o que permite responder o chat sem estourar a margem.
+ */
+async function falarResposta(decisao) {
+  if (!reprodutor.tocando) return;
+
+  // A espera vem do servidor, sorteada dentro da janela do cliente.
+  await new Promise((r) => setTimeout(r, Math.min(Math.max(decisao.esperarMs ?? 0, 0), 120000)));
+
+  const falou = await reprodutor.falar(decisao.blocos);
+  if (falou) {
+    respostasDadas += 1;
+    $("m-resposta").textContent = String(respostasDadas);
+    chrome.runtime
+      .sendMessage({ tipo: "respondeu", texto: decisao.texto, tema: decisao.tema })
+      .catch(() => {});
+  }
+}
+
 chrome.runtime.onMessage.addListener((mensagem) => {
   if (mensagem?.tipo === "estado") pintarLicenca(mensagem.estado);
   if (mensagem?.tipo === "parar") void encerrar(mensagem.motivo ?? "suspensa");
+  if (mensagem?.tipo === "falar") void falarResposta(mensagem.decisao);
   if (mensagem?.tipo === "chat") {
     comentariosLidos += mensagem.quantidade ?? 0;
     $("m-chat").textContent = String(comentariosLidos);

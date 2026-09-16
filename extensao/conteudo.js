@@ -57,10 +57,88 @@
     return { apelido: apelido || null, texto };
   }
 
+  /**
+   * Escreve no chat do LIVE Studio.
+   *
+   * Digitar caractere a caractere seria teatro: o TikTok lê o valor do campo,
+   * não a jornada até ele. O que importa de verdade é a CADÊNCIA entre
+   * respostas, e essa quem decide é o servidor.
+   *
+   * Dispara os eventos que um framework de UI espera — sem eles, o React do
+   * LIVE Studio não vê o texto e o botão continua desabilitado.
+   */
+  async function escreverNoChat(texto) {
+    const campo = mapa.um("chat.campo");
+    if (!campo) return false;
+
+    campo.focus();
+
+    if (campo.isContentEditable) {
+      campo.textContent = texto;
+    } else {
+      const setter = Object.getOwnPropertyDescriptor(
+        window.HTMLTextAreaElement.prototype === Object.getPrototypeOf(campo)
+          ? window.HTMLTextAreaElement.prototype
+          : window.HTMLInputElement.prototype,
+        "value",
+      )?.set;
+      if (setter) setter.call(campo, texto);
+      else campo.value = texto;
+    }
+
+    campo.dispatchEvent(new Event("input", { bubbles: true }));
+    campo.dispatchEvent(new Event("change", { bubbles: true }));
+
+    const botao = mapa.um("chat.enviar");
+    if (botao && !botao.disabled) {
+      botao.click();
+      return true;
+    }
+
+    // Sem botão utilizável, Enter é o caminho que o próprio usuário usaria.
+    campo.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", code: "Enter", keyCode: 13, bubbles: true }),
+    );
+    return true;
+  }
+
+  const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  /** Pergunta ao servidor e cumpre o que ele mandar. */
+  async function consultarEResponder(evento) {
+    const r = await pedir({ tipo: "decidir", evento });
+    if (!r?.ok || r.acao === "ignorar" || r.acao === "falando") return;
+
+    if (r.acao === "escrever" && r.texto) {
+      // A espera vem do servidor, sorteada dentro da janela do cliente. É ela
+      // que separa "responde como gente" de "responde como robô".
+      await dormir(Math.min(Math.max(r.esperarMs ?? 0, 0), 120000));
+      const enviou = await escreverNoChat(r.texto);
+      if (enviou) {
+        void pedir({ tipo: "respondeu", texto: r.texto, tema: r.tema ?? null });
+      }
+    }
+  }
+
   function processar(nos) {
     const novos = [];
 
     for (const no of nos) {
+      // Entrada de espectador vem antes: o mesmo nó também casaria com o
+      // leitor de comentário e viraria um comentário vazio.
+      const entrada = mapa.um("chat.entrada", no) ?? (no.matches?.("[data-e2e='chat-member-enter']") ? no : null);
+      if (entrada) {
+        const autor = mapa.um("chat.entrada_autor", no);
+        const apelido = (autor?.textContent || "").trim().slice(0, 80);
+        const chave = `e:${apelido}`;
+        if (apelido && !vistos.has(chave)) {
+          vistos.add(chave);
+          novos.push({ tipo: "entrada", apelido, texto: null });
+          void consultarEResponder({ tipo: "entrada", apelido, texto: null });
+        }
+        continue;
+      }
+
       const lido = lerComentario(no);
       if (!lido) continue;
 
@@ -69,6 +147,11 @@
       vistos.add(chave);
 
       novos.push({ tipo: "comentario", apelido: lido.apelido, texto: lido.texto });
+      void consultarEResponder({
+        tipo: "comentario",
+        apelido: lido.apelido,
+        texto: lido.texto,
+      });
     }
 
     // O conjunto de vistos cresce para sempre numa live de 24 horas. Podar
