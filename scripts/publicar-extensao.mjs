@@ -420,7 +420,74 @@ function validarManifest(entradas, versaoPedida) {
     throw new Error('manifest.json sem "name". O Chrome recusa a instalação.');
   }
 
+  conferirReferencias(json, entradas);
+
   return json;
+}
+
+/**
+ * Todo arquivo que o manifest promete precisa existir no pacote.
+ *
+ * O Chrome não avisa disso na publicação: avisa na INSTALAÇÃO, com uma linha
+ * seca ("Could not load manifest") na cara de quem tentou instalar. Ou seja, o
+ * erro nasce aqui e só aparece na ponta — que é a pior forma possível de um
+ * pacote quebrado viajar.
+ *
+ * Aconteceu com `default_locale: "pt_BR"` sem pasta `_locales`: a extensão
+ * inteira parou de carregar por uma chave que nem estava em uso.
+ */
+function conferirReferencias(json, entradas) {
+  const existe = new Set(entradas.map((e) => e.nome));
+  const faltando = [];
+  const exigir = (caminho, onde) => {
+    if (typeof caminho !== "string" || !caminho) return;
+    const limpo = caminho.replace(/^\.?\//, "");
+    if (!existe.has(limpo)) faltando.push(`${limpo}  (${onde})`);
+  };
+
+  exigir(json.background?.service_worker, "background.service_worker");
+  exigir(json.side_panel?.default_path, "side_panel.default_path");
+  exigir(json.action?.default_popup, "action.default_popup");
+  exigir(json.options_page, "options_page");
+  exigir(json.options_ui?.page, "options_ui.page");
+
+  for (const [tam, arq] of Object.entries(json.icons ?? {})) exigir(arq, `icons.${tam}`);
+  for (const [tam, arq] of Object.entries(json.action?.default_icon ?? {})) {
+    exigir(arq, `action.default_icon.${tam}`);
+  }
+  for (const [i, bloco] of (json.content_scripts ?? []).entries()) {
+    for (const arq of bloco.js ?? []) exigir(arq, `content_scripts[${i}].js`);
+    for (const arq of bloco.css ?? []) exigir(arq, `content_scripts[${i}].css`);
+  }
+  for (const [i, bloco] of (json.web_accessible_resources ?? []).entries()) {
+    // Curinga aqui é legítimo: "assets/*" casa com o que estiver na pasta.
+    for (const arq of bloco.resources ?? []) {
+      if (!arq.includes("*")) exigir(arq, `web_accessible_resources[${i}].resources`);
+    }
+  }
+
+  // `default_locale` não aponta para um arquivo, aponta para uma ÁRVORE — e é
+  // por isso que escapa de qualquer conferência de caminho. O Chrome exige
+  // `_locales/<locale>/messages.json`, e recusa a extensão inteira sem ela.
+  if (json.default_locale) {
+    const alvo = `_locales/${json.default_locale}/messages.json`;
+    if (!existe.has(alvo)) {
+      faltando.push(
+        `${alvo}  (default_locale="${json.default_locale}")\n` +
+          "      Se a extensão não é traduzida, o certo é TIRAR default_locale " +
+          "do manifest: declarar tradução que não existe só impede a instalação.",
+      );
+    }
+  }
+
+  if (faltando.length > 0) {
+    throw new Error(
+      "O manifest aponta para arquivos que não estão no pacote:\n" +
+        faltando.map((f) => `      ${f}`).join("\n") +
+        "\n    O Chrome só reclama disso na hora de INSTALAR, então isto " +
+        "viajaria até o usuário antes de alguém perceber.",
+    );
+  }
 }
 
 function hostDe(url) {
