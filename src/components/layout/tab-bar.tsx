@@ -21,7 +21,7 @@ export function TabBar({ papel }: { papel: Papel | null }) {
       >
         <ul className="flex items-stretch">
           {ABAS_MOBILE.map((item) => {
-            const ativo = itemAtivo(item.href, caminho);
+            const ativo = itemAtivo(item, caminho);
             const Icone = item.icone;
 
             if (item.destaque) {

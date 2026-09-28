@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { FlaskConical, Info, TriangleAlert, X } from "lucide-react";
 import { modoDemo, servicos } from "@/lib/env";
 import { cn } from "@/lib/utils";
@@ -94,9 +95,11 @@ var b=e.querySelector("[data-fechar]");
 if(b){b.addEventListener("click",function(){e.style.display="none";try{sessionStorage.setItem(k,v)}catch(x){}})}
 })();`;
 
-export function FaixaServico() {
+export async function FaixaServico() {
   const aviso = escolherAviso();
   if (!aviso) return null;
+
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   const { Icone } = aviso;
   const alerta = aviso.tom === "alerta";
@@ -129,7 +132,7 @@ export function FaixaServico() {
           <X className="size-3.5" aria-hidden />
         </button>
       </div>
-      <script dangerouslySetInnerHTML={{ __html: SCRIPT }} />
+      <script nonce={nonce} dangerouslySetInnerHTML={{ __html: SCRIPT }} />
     </>
   );
 }

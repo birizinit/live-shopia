@@ -262,6 +262,29 @@ Nada disso bloqueia as fases 1 e 2:
 
 ## 10. O que está no ar e o que ainda não roda de verdade
 
+### Atualização de 27/09/2026 — o que mudou desde o texto abaixo
+
+- **A extensão existe e está publicada** (1.0.2, 1.1.0 e 1.1.1 em `ext_versoes`;
+  a 1.2.0 está pronta em `extensao/` para publicar). As rotas em `/api/ext/` são
+  nove: `licenca`, `seletores`, `telemetria`, `baixar`, `montagem`, `bloco`,
+  `sessao` (abrir, bater, fechar), `eventos` (lote do chat) e `responder`. O
+  parágrafo "As rotas que existem em `/api/ext/` são quatro", mais abaixo, ficou
+  velho.
+- **Venda continua sem origem**: `ext/eventos` recusa registrar venda por
+  decisão de segurança, então `/dashboard` e `/ranking` seguem vazios.
+- **Os seletores do chat nunca foram confirmados no DOM real.** A v1/v2 eram
+  palpite; a v3 (migração 0022) acrescenta fallbacks por nome de componente vistos
+  em código que lê a página da live de verdade. A primeira live real confirma ou
+  corrige, pela telemetria (`ext_quebras()`).
+- **Nenhuma cliente chegou a entrar no ar até aqui**: nos dados de produção de
+  27/09, as duas contas com extensão instalada nunca geraram áudio. O caminho
+  era espalhado em seis telas; agora existe o assistente `/criar` (produto →
+  roteiro → voz → áudio → montagem ativa, em três passos) e o menu caiu de 20
+  itens para 7.
+- **Pagamento** segue sem gateway: o job `credito` é enfileirado pelo gatilho de
+  pagamento confirmado (0005), mas não tem handler — a ativação de assinatura
+  por pagamento não existe nem no SQL. `comissao` e `comissao_liberar` já têm.
+
 Todas as 19 telas foram construídas e sobem funcionando. Três delas dependem
 de coisas que ainda não existem, e isso não se resolve com código:
 

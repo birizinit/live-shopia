@@ -24,21 +24,25 @@ caracteres) para ver cada papel. Para ligar no banco de verdade, copie
 | `npm run dev` | Desenvolvimento (Turbopack) |
 | `npm run build` | Build de produção |
 | `npm run lint` | ESLint |
-| `npm run typecheck` | `tsc --noEmit` |
+| `npm run typecheck` | Gera os tipos de rota e roda `tsc --noEmit` |
+| `npm test` | Testes das regras puras (`node --test`, sem dependência) |
 | `npm run db:migrate` | Aplica as migrações pendentes |
 
 ## Estado
 
-**Fases 0 a 7 construídas.** As 26 telas existem e funcionam, mais um tour
-guiado de onboarding. 61 tabelas, fila de jobs em Postgres, worker no próprio
+**Fases 0 a 7 construídas, extensão publicada (1.1.1; a 1.2.0 está pronta em
+`extensao/`).** O caminho do usuário é o assistente `/criar`: o que vender →
+roteiro escrito pela IA e voz → áudio, que entra sozinho na montagem que a
+extensão toca. O menu tem 7 itens; as telas de ajuste fino ficam em
+`/ferramentas`. 61 tabelas, fila de jobs em Postgres, worker no próprio
 processo, Claude e ElevenLabs integrados.
 
 O que **não** está pronto para cobrar de um cliente, dito sem rodeio:
 a corrente de pagamento não existe (não há adaptador de gateway, rota de
-webhook, criação de assinatura nem handler de crédito); `/dashboard` e
-`/ranking` sobem vazios porque a única origem de venda é a extensão, que ainda
-não foi escrita; e roteiro e áudio saem como exemplo rotulado até as chaves de
-IA entrarem. A lista completa, com esforço por item, está em
+webhook nem ativação de assinatura — o job `credito` é enfileirado e fica sem
+handler); `/dashboard` e `/ranking` sobem vazios porque a extensão não
+registra venda, por decisão de segurança; e os seletores do chat do TikTok
+(mapa v3) ainda não foram confirmados numa live real. A lista completa está em
 [`docs/PLANO.md`](docs/PLANO.md) §10.
 
 | Onde | O quê |
@@ -119,8 +123,9 @@ reais. As correções são estruturais e estão no lugar desde a fase 0:
 | Painel expondo username e depósito da downline | Nome de exibição e valores agregados; nada de e-mail, CPF ou telefone |
 | — | Saldo de crédito é razão append-only com idempotência, não um campo que se sobrescreve |
 
-Rate limit em login, cadastro e recuperação ainda não existe — era o que o
-Supabase dava de graça e agora é nosso; entra junto com o Redis da fase 1.
+Login, cadastro e recuperação têm teto de tentativas por origem e por e-mail
+(`consumirLimite`, no Postgres). Toda página sai com CSP por nonce (gerado no
+`src/proxy.ts`), HSTS, `X-Frame-Options: DENY` e `nosniff`.
 
 ## Deploy
 

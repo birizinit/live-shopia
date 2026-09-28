@@ -74,7 +74,11 @@ function lerChave(valor: FormDataEntryValue | null): string | null {
 
 /** Fora da faixa vira o padrão, e não erro: é uma dica de tamanho, não um dado. */
 function lerMinutos(valor: FormDataEntryValue | null): number {
-  const numero = Number(texto(valor));
+  // Campo ausente é "" e Number("") é 0 — que o teto abaixo transformaria em
+  // um roteiro de 1 minuto. Ausente é o padrão, não o mínimo.
+  const bruto = texto(valor);
+  if (!bruto) return 3;
+  const numero = Number(bruto);
   if (!Number.isFinite(numero)) return 3;
   return Math.min(15, Math.max(1, Math.round(numero)));
 }

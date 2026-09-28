@@ -2,18 +2,9 @@
 
 import { redirect } from "next/navigation";
 import { contarCaracteres } from "@/lib/caracteres";
-import {
-  MINIMO_CARACTERES_AUDIO,
-  TETO_CARACTERES_AUDIO,
-  audioDaChave,
-  audioProntoIgual,
-  criarAudio,
-  ehIdValido,
-  marcarNaFila,
-  removerRascunho,
-  tituloSugerido,
-} from "@/lib/dados/audios";
-import { debitarEEnfileirar, estimar } from "@/lib/dados/creditos";
+import { MINIMO_CARACTERES_AUDIO, TETO_CARACTERES_AUDIO, ehIdValido } from "@/lib/dados/audios";
+import { estimar } from "@/lib/dados/creditos";
+import { gerarAudioPago } from "@/lib/dados/geracao-audio";
 import { traduzirErro } from "@/lib/dados/erros";
 import type { Estimativa } from "@/lib/dados/tipos";
 import { modoDemo, servicos } from "@/lib/env";
@@ -167,52 +158,16 @@ async function gerar(
   chave: string,
   caracteres: number,
 ): Promise<string> {
-  // 1. Esta chave já gerou? Duplo clique e retry de rede caem aqui e voltam
-  //    para o MESMO áudio, sem segunda cobrança.
-  const jaGerado = await audioDaChave(perfilId, chave);
-  if (jaGerado?.audioId) return `/estudio?audio=${jaGerado.audioId}&estado=andamento`;
-
-  // 2. Mesmo texto, mesma voz, já pronto: reaproveita de graça.
-  const igual = await audioProntoIgual(perfilId, campos.vozId, campos.texto);
-  if (igual) return `/estudio?audio=${igual.id}&estado=reuso`;
-
-  // 3. Fatia e grava os blocos ANTES de enfileirar: o job de tts trabalha em
-  //    cima de audio_blocos, não do texto solto.
-  const audio = await criarAudio(perfilId, {
-    vozId: campos.vozId,
-    titulo: campos.titulo || tituloSugerido(campos.texto),
-    texto: campos.texto,
-    roteiroVersaoId: ehIdValido(campos.roteiroId) ? campos.roteiroId : null,
-  });
-
-  try {
-    const debito = await debitarEEnfileirar(perfilId, {
-      caracteres,
-      referencia: chave,
-      tipo: "tts",
-      entrada: { audio_id: audio.id },
-    });
-
-    if (debito.jaExistia) {
-      // Outra aba (ou outro clique) venceu a corrida e já pagou por ESTA chave.
-      // O job dela aponta para o áudio dela; o rascunho recém-criado aqui não
-      // tem dono e é apagado, senão ficaria "na fila" para sempre.
-      const dono = await audioDaChave(perfilId, chave);
-      if (dono?.audioId && dono.audioId !== audio.id) {
-        await removerRascunho(perfilId, audio.id);
-        return `/estudio?audio=${dono.audioId}&estado=andamento`;
-      }
-
-      await marcarNaFila(perfilId, audio.id, debito);
-      return `/estudio?audio=${audio.id}&estado=andamento`;
-    }
-
-    await marcarNaFila(perfilId, audio.id, debito);
-    return `/estudio?audio=${audio.id}&estado=novo`;
-  } catch (erro) {
-    // Nada foi cobrado (o débito e o job são o mesmo commit), então o rascunho
-    // não pode sobrar na lista fingindo que algo está sendo gerado.
-    await removerRascunho(perfilId, audio.id).catch(() => {});
-    throw erro;
-  }
+  const { audioId, situacao } = await gerarAudioPago(
+    perfilId,
+    {
+      vozId: campos.vozId,
+      titulo: campos.titulo,
+      texto: campos.texto,
+      roteiroVersaoId: campos.roteiroId,
+    },
+    chave,
+    caracteres,
+  );
+  return `/estudio?audio=${audioId}&estado=${situacao}`;
 }

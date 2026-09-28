@@ -148,10 +148,37 @@ input:focus-visible, select:focus-visible, button:focus-visible, summary:focus-v
 .ponto[data-cor="alerta"] { background: var(--warning); }
 .ponto[data-cor="ruim"] { background: var(--danger); }
 
-.aviso { border-radius: var(--radius); padding: 9px 11px; font-size: 13px; }
+.aviso { border-radius: var(--radius); padding: 9px 11px; font-size: 13px; margin: 0; }
 .aviso.alerta { background: var(--warning-soft); color: var(--warning); }
 .aviso.perigo { background: var(--danger-soft); color: var(--danger); }
+.aviso.ok { background: var(--primary-soft); color: var(--primary-soft-fg); }
 .aviso a { color: inherit; }
+.aviso .botao { margin-top: 8px; }
+
+/* Aberta numa aba inteira (permissão), não no painel estreito. */
+.pagina-permissao main { max-width: 480px; margin: 32px auto; }
+
+/* Passo que falta: o que fazer vem junto do porquê, com o botão ali mesmo. */
+.pendencia { display: grid; gap: 8px; }
+.pendencia p { margin: 0; }
+.pendencia + .pendencia { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 4px; }
+
+.linha-estado { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.linha-estado .ponto { margin-top: 1px; }
+
+.cronometro {
+  font-size: 26px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  margin: 2px 0 0;
+}
+
+.protecao { margin: 0; padding: 0; list-style: none; display: grid; gap: 6px; font-size: 13px; }
+.protecao li { display: flex; gap: 8px; align-items: flex-start; color: var(--text-muted); }
+.protecao li::before { content: "✓"; color: var(--success); font-weight: 700; }
+.protecao li[data-tom="alerta"]::before { content: "!"; color: var(--warning); }
+.protecao li[data-tom="alerta"] { color: var(--warning); }
 
 .erro { color: var(--danger); font-size: 13px; margin: 0; }
 
@@ -168,3 +195,7 @@ input:focus-visible, select:focus-visible, button:focus-visible, summary:focus-v
 }
 
 .medidas-4 { grid-template-columns: repeat(2, 1fr); }
+
+.empurra { margin-left: auto; }
+.fluido { flex: 1; }
+.sem-margem { margin: 0; }

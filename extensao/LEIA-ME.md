@@ -26,17 +26,41 @@ Studio escuta esse cabo como se fosse um microfone.
 | Windows | [VB-Cable](https://vb-audio.com/Cable/) | escolha **CABLE Input** no painel da Shopia e **CABLE Output** como microfone no LIVE Studio |
 | macOS | [BlackHole 2ch](https://existential.audio/blackhole/) | escolha **BlackHole 2ch** nos dois lados |
 
-Na primeira vez o navegador pede permissão de microfone. Ela existe só para o
-Chrome revelar os **nomes** dos dispositivos — sem isso o cabo aparece como
-"Dispositivo desconhecido" e não dá para reconhecê-lo. Nada é gravado: a
-captura é encerrada no mesmo instante.
+Na primeira vez é preciso **liberar o acesso ao áudio**. Sem essa permissão o
+Chrome esconde o nome das saídas e o cabo aparece como "sem nome" — e aí a voz
+iria para o alto-falante, não para a live. O painel lateral **não consegue**
+mostrar o balão de permissão (o Chrome não exibe ali), então o painel mostra o
+botão **Liberar acesso**, que abre `permissao.html` numa aba normal: você clica
+em Permitir e volta. A permissão é da extensão, então passa a valer no painel.
+Nada é gravado: a captura é encerrada no mesmo instante.
+
+Enquanto o cabo não for identificado, o botão **Entrar no ar** fica bloqueado e
+diz por quê. Antes (até a 1.1.1) ele deixava entrar no ar tocando no
+alto-falante, e a live ia ao ar muda.
+
+## Entrar no ar
+
+1. No LIVE Studio, escolha o cabo como microfone e comece a transmitir.
+2. No Chrome, clique no ícone da Shopia. O painel lista **o que falta**: áudio
+   da live, cabo e chat — cada item com o botão que resolve.
+3. Abra a página da sua live no tiktok.com (botão **Abrir minha live no
+   TikTok**). É por ela que a extensão lê o chat; o LIVE Studio é um programa, e
+   extensão de navegador não enxerga dentro dele.
+4. **Entrar no ar.** O cronômetro corre; em **Encerrar sozinho depois de** dá
+   para programar o fim (30 min a 8 h).
+
+O bloco **Proteção anti-restrição** mostra se o texto do áudio tem o que costuma
+fazer o TikTok restringir uma live (mandar para WhatsApp, pedir Pix, prometer
+resultado) e aponta onde corrigir. É revisão de conteúdo com a mesma lista do
+painel (`src/lib/termos-restritos.ts`) — não disfarça automação.
 
 ## Como é por dentro
 
 | Arquivo | O que faz |
 |---|---|
 | `fundo.js` | Service worker. Bate na licença, guarda o mapa de seletores, obedece o kill switch, junta os eventos e manda em lote |
-| `painel.html/js/css` | Painel lateral: onde o **áudio toca** |
+| `painel.html/js/css` | Painel lateral: onde o **áudio toca**, com a lista do que falta, cronômetro e proteção |
+| `permissao.html/js` | Aba que pede a permissão de áudio que o painel lateral não consegue pedir |
 | `audio.js` | Acha o cabo, toca a montagem em laço, trilha de ambiente |
 | `api.js` | Cliente da API, autenticado por token de licença |
 | `seletores.js` | Resolve âncoras do DOM pelo mapa remoto, com cascata de alternativas |
@@ -66,17 +90,24 @@ quem guarda o token e fala com a nossa API.
 - **Não registra venda.** Ingestão de venda precisa de origem verificável;
   aceitar valor vindo de uma extensão que o próprio cliente controla seria
   deixar o ranking e o faturamento serem escritos por quem os disputa.
-- **Não responde o chat ainda.** A leitura está pronta e os eventos chegam ao
-  painel ao vivo. A resposta depende do lado servidor (gerador com contexto do
-  produto e cadência), que é o próximo bloco.
+- **Não decide sozinha quando responder.** Cada comentário vai ao servidor
+  (`/api/ext/responder`), que decide se responde, o quê e depois de quanto
+  tempo — com teto por minuto. Regra que protege a conta não mora na máquina
+  de quem ela protege.
 - **Não abre a live por você.** Você inicia a transmissão no LIVE Studio; a
   extensão assume o áudio.
+- **Não lê o chat de dentro do LIVE Studio.** Lê pela página da live no
+  tiktok.com, aberta no Chrome. Os seletores dessa página vêm do mapa remoto
+  (v3, migração 0022) e ainda não foram confirmados numa live real — a
+  telemetria da primeira live diz o que ajustar.
 
 ## Aviso de risco
 
 Automatizar o LIVE Studio tende a violar os Termos do TikTok, e um eventual
-bloqueio recai sobre a conta do cliente. O aceite é registrado no painel antes
-de a extensão poder operar, e o texto está em `/live`.
+bloqueio recai sobre a conta do cliente. O aceite é registrado no painel, e
+desde a 1.2.0 o servidor confere: sem aceite na versão vigente do texto,
+`/api/ext/sessao` recusa abrir a sessão (`risco_pendente`) e o painel leva ao
+aceite.
 
 Dois freios independentes existem de propósito: o **mixer** (o áudio) e o
 **chat** (a automação de conversa) são liberados separadamente, por conta e na

@@ -9,8 +9,9 @@ import type { Papel } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 
 /**
- * O menu "Mais" do mobile: a árvore inteira, agrupada. É aqui que ficam as
- * 20+ rotas que não cabem na barra inferior sem virar alvo de toque de 30px.
+ * O menu "Mais" do mobile: o mesmo menu curto da barra lateral. As
+ * ferramentas de ajuste fino ficam atrás de um item só ("Ferramentas"), e não
+ * despejadas aqui — vinte botões numa folha é o que fazia ninguém achar nada.
  */
 export function MenuCompleto({
   aberto,
@@ -72,27 +73,28 @@ export function MenuCompleto({
             if (itens.length === 0) return null;
 
             return (
-              <section key={grupo.titulo} className="mb-5">
-                <h3 className="px-1 pb-2 text-[11px] font-semibold tracking-wider text-fg-subtle uppercase">
-                  {grupo.titulo}
-                </h3>
+              <section key={grupo.titulo || "principal"} className="mb-5">
+                {grupo.titulo && (
+                  <h3 className="px-1 pb-2 text-[11px] font-semibold tracking-wider text-fg-subtle uppercase">
+                    {grupo.titulo}
+                  </h3>
+                )}
                 <ul className="grid grid-cols-2 gap-2">
                   {itens.map((item) => {
                     const Icone = item.icone;
-                    const ativo = itemAtivo(item.href, caminho);
+                    const ativo = itemAtivo(item, caminho);
 
                     return (
                       <li key={item.href}>
                         <Link
                           href={item.href}
                           onClick={aoFechar}
-                          aria-disabled={item.emBreve || undefined}
+                          aria-current={ativo ? "page" : undefined}
                           className={cn(
                             "flex h-full items-center gap-2.5 rounded-md border border-border px-3 py-3 text-sm",
                             ativo
                               ? "border-primary-border bg-primary-soft font-medium text-primary-soft-fg"
                               : "bg-bg text-fg-muted",
-                            item.emBreve && "pointer-events-none opacity-45",
                           )}
                         >
                           <Icone className="size-4 shrink-0" aria-hidden />

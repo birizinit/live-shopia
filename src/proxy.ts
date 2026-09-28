@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { gerarNonce, politicaDeConteudo } from "@/lib/csp";
 import { modoDemo } from "@/lib/env";
 import {
   ROTA_LOGIN,
@@ -23,7 +24,23 @@ const COOKIE_DEMO = "shopia_demo";
  *
  * O pior caso aqui é deixar passar um cookie expirado até a página redirecionar
  * — nunca deixar passar sem sessão.
+ *
+ * Também é aqui que nasce o nonce do CSP: ele precisa ser novo a cada resposta,
+ * e o proxy é o único ponto que vê toda requisição antes da renderização.
  */
+function seguir(request: NextRequest) {
+  const nonce = gerarNonce();
+  const politica = politicaDeConteudo(nonce, process.env.NODE_ENV === "development");
+
+  const cabecalhos = new Headers(request.headers);
+  cabecalhos.set("x-nonce", nonce);
+  cabecalhos.set("Content-Security-Policy", politica);
+
+  const resposta = NextResponse.next({ request: { headers: cabecalhos } });
+  resposta.headers.set("Content-Security-Policy", politica);
+  return resposta;
+}
+
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
 
@@ -48,7 +65,7 @@ export function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(ROTA_POS_LOGIN, request.url));
   }
 
-  return NextResponse.next();
+  return seguir(request);
 }
 
 export const config = {

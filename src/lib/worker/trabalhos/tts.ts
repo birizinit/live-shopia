@@ -13,7 +13,7 @@ import type { Contexto } from "../index";
  * estorno precisa de um dono unico. Blocos ja prontos sao pulados, entao um
  * retry depois de falhar no bloco 30 nao refaz — nem repaga — os 29 primeiros.
  */
-export async function executarTts({ perfilId, entrada, progresso }: Contexto) {
+export async function executarTts({ perfilId, entrada, progresso, sinal }: Contexto) {
   const audioId = String(entrada.audio_id ?? "");
   if (!perfilId || !audioId) throw new ErroDominio("dado_invalido", "job de tts sem áudio");
 
@@ -55,6 +55,9 @@ export async function executarTts({ perfilId, entrada, progresso }: Contexto) {
   let feitos = total - blocos.length;
 
   for (const bloco of blocos) {
+    // Cada volta é uma chamada paga. Se a reserva passou para outro worker,
+    // seguir aqui seria pagar duas vezes pelo mesmo bloco.
+    sinal.throwIfAborted();
     await sql`update audio_blocos set estado = 'gerando' where id = ${bloco.id}`;
 
     const fala = await sintetizar(bloco.texto, audio.provedor_voz_id ?? "");

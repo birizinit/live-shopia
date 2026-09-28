@@ -1,6 +1,28 @@
 import type { NextConfig } from "next";
 
+/**
+ * Cabeçalhos de segurança que não mudam por requisição. O CSP muda (leva o
+ * nonce) e por isso mora no proxy — ver src/lib/csp.ts.
+ *
+ * Câmera e microfone ficam negados no painel: nenhuma tela grava nada. Quem
+ * usa áudio do sistema é a extensão, que roda na origem dela e não herda isto.
+ */
+const CABECALHOS_DE_SEGURANCA = [
+  { key: "Strict-Transport-Security", value: "max-age=63072000; includeSubDomains" },
+  { key: "X-Content-Type-Options", value: "nosniff" },
+  { key: "X-Frame-Options", value: "DENY" },
+  { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+  {
+    key: "Permissions-Policy",
+    value: "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+  },
+];
+
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
+  async headers() {
+    return [{ source: "/:path*", headers: CABECALHOS_DE_SEGURANCA }];
+  },
   experimental: {
     /**
      * Cache de arquivo do Turbopack DESLIGADO no build.

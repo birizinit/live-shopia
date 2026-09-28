@@ -12,17 +12,31 @@
 (async () => {
   "use strict";
 
-  // Só o LIVE Studio interessa. A extensão não tem o que fazer no feed.
-  const ehEstudio = /\/(live|studio|live_studio)/i.test(location.pathname);
-  if (!ehEstudio) return;
+  // Só a página da live interessa. A conferência é a cada volta, e não uma vez
+  // na carga: o TikTok é aplicação de página única, e quem sai do feed para a
+  // própria live não recarrega a página — o script já estava aqui, dormindo.
+  const ehPaginaDaLive = () => /\/(live|studio|live_studio)(\/|$)/i.test(location.pathname);
 
   const { Mapa } = await import(chrome.runtime.getURL("seletores.js"));
 
   let mapa = new Mapa({}, null);
   let observador = null;
+  let listaObservada = null;
   let ligado = false;
+  let suspenso = false;
   const vistos = new Set();
   let pendentes = [];
+
+  // Estado do chat, contado ao painel: é o que responde "a extensão está
+  // lendo a minha live?" sem ninguém precisar abrir o console.
+  let tentativasSemChat = 0;
+  let ultimoEstado = null;
+
+  function contarEstado(estado) {
+    if (estado === ultimoEstado) return;
+    ultimoEstado = estado;
+    void pedir({ tipo: "chat_status", estado, caminho: location.pathname.slice(0, 80) });
+  }
 
   async function pedir(mensagem) {
     try {
@@ -74,7 +88,12 @@
     campo.focus();
 
     if (campo.isContentEditable) {
-      campo.textContent = texto;
+      // O campo do chat do TikTok é um editor próprio (contenteditable
+      // "plaintext-only"). Trocar textContent não passa pelo estado dele, e o
+      // Enter mandaria vazio; insertText entra pelo mesmo caminho da digitação.
+      const selecao = window.getSelection();
+      selecao?.selectAllChildren(campo);
+      if (!document.execCommand("insertText", false, texto)) campo.textContent = texto;
     } else {
       const setter = Object.getOwnPropertyDescriptor(
         window.HTMLTextAreaElement.prototype === Object.getPrototypeOf(campo)
@@ -162,13 +181,19 @@
       for (const v of sobra) vistos.add(v);
     }
 
-    if (novos.length) pendentes.push(...novos);
+    if (novos.length) {
+      pendentes.push(...novos);
+      // Só a contagem vai ao painel — o texto dos comentários segue pelo
+      // caminho de sempre, em lote, para o servidor.
+      void pedir({ tipo: "chat", quantidade: novos.length });
+    }
   }
 
   function observarChat() {
     const lista = mapa.um("chat.lista");
     if (!lista) return false;
 
+    listaObservada = lista;
     observador?.disconnect();
     observador = new MutationObserver((mutacoes) => {
       const candidatos = [];
@@ -197,11 +222,40 @@
     await pedir({ tipo: "eventos", eventos: lote });
   }
 
+  /** Três voltas de 5s sem achar o chat numa página de live é sinal real. */
+  const VOLTAS_ATE_AVISAR = 3;
+
   async function ligar() {
+    // Freio do servidor (kill switch) vale até ele mesmo soltar: sem isto, a
+    // volta de 5s religava a leitura segundos depois de mandarem parar.
+    if (suspenso) return;
+
+    if (!ehPaginaDaLive()) {
+      // Saiu da live dentro da mesma aba: para de ler o que não é chat.
+      if (ligado) {
+        observador?.disconnect();
+        observador = null;
+        ligado = false;
+      }
+      tentativasSemChat = 0;
+      contarEstado("fora_da_live");
+      return;
+    }
+
+    // A lista do chat é trocada quando a live recarrega o player: observador
+    // preso num nó que saiu do DOM não recebe mais nada.
+    if (ligado && !listaObservada?.isConnected) ligado = false;
     if (ligado) return;
+
     if (!(await carregarMapa())) return;
-    if (!observarChat()) return;
+    if (!observarChat()) {
+      tentativasSemChat += 1;
+      if (tentativasSemChat >= VOLTAS_ATE_AVISAR) contarEstado("sem_chat");
+      return;
+    }
+    tentativasSemChat = 0;
     ligado = true;
+    contarEstado("lendo");
   }
 
   chrome.runtime.onMessage.addListener((mensagem) => {
@@ -209,12 +263,23 @@
       mapa = new Mapa(mensagem.mapa, mensagem.versao);
       // Mapa novo costuma chegar justamente porque o antigo quebrou: reatar o
       // observador é o que faz o conserto valer sem recarregar a página.
-      ligado = observarChat();
+      ligado = ehPaginaDaLive() && observarChat();
+      if (ligado) contarEstado("lendo");
+    }
+    if (mensagem?.tipo === "status_chat?") {
+      // O painel acabou de abrir e quer saber: responde sem esperar a volta.
+      ultimoEstado = null;
+      contarEstado(ehPaginaDaLive() ? (ligado ? "lendo" : "procurando") : "fora_da_live");
     }
     if (mensagem?.tipo === "parar") {
+      suspenso = true;
       observador?.disconnect();
       observador = null;
       ligado = false;
+      contarEstado("suspenso");
+    }
+    if (mensagem?.tipo === "estado" && mensagem.estado && !mensagem.estado.pararAgora) {
+      suspenso = false;
     }
   });
 

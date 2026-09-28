@@ -14,6 +14,7 @@ import * as api from "./api.js";
 
 const ALARME_LICENCA = "shopia:licenca";
 const ALARME_EVENTOS = "shopia:eventos";
+const CHAVE_CHAT = "shopia_chat";
 
 /** Estado vivo. Reconstruído do storage quando o worker renasce. */
 let estado = {
@@ -29,6 +30,19 @@ let estado = {
 };
 
 let fila = [];
+
+/**
+ * O worker morre ocioso e renasce com `estado` no valor padrão — inclusive
+ * `pararAgora: false`. Sem reler o que foi guardado, um renascimento seguido de
+ * rede caída desfazia o kill switch sozinho: o ramo "offline" espalhava o
+ * padrão por cima da ordem de parar. Service worker não aceita await no topo do
+ * módulo, então quem precisa do estado espera esta promessa.
+ */
+const restaurado = (chrome.storage.session?.get("shopia_estado") ?? Promise.resolve({}))
+  .then((r) => {
+    if (r?.shopia_estado) estado = { ...estado, ...r.shopia_estado };
+  })
+  .catch(() => {});
 
 const versaoDaExtensao = () => chrome.runtime.getManifest().version;
 
@@ -49,6 +63,7 @@ async function guardarEstado() {
 }
 
 async function baterLicenca() {
+  await restaurado;
   const token = await api.token();
   if (!token) {
     estado = { ...estado, licenciada: false, motivo: "sem_token" };
@@ -172,8 +187,9 @@ chrome.action.onClicked.addListener((aba) => {
   chrome.sidePanel.open({ tabId: aba.id }).catch(() => {});
 });
 
-chrome.runtime.onMessage.addListener((mensagem, _remetente, responder) => {
+chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
   (async () => {
+    await restaurado;
     switch (mensagem?.tipo) {
       case "estado":
         responder({ ok: true, estado });
@@ -246,6 +262,22 @@ chrome.runtime.onMessage.addListener((mensagem, _remetente, responder) => {
 
       case "sessao":
         await api.gravarLocal({ [api.CHAVES.sessao]: mensagem.sessaoId ?? null });
+        responder({ ok: true });
+        break;
+
+      case "chat_status":
+        // Guardado na sessão do navegador: o painel que abrir depois lê daqui
+        // em vez de esperar a próxima volta do content script.
+        await chrome.storage.session
+          ?.set({ [CHAVE_CHAT]: { estado: mensagem.estado, aba: remetente?.tab?.id ?? null, em: Date.now() } })
+          .catch(() => {});
+        responder({ ok: true });
+        break;
+
+      case "rotulos_liberados":
+      case "chat":
+        // Quem reage é o painel (recarrega as saídas, soma o contador); aqui
+        // só se confirma o recebimento.
         responder({ ok: true });
         break;
 

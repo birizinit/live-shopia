@@ -7,7 +7,7 @@ import { THEME_COLOR, THEME_STORAGE_KEY } from "./constants";
  * "system" (padrão) não escreve data-theme: quem decide é a media query
  * do tokens.css. Só escolha explícita vira atributo.
  */
-export function ThemeScript() {
+export function ThemeScript({ nonce }: { nonce?: string }) {
   const js = `(function(){try{
 var k=${JSON.stringify(THEME_STORAGE_KEY)},t=localStorage.getItem(k),d=document.documentElement;
 if(t==="dark"||t==="light"){d.dataset.theme=t}
@@ -16,5 +16,7 @@ var m=document.querySelector('meta[name="theme-color"]');
 if(m){m.setAttribute("content",dark?${JSON.stringify(THEME_COLOR.dark)}:${JSON.stringify(THEME_COLOR.light)})}
 }catch(e){}})();`;
 
-  return <script dangerouslySetInnerHTML={{ __html: js }} />;
+  // Conteúdo fixo, sem dado de usuário. O nonce é o que o CSP exige para
+  // qualquer script inline rodar.
+  return <script nonce={nonce} dangerouslySetInnerHTML={{ __html: js }} />;
 }

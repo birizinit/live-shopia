@@ -24,28 +24,23 @@ const NOMES_DE_CABO = [
 ];
 
 /**
- * O navegador esconde os RÓTULOS dos dispositivos até a página ter recebido
- * permissão de áudio uma vez. Sem rótulo não dá para reconhecer o cabo —
- * então pedimos permissão de microfone, e desligamos a captura no mesmo
- * instante. Nada é gravado e nada é enviado: a permissão serve só para os
- * nomes aparecerem.
+ * O navegador esconde os RÓTULOS dos dispositivos até a origem ter recebido
+ * permissão de áudio uma vez. Sem rótulo não dá para reconhecer o cabo.
+ *
+ * O painel lateral NÃO consegue pedir essa permissão: o Chrome não mostra o
+ * balão ali, e o pedido falha em silêncio. Por isso existe permissao.html —
+ * uma aba normal onde o balão aparece. Nada é gravado e nada é enviado.
+ *
+ * Saídas de áudio. `semRotulo` é o sintoma de permissão faltando: sem ela o
+ * Chrome devolve UMA saída genérica, sem nome e sem id — que é o alto-falante
+ * padrão, e não o cabo.
  */
-export async function liberarRotulos() {
-  try {
-    const trilha = await navigator.mediaDevices.getUserMedia({ audio: true });
-    trilha.getTracks().forEach((t) => t.stop());
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 export async function listarSaidas() {
   try {
     const todos = await navigator.mediaDevices.enumerateDevices();
     return todos
       .filter((d) => d.kind === "audiooutput")
-      .map((d) => ({ id: d.deviceId, rotulo: d.label || "(sem nome)" }));
+      .map((d) => ({ id: d.deviceId, rotulo: d.label, semRotulo: !d.label }));
   } catch {
     return [];
   }
@@ -126,8 +121,8 @@ export class Reprodutor {
       // não para a live. Silenciar isso seria entregar uma live muda com cara
       // de funcionando.
       this.aoErro(
-        "O navegador recusou direcionar o áudio para o cabo. " +
-          "Recarregue a página do LIVE Studio e permita o uso de áudio.",
+        "O Chrome recusou mandar o áudio para o cabo. " +
+          "Clique em \"Liberar acesso\" no bloco do cabo e tente de novo.",
         erro,
       );
     }

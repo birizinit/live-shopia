@@ -6,19 +6,25 @@ se publica uma versão nova.
 
 ## O estado de hoje, sem maquiagem
 
-**O pacote da extensão ainda não existe.** A tabela `ext_versoes` está vazia, e
-por isso `/extensao` mostra o selo "Ainda não publicada", o título "O pacote
-ainda não foi publicado" e a lista de recursos inteira em "em breve" — sem
-nenhum botão de download. Isso não é um bug nem uma tela inacabada: é a tela
-contando a verdade.
+**Publicadas: 1.0.2, 1.1.0 e 1.1.1.** A **1.2.0** está pronta em `extensao/` e
+ainda não foi publicada. Ela corrige o que travou as primeiras clientes:
 
-O que **já existe e funciona** é todo o contrato em volta — licença por token,
-mapa de seletores servido pelo servidor, telemetria de quebra, resolução de
-versão com canal, canário e kill switch (`db/migrations/0007_extensao.sql`,
-`src/lib/dados/extensao.ts`, `src/app/api/ext/*`).
+- **"(sem nome)" no cabo.** O painel lateral não consegue mostrar o balão de
+  permissão de áudio; sem ela o Chrome esconde o nome das saídas, o cabo não era
+  achado e a extensão tocava no alto-falante — live muda. Agora o painel abre
+  `permissao.html` numa aba ("Liberar acesso") e bloqueia "Entrar no ar"
+  enquanto o cabo não for identificado.
+- **Sem áudio para tocar.** O painel diz o que falta e leva ao assistente `/criar`.
+- **Chat.** Mostra se achou a página da live no tiktok.com e abre ela; o script
+  passou a acompanhar a navegação interna do TikTok.
+- **Cronômetro** (tempo no ar e encerramento programado) e **proteção
+  anti-restrição** (revisão do texto do áudio, vinda de `/api/ext/montagem`).
+- **Kill switch** de chat agora segura: antes a volta de 5s religava a leitura.
+- Sessão exige aceite do aviso de risco na versão vigente (`risco_pendente`).
 
-No minuto em que o primeiro pacote entrar em `ext_versoes` pelo comando abaixo,
-a MESMA página passa a mostrar o download. Nenhuma linha de código muda.
+Publicar: `node scripts/publicar-extensao.mjs --pasta ./extensao --versao 1.2.0`
+(os links para vb-audio.com e existential.audio pedem `--confirmar-dominios`).
+O mapa de seletores v3 entra pela migração 0022, no deploy.
 
 ---
 

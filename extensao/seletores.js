@@ -30,7 +30,12 @@ function textoVisivel(no) {
 
 function porCss(raiz, valor, todos) {
   try {
-    return todos ? [...raiz.querySelectorAll(valor)] : raiz.querySelector(valor);
+    if (todos) return [...raiz.querySelectorAll(valor)];
+    // O MutationObserver entrega o nó que ENTROU. Quando o próprio nó é a
+    // âncora (a mensagem de "entrou na live", por exemplo), querySelector só
+    // olharia os filhos e nunca o acharia.
+    if (raiz.nodeType === Node.ELEMENT_NODE && raiz.matches(valor)) return raiz;
+    return raiz.querySelector(valor);
   } catch {
     // Seletor malformado no mapa não pode derrubar a leitura inteira do chat.
     return todos ? [] : null;

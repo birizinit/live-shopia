@@ -355,10 +355,10 @@ function exemploDoTour(): EstadoTour {
     },
     {
       chave: "caminho",
-      titulo: "O caminho: produto → roteiro → voz → áudio → extensão → live",
+      titulo: "O caminho: o que vender → roteiro e voz → áudio → extensão → no ar",
       corpo:
-        "São seis etapas, sempre nessa ordem. Produto bem descrito alimenta o roteiro; o roteiro vira áudio na voz escolhida; a extensão entrega esse áudio ao LIVE Studio como se fosse o seu microfone. Vale gastar tempo na primeira etapa: sem produto bem descrito o roteiro sai genérico, e nenhuma voz salva roteiro genérico.",
-      rotaAlvo: "/produtos",
+        "No assistente Criar live você diz o que vai vender e a IA escreve o roteiro; você escolhe a voz, vê o custo e gera o áudio, que entra sozinho no que a extensão toca. Depois é instalar a extensão e entrar no ar. Vale caprichar na descrição do produto: sem detalhe o roteiro sai genérico.",
+      rotaAlvo: "/criar",
       ordem: 20,
       obrigatorio: false,
       exigeAceite: false,

@@ -10,6 +10,7 @@ import { modoDemo } from "@/lib/env";
 import { ROTA_POS_LOGIN } from "@/lib/rotas";
 import { conferirSenha, gastarTempoDeConferencia, gerarHash } from "@/lib/senha";
 import { consumirLimite } from "@/lib/dados/comum";
+import { destinoSeguro } from "@/lib/destino-seguro";
 import { ipDoPedido } from "@/lib/rede";
 import { headers } from "next/headers";
 
@@ -70,12 +71,6 @@ async function dentroDoLimite(acao: string, alvo: string, teto: number, janelaS:
 
 const EXCESSO = "Muitas tentativas. Espere alguns minutos e tente de novo.";
 
-function destinoSeguro(bruto: FormDataEntryValue | null): string {
-  const valor = typeof bruto === "string" ? bruto : "";
-  // Só caminho interno: "//evil.com" e "https://…" viram redirect aberto.
-  return valor.startsWith("/") && !valor.startsWith("//") ? valor : ROTA_POS_LOGIN;
-}
-
 export async function entrar(
   _anterior: EstadoForm,
   formData: FormData,
@@ -84,7 +79,7 @@ export async function entrar(
     email: String(formData.get("email") ?? "").trim(),
     senha: String(formData.get("senha") ?? ""),
   };
-  const proximo = destinoSeguro(formData.get("proximo"));
+  const proximo = destinoSeguro(formData.get("proximo"), ROTA_POS_LOGIN);
 
   const parsed = esquemaEntrar.safeParse(dados);
   if (!parsed.success) {

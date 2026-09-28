@@ -17,7 +17,16 @@ export const CHAVES = {
   mapaVersao: "shopia_mapa_versao",
   sessao: "shopia_sessao",
   cabo: "shopia_cabo",
+  /** @ do TikTok, para o botão "Abrir minha live". Só neste navegador. */
+  usuarioTikTok: "shopia_usuario_tiktok",
+  /** Encerramento automático, em minutos. 0 = sem limite. */
+  limiteMinutos: "shopia_limite_minutos",
 };
+
+/** Abre uma página do painel da Shopia numa aba nova. */
+export function abrirNoSite(caminho) {
+  return chrome.tabs.create({ url: new URL(caminho, SERVIDOR).toString() });
+}
 
 export class ErroApi extends Error {
   constructor(codigo, status, detalhe) {

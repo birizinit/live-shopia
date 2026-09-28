@@ -1,49 +1,143 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Compass, Radio, Sparkles, Zap } from "lucide-react";
+import { ArrowRight, Check, Compass, Radio, Sparkles, Zap } from "lucide-react";
 import { dispensarCartaoTour } from "@/app/(app)/bem-vindo/actions";
 import { PageHeader } from "@/components/layout/page-header";
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
+import { Indicador } from "@/components/ui/indicador";
+import { formatarDuracao } from "@/lib/caracteres";
+import { jornadaDaLive, type JornadaDaLive } from "@/lib/dados/criacao";
 import { resumoTour, type ResumoTour } from "@/lib/dados/onboarding";
 import { exigirUsuario } from "@/lib/sessao";
-import { numero } from "@/lib/utils";
+import { cn, numero } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Início" };
 
-/** A ordem em que uma live sai do zero. Cada passo é uma tela do estúdio. */
-const PASSOS = [
-  {
-    href: "/produtos",
-    titulo: "Cadastre o produto",
-    resumo: "Nome, imagem, preço e cupom do que vai ser vendido.",
-  },
-  {
-    href: "/roteiro",
-    titulo: "Gere o roteiro",
-    resumo: "Gancho, oferta, prova, objeções e CTA escritos pela IA.",
-  },
-  {
-    href: "/vozes",
-    titulo: "Escolha a voz",
-    resumo: "Catálogo premium ou a sua própria voz clonada.",
-  },
-  {
-    href: "/estudio",
-    titulo: "Gere o áudio",
-    resumo: "Até 3 horas de fala contínua. O loop depois é de graça.",
-  },
-  {
-    href: "/extensao",
-    titulo: "Instale a extensão",
-    resumo: "É ela que joga o áudio no LIVE Studio e responde o chat.",
-  },
-  {
-    href: "/live",
-    titulo: "Suba a live",
-    resumo: "A apresentadora entra no ar e as vendas começam a pingar.",
-  },
-] as const;
+/**
+ * O guia da live: três passos, lidos do estado real da conta.
+ *
+ * Antes era uma lista fixa de seis telas com "0 de 6" escrito à mão, e quem
+ * chegava não sabia por onde começar — as primeiras clientes instalaram a
+ * extensão sem ter áudio para tocar. Agora o passo da vez fica em destaque,
+ * com UM botão, e os feitos dizem o que já está pronto.
+ */
+
+function desde(iso: string | null) {
+  if (!iso) return null;
+  const ms = Date.now() - new Date(iso).getTime();
+  return ms < 60_000 ? "agora há pouco" : `há ${formatarDuracao(ms)}`;
+}
+
+type Passo = {
+  titulo: string;
+  feito: boolean;
+  texto: React.ReactNode;
+  acao: { href: string; rotulo: string } | null;
+  extra?: React.ReactNode;
+};
+
+function montarPassos(j: JornadaDaLive): Passo[] {
+  return [
+    {
+      titulo: "Crie o áudio da live",
+      feito: j.audio.pronto,
+      texto: j.audio.pronto
+        ? `Pronto: “${j.audio.montagemNome}”, ${j.audio.falas} ${j.audio.falas === 1 ? "áudio" : "áudios"}, cerca de ${formatarDuracao(j.audio.duracaoMs)} por volta — e repete em laço sem gastar créditos.`
+        : j.audio.gerando > 0
+          ? "A voz está sendo gerada. Assim que terminar, é só colocar na live."
+          : "Diga o que vai vender; a IA escreve o roteiro e você escolhe a voz. Leva uns 5 minutos.",
+      acao: j.audio.pronto
+        ? { href: "/criar", rotulo: "Adicionar outro produto" }
+        : { href: "/criar", rotulo: j.audio.gerando > 0 ? "Continuar" : "Criar agora" },
+    },
+    {
+      titulo: "Instale a extensão no Chrome",
+      feito: j.extensao.instalada,
+      texto: j.extensao.instalada
+        ? `Conectada. Último contato ${desde(j.extensao.vistaEm) ?? "—"}.`
+        : "É ela que toca o áudio no LIVE Studio, pelo cabo virtual, e lê o chat da live.",
+      acao: { href: "/extensao", rotulo: j.extensao.instalada ? "Ver instruções" : "Instalar" },
+    },
+    {
+      titulo: "Entre no ar",
+      feito: j.live.noAr,
+      texto: j.live.noAr
+        ? `A apresentadora está no ar ${desde(j.live.desde) ?? ""}.`
+        : "Com o áudio pronto e a extensão conectada:",
+      acao: j.live.noAr ? { href: "/live", rotulo: "Acompanhar" } : null,
+      extra: j.live.noAr ? null : (
+        <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-fg-muted">
+          <li>Abra o TikTok LIVE Studio e escolha o cabo virtual como microfone.</li>
+          <li>No Chrome, abra a página da sua live no tiktok.com.</li>
+          <li>
+            Clique no ícone da Shopia e em <strong className="text-fg">Entrar no ar</strong>.
+          </li>
+          {!j.riscoAceito && (
+            <li>
+              Antes da primeira vez,{" "}
+              <Link href="/bem-vindo" className="font-medium text-primary underline-offset-4 hover:underline">
+                aceite o aviso de automação
+              </Link>
+              .
+            </li>
+          )}
+        </ol>
+      ),
+    },
+  ];
+}
+
+function CartaoPasso({ passo, numeroPasso, daVez }: { passo: Passo; numeroPasso: number; daVez: boolean }) {
+  return (
+    <li
+      className={cn(
+        "rounded-lg border bg-surface p-4 sm:p-5",
+        daVez ? "border-primary-border shadow-sm ring-1 ring-primary-border" : "border-border",
+      )}
+      aria-current={daVez ? "step" : undefined}
+    >
+      {/* No celular o botão desce para baixo do texto: ao lado, espremia a
+          descrição numa coluna de uma palavra por linha. */}
+      <div className="flex flex-wrap items-start gap-3 sm:flex-nowrap">
+        <span
+          className={cn(
+            "num grid size-8 shrink-0 place-items-center rounded-full text-sm font-semibold",
+            passo.feito && "bg-success-soft text-success",
+            !passo.feito && daVez && "bg-primary text-primary-fg",
+            !passo.feito && !daVez && "border border-border text-fg-subtle",
+          )}
+          aria-hidden
+        >
+          {passo.feito ? <Check className="size-4" /> : numeroPasso}
+        </span>
+
+        <div className="min-w-0 flex-1 basis-[calc(100%-3rem)] sm:basis-auto">
+          <p className={cn("font-semibold", passo.feito && !daVez && "text-fg-muted")}>
+            {passo.titulo}
+            {passo.feito && <span className="sr-only"> (feito)</span>}
+          </p>
+          <p className="mt-0.5 text-sm text-fg-muted">{passo.texto}</p>
+          {passo.extra}
+        </div>
+
+        {passo.acao && (
+          <Link
+            href={passo.acao.href}
+            className={cn(
+              "ml-11 inline-flex h-10 shrink-0 items-center gap-1.5 rounded-md px-4 text-sm font-medium transition-colors duration-[--dur-fast] sm:ml-0",
+              daVez
+                ? "bg-primary text-primary-fg hover:bg-primary-hover"
+                : "border border-border bg-surface text-fg hover:bg-surface-hover",
+            )}
+          >
+            {passo.acao.rotulo}
+            {daVez && <ArrowRight className="size-4" aria-hidden />}
+          </Link>
+        )}
+      </div>
+    </li>
+  );
+}
 
 /**
  * Retomada do tour.
@@ -58,7 +152,7 @@ function CartaoTour({ resumo }: { resumo: ResumoTour }) {
   const soAceite = resumo.pendentes === 0 && !resumo.riscoEmDia;
 
   return (
-    <Card className="mt-4 flex flex-wrap items-center gap-4 bg-bg-subtle shadow-none">
+    <Card className="mt-6 flex flex-wrap items-center gap-4 bg-bg-subtle shadow-none">
       <span
         className="grid size-10 shrink-0 place-items-center rounded-md bg-surface text-primary"
         aria-hidden
@@ -66,7 +160,7 @@ function CartaoTour({ resumo }: { resumo: ResumoTour }) {
         <Compass className="size-5" />
       </span>
 
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 basis-56">
         <p className="text-sm font-semibold">
           {soAceite
             ? "Falta registrar o aceite do aviso de automação"
@@ -81,7 +175,6 @@ function CartaoTour({ resumo }: { resumo: ResumoTour }) {
               <span className="num">{resumo.pendentes}</span> de{" "}
               <span className="num">{resumo.total}</span> passos
               {resumo.proximoTitulo ? `, a começar por “${resumo.proximoTitulo}”` : ""}.
-              O passo do loop e o do crédito são os que evitam gastar à toa.
             </>
           )}
         </p>
@@ -110,16 +203,38 @@ function CartaoTour({ resumo }: { resumo: ResumoTour }) {
 export default async function InicioPage() {
   const usuario = await exigirUsuario("/inicio");
   const primeiroNome = (usuario.nome || usuario.usuario).split(" ")[0];
-  const tour = await resumoTour(usuario.id);
+  const [tour, jornada] = await Promise.all([resumoTour(usuario.id), jornadaDaLive(usuario.id)]);
+
+  const passos = montarPassos(jornada);
+  const daVez = passos.findIndex((p) => !p.feito);
+  const faltam = passos.filter((p) => !p.feito).length;
+
+  const descricao = jornada.live.noAr
+    ? "A sua live está no ar."
+    : faltam === 1
+      ? "Falta só um passo para a sua live."
+      : faltam === 0
+        ? "Tudo pronto."
+        : `Faltam ${faltam} passos para a sua live. Comece pelo que está em destaque.`;
 
   return (
     <>
-      <PageHeader
-        titulo={`Olá, ${primeiroNome}`}
-        descricao="Monte a live em seis passos. Cada um leva alguns minutos."
-      />
+      <PageHeader titulo={`Olá, ${primeiroNome}`} descricao={descricao} />
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <section aria-labelledby="titulo-passos">
+        <h2 id="titulo-passos" className="sr-only">
+          Sua live em três passos
+        </h2>
+        <ol className="space-y-3">
+          {passos.map((passo, indice) => (
+            <CartaoPasso key={passo.titulo} passo={passo} numeroPasso={indice + 1} daVez={indice === daVez} />
+          ))}
+        </ol>
+      </section>
+
+      {tour.pendente && !tour.cartaoDispensado && <CartaoTour resumo={tour} />}
+
+      <div className="mt-6 grid gap-4 sm:grid-cols-3">
         <Card className="flex items-center gap-3">
           <span className="grid size-10 shrink-0 place-items-center rounded-md bg-primary-soft text-primary-soft-fg">
             <Sparkles className="size-5" aria-hidden />
@@ -130,72 +245,30 @@ export default async function InicioPage() {
           </div>
         </Card>
 
-        <Card className="flex items-center gap-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded-md bg-primary-soft text-primary-soft-fg">
-            <Zap className="size-5" aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <p className="text-xs text-fg-subtle">Créditos</p>
-            <p className="num truncate font-semibold">{numero(usuario.creditos)}</p>
-          </div>
-        </Card>
+        <Link href="/creditos" className="block">
+          <Card className="flex items-center gap-3 transition-colors duration-[--dur-fast] hover:bg-surface-hover">
+            <span className="grid size-10 shrink-0 place-items-center rounded-md bg-primary-soft text-primary-soft-fg">
+              <Zap className="size-5" aria-hidden />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs text-fg-subtle">Créditos</p>
+              <p className="num truncate font-semibold">{numero(usuario.creditos)}</p>
+            </div>
+          </Card>
+        </Link>
 
-        <Card className="flex items-center gap-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded-md bg-bg-subtle text-fg-subtle">
-            <Radio className="size-5" aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <p className="text-xs text-fg-subtle">Live</p>
-            <p className="truncate font-semibold">Fora do ar</p>
-          </div>
-        </Card>
+        <Link href="/live" className="block">
+          <Card className="flex items-center gap-3 transition-colors duration-[--dur-fast] hover:bg-surface-hover">
+            <span className="grid size-10 shrink-0 place-items-center rounded-md bg-bg-subtle text-fg-subtle">
+              <Radio className="size-5" aria-hidden />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs text-fg-subtle">Live</p>
+              <Indicador estado={jornada.live.noAr ? "no_ar" : "fora_do_ar"} />
+            </div>
+          </Card>
+        </Link>
       </div>
-
-      {tour.pendente && !tour.cartaoDispensado && <CartaoTour resumo={tour} />}
-
-      <section className="mt-6">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold">Montar a live</h2>
-          <Badge>0 de {PASSOS.length}</Badge>
-        </div>
-
-        <ol className="grid gap-3 sm:grid-cols-2">
-          {PASSOS.map((passo, indice) => (
-            <li key={passo.href}>
-              <Link
-                href={passo.href}
-                className="group flex h-full items-start gap-3 rounded-lg border border-border bg-surface p-4 transition-colors duration-[--dur-fast] hover:border-primary-border hover:bg-surface-hover"
-              >
-                <span className="num grid size-7 shrink-0 place-items-center rounded-full border border-border text-xs font-semibold text-fg-subtle">
-                  {indice + 1}
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium">{passo.titulo}</span>
-                  <span className="mt-0.5 block text-sm text-fg-muted">
-                    {passo.resumo}
-                  </span>
-                </span>
-                <ArrowRight
-                  className="mt-1 size-4 shrink-0 text-fg-subtle transition-transform duration-[--dur-fast] group-hover:translate-x-0.5 group-hover:text-primary"
-                  aria-hidden
-                />
-              </Link>
-            </li>
-          ))}
-        </ol>
-
-        <p className="mt-4 text-sm text-fg-muted">
-          Não sabe por onde começar?{" "}
-          <Link
-            href="/bem-vindo"
-            className="font-medium text-primary underline-offset-4 hover:underline"
-          >
-            Veja o tour de boas-vindas
-          </Link>{" "}
-          — ele explica por que o loop não cobra de novo e como o crédito é medido.
-          Fica salvo na sua conta e pode ser revisto quando quiser.
-        </p>
-      </section>
     </>
   );
 }

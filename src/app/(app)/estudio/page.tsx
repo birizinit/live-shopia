@@ -19,6 +19,8 @@ import {
   type AudioResumo,
 } from "@/lib/dados/audios";
 import { chaveIdempotente } from "@/lib/dados/creditos";
+import { configuracaoLive } from "@/lib/dados/live";
+import { obterRoteiro } from "@/lib/dados/roteiros";
 import type { EstadoAudio } from "@/lib/dados/tipos";
 import { modoDemo, servicos } from "@/lib/env";
 import { PAGINAS } from "@/lib/paginas";
@@ -95,13 +97,32 @@ export default async function EstudioPage({ searchParams }: PageProps<"/estudio"
   const pedido = typeof params.audio === "string" ? params.audio : null;
   const marca = typeof params.estado === "string" ? params.estado : null;
   const aviso = marca && marca in AVISOS ? AVISOS[marca as keyof typeof AVISOS] : null;
+  // "Gerar áudio deste roteiro", do editor, chega aqui com o id do ROTEIRO.
+  const roteiroPedido = typeof params.roteiro === "string" ? params.roteiro : null;
 
-  const [vozes, roteiros, recentes, audio] = await Promise.all([
+  const [vozes, roteiros, recentes, audio, config, deOrigem] = await Promise.all([
     vozesDisponiveis(usuario.id),
     roteirosParaFala(usuario.id, 8),
     audiosRecentes(usuario.id, 8),
     pedido ? audioDoPerfil(usuario.id, pedido) : Promise.resolve(null),
+    configuracaoLive(usuario.id),
+    roteiroPedido ? obterRoteiro(usuario.id, roteiroPedido) : Promise.resolve(null),
   ]);
+
+  // A lista do seletor traz só os 8 mais recentes; o que veio pelo link entra
+  // mesmo que seja mais antigo, senão o texto preenchido não teria origem.
+  const roteiroInicial = deOrigem?.versao
+    ? {
+        id: deOrigem.versao.id,
+        titulo: deOrigem.titulo,
+        texto: deOrigem.versao.texto,
+        caracteres: deOrigem.versao.caracteres,
+      }
+    : null;
+  const listaRoteiros =
+    roteiroInicial && !roteiros.some((r) => r.id === roteiroInicial.id)
+      ? [roteiroInicial, ...roteiros]
+      : roteiros;
 
   const motivo = motivoDeBloqueio();
   const chave = chaveIdempotente("tts");
@@ -212,11 +233,13 @@ export default async function EstudioPage({ searchParams }: PageProps<"/estudio"
             <Gerador
               chave={chave}
               vozes={vozes}
-              roteiros={roteiros}
+              roteiros={listaRoteiros}
               saldo={usuario.creditos}
               podeGerar={!motivo}
               motivo={motivo}
               tetoCaracteres={TETO_CARACTERES_AUDIO}
+              vozPadrao={config.vozId}
+              roteiroInicial={roteiroInicial}
             />
           )}
         </div>

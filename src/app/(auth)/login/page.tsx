@@ -1,14 +1,13 @@
 import type { Metadata } from "next";
+import { destinoSeguro } from "@/lib/destino-seguro";
+import { ROTA_POS_LOGIN } from "@/lib/rotas";
 import { FormLogin } from "./form";
 
 export const metadata: Metadata = { title: "Entrar" };
 
 export default async function LoginPage(props: PageProps<"/login">) {
   const { proximo } = await props.searchParams;
-  const destino =
-    typeof proximo === "string" && proximo.startsWith("/") && !proximo.startsWith("//")
-      ? proximo
-      : "/inicio";
+  const destino = destinoSeguro(proximo, ROTA_POS_LOGIN);
 
   return (
     <>

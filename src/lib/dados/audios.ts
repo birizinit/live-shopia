@@ -600,7 +600,15 @@ export async function criarAudio(
   });
 }
 
-/** Liga o áudio ao job e ao lançamento que o pagou. */
+/**
+ * Liga o áudio ao job e ao lançamento que o pagou.
+ *
+ * O estado só sai de 'rascunho'. O job já foi commitado e o worker acorda por
+ * NOTIFY no mesmo instante — quando este UPDATE roda, ele pode já ter marcado
+ * 'gerando', ou o gatilho de blocos já ter fechado em 'pronto'. Voltar para
+ * 'na_fila' aí prendia o áudio para sempre: os blocos já estão prontos e o
+ * gatilho não dispara de novo.
+ */
 export async function marcarNaFila(
   perfilId: string,
   audioId: string,
@@ -610,8 +618,9 @@ export async function marcarNaFila(
     async () =>
       void (await bd()`
         update audios
-           set estado = 'na_fila', job_id = ${debito.jobId},
-               lancamento_id = ${debito.lancamentoId}, erro = null
+           set estado = case when estado = 'rascunho' then 'na_fila'::estado_audio else estado end,
+               erro = case when estado = 'rascunho' then null else erro end,
+               job_id = ${debito.jobId}, lancamento_id = ${debito.lancamentoId}
          where id = ${audioId} and perfil_id = ${perfilId}
       `),
   );

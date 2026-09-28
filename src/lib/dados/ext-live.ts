@@ -1,5 +1,6 @@
 import "server-only";
 import { bd } from "@/lib/db";
+import { revisarTexto } from "@/lib/termos-restritos";
 import { ErroDominio } from "./erros";
 import { comoJson, numeroDe } from "./comum";
 
@@ -140,6 +141,64 @@ export async function montagemAtivaParaExtensao(
     duracaoMs: numeroDe(m.duracao_ms),
     falas: [...porFala.values()].sort((a, b) => a.ordem - b.ordem),
   };
+}
+
+export type RevisaoDaMontagem = {
+  /** Soma de trechos sinalizados em todas as falas. */
+  alertas: number;
+  falas: { audioId: string; titulo: string; alertas: number; exemplos: string[] }[];
+};
+
+/**
+ * Revisão anti-restrição do que a montagem ativa vai falar.
+ *
+ * Roda no texto que gerou cada áudio, com a mesma lista do assistente de
+ * criação (src/lib/termos-restritos.ts). Não impede tocar: quem decide é o
+ * vendedor, avisado — a extensão mostra o número e aponta onde corrigir.
+ */
+export async function revisaoDaMontagem(
+  perfilId: string,
+  montagemId: string,
+): Promise<RevisaoDaMontagem> {
+  const linhas = await bd()<{ audio_id: string; titulo: string; texto: string }[]>`
+    select a.id as audio_id, a.titulo, a.texto
+      from montagem_itens i
+      join audios a on a.id = i.audio_id and a.perfil_id = ${perfilId}
+     where i.montagem_id = ${montagemId} and i.perfil_id = ${perfilId}
+     order by i.ordem
+  `;
+
+  const falas = linhas
+    .map((l) => {
+      const achados = revisarTexto(l.texto ?? "");
+      return {
+        audioId: l.audio_id,
+        titulo: l.titulo,
+        alertas: achados.length,
+        exemplos: [...new Set(achados.map((a) => a.trecho))].slice(0, 3),
+      };
+    })
+    .filter((f) => f.alertas > 0);
+
+  return { alertas: falas.reduce((t, f) => t + f.alertas, 0), falas };
+}
+
+/**
+ * O aceite do aviso de automação, na versão vigente.
+ *
+ * O painel já exigia isto para subir a live pelo site; a extensão abria sessão
+ * sem conferir — e é ela que de fato opera a conta. Conferir aqui fecha a
+ * porta que a tela sozinha não fecha.
+ */
+export async function riscoAceitoNaVersaoVigente(perfilId: string): Promise<boolean> {
+  const linhas = await bd()<{ ok: boolean }[]>`
+    select coalesce(lc.risco_aceito_versao, 0) >= coalesce(
+             (select (c.valor #>> '{}')::int from configuracoes c
+               where c.chave = 'live.risco_aceito_versao'), 1) as ok
+      from live_config lc
+     where lc.perfil_id = ${perfilId} and lc.risco_aceito_em is not null
+  `;
+  return linhas[0]?.ok === true;
 }
 
 export type BlocoServivel = {

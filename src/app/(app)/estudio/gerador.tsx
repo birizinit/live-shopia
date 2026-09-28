@@ -44,6 +44,10 @@ export type GeradorProps = {
   podeGerar: boolean;
   motivo: string | null;
   tetoCaracteres: number;
+  /** A voz escolhida para a live (live_config) — vem marcada, em vez da primeira da lista. */
+  vozPadrao?: string | null;
+  /** Roteiro que chegou pelo "Gerar áudio deste roteiro" do editor: o texto já vem preenchido. */
+  roteiroInicial?: RoteiroParaFala | null;
 };
 
 export function Gerador({
@@ -54,14 +58,20 @@ export function Gerador({
   podeGerar,
   motivo,
   tetoCaracteres,
+  vozPadrao,
+  roteiroInicial,
 }: GeradorProps) {
   const [estado, acao, enviando] = useActionState(gerarAudio, INICIAL);
 
-  const [titulo, setTitulo] = useState("");
-  const [vozId, setVozId] = useState(vozes[0]?.id ?? "");
-  const [texto, setTexto] = useState("");
-  const [origem, setOrigem] = useState<{ id: string; texto: string } | null>(null);
-  const [escolhaRoteiro, setEscolhaRoteiro] = useState("");
+  const [titulo, setTitulo] = useState(roteiroInicial?.titulo ?? "");
+  const [vozId, setVozId] = useState(
+    vozPadrao && vozes.some((v) => v.id === vozPadrao) ? vozPadrao : (vozes[0]?.id ?? ""),
+  );
+  const [texto, setTexto] = useState(roteiroInicial?.texto ?? "");
+  const [origem, setOrigem] = useState<{ id: string; texto: string } | null>(
+    roteiroInicial ? { id: roteiroInicial.id, texto: roteiroInicial.texto } : null,
+  );
+  const [escolhaRoteiro, setEscolhaRoteiro] = useState(roteiroInicial?.id ?? "");
   const [dispensado, setDispensado] = useState(false);
   const [respostaVista, setRespostaVista] = useState(estado);
   const areaTexto = useRef<HTMLTextAreaElement>(null);

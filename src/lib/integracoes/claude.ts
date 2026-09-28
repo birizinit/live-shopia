@@ -56,7 +56,8 @@ Como escrever:
 - Segunda pessoa, direto com quem está assistindo.
 - Nada de afirmação que você não pode sustentar: sem promessa de resultado, sem alegação de saúde, sem "aprovado por especialistas" se ninguém disse isso.
 - Preço e cupom só se vierem no pedido. Não invente número, prazo de entrega nem estoque.
-- O roteiro roda em LOOP por horas: evite "agora há pouco", "daqui a cinco minutos" e qualquer marca de tempo que fique errada na segunda repetição.`;
+- O roteiro roda em LOOP por horas: evite "agora há pouco", "daqui a cinco minutos" e qualquer marca de tempo que fique errada na segunda repetição.
+- A compra acontece só dentro do TikTok Shop: nunca cite WhatsApp, Instagram, outro marketplace, telefone, e-mail, site ou "link na bio", nem pagamento por Pix, transferência ou boleto. Para dúvida, "comenta aqui"; para comprar, "toca no carrinho". O TikTok restringe a live que faz isso, mesmo quando o dossiê pede.`;
 
 function exemploDeRoteiro(pedido: PedidoRoteiro): RoteiroGerado {
   const nome = pedido.produto || "seu produto";
@@ -122,6 +123,8 @@ export async function gerarRoteiro(pedido: PedidoRoteiro): Promise<RoteiroGerado
     });
 
     // Classificador de segurança pode recusar: HTTP 200 com stop_reason refusal.
+    // `dado_invalido` é permanente para o worker: o mesmo pedido seria recusado
+    // de novo, então estorna na hora em vez de pagar mais duas tentativas.
     if (resposta.stop_reason === "refusal") {
       throw new ErroDominio(
         "dado_invalido",
@@ -137,10 +140,40 @@ export async function gerarRoteiro(pedido: PedidoRoteiro): Promise<RoteiroGerado
     return { titulo: saida.titulo, secoes: saida.secoes, demo: false };
   } catch (erro) {
     if (erro instanceof ErroDominio) throw erro;
+    if (ehRecusaDefinitiva(erro)) {
+      throw new ErroDominio(
+        "sem_permissao",
+        "A IA recusou a chamada por configuração da conta (chave, permissão ou modelo). O crédito foi devolvido.",
+        erro,
+      );
+    }
     throw new ErroDominio(
       "servico_indisponivel",
       "Não foi possível gerar o roteiro agora.",
       erro,
     );
   }
+}
+
+/**
+ * Erro que repetir não conserta: chave inválida (401), conta sem saldo (402),
+ * sem permissão (403), modelo inexistente para a conta (404), pedido malformado
+ * (400/413/422). Tratar isso como instabilidade fazia cada roteiro gastar as 3
+ * tentativas com espera crescente antes de falhar e estornar.
+ *
+ * O que fica de fora — 429, 5xx, 529 e queda de conexão — é passageiro, e o
+ * próprio SDK já tenta de novo antes de chegar aqui.
+ */
+function ehRecusaDefinitiva(erro: unknown): boolean {
+  if (
+    erro instanceof Anthropic.AuthenticationError ||
+    erro instanceof Anthropic.PermissionDeniedError ||
+    erro instanceof Anthropic.NotFoundError ||
+    erro instanceof Anthropic.BadRequestError ||
+    erro instanceof Anthropic.UnprocessableEntityError
+  ) {
+    return true;
+  }
+  // 402 (billing_error) e 413 não têm classe própria no SDK.
+  return erro instanceof Anthropic.APIError && (erro.status === 402 || erro.status === 413);
 }

@@ -9,6 +9,7 @@ import {
   abrirSessaoExtensao,
   baterSessaoExtensao,
   fecharSessaoExtensao,
+  riscoAceitoNaVersaoVigente,
 } from "@/lib/dados/ext-live";
 import { ErroDominio } from "@/lib/dados/erros";
 import { modoDemo } from "@/lib/env";
@@ -67,6 +68,17 @@ export async function POST(request: NextRequest) {
     const acao = typeof corpo?.acao === "string" ? corpo.acao : "";
 
     if (acao === "abrir") {
+      if (!(await riscoAceitoNaVersaoVigente(licenca.perfilId))) {
+        return NextResponse.json(
+          {
+            ok: false,
+            erro: "risco_pendente",
+            detalhe: "Leia e aceite o aviso de automação no painel da Shopia antes de entrar no ar.",
+          },
+          { status: 403 },
+        );
+      }
+
       const { sessaoId, jaEstavaAberta } = await abrirSessaoExtensao(licenca.perfilId, {
         montagemId: uuidOuNulo(corpo?.montagemId),
         contaTikTokId: uuidOuNulo(corpo?.contaTikTokId),

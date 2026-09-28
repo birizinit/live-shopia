@@ -13,6 +13,7 @@ import { CaboVirtual } from "./cabo-virtual";
 import { Faq } from "./faq";
 import { Hero } from "./hero";
 import { PainelLicenca } from "./instalacao";
+import { NoAr } from "./no-ar";
 import { PassoAPasso } from "./passo-a-passo";
 import { Recursos } from "./recursos";
 import { Alerta } from "@/components/ui/alerta";
@@ -432,6 +433,17 @@ export default async function ExtensaoPage() {
       >
         <Card>
           <CaboVirtual />
+        </Card>
+      </Secao>
+
+      {/* 5b — Do LIVE Studio aberto à apresentadora falando. */}
+      <Secao
+        id="no-ar"
+        titulo="Entrar no ar, na prática"
+        descricao="Com a extensão instalada e o cabo configurado, é isto a cada live."
+      >
+        <Card>
+          <NoAr />
         </Card>
       </Secao>
 

@@ -2,11 +2,19 @@
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { ChevronDown, LogOut, User as UserIcon } from "lucide-react";
+import { Bell, ChevronDown, CreditCard, LogOut, User as UserIcon, Zap } from "lucide-react";
 import { sair } from "@/app/(auth)/actions";
 import { Badge } from "@/components/ui/badge";
 import type { Papel } from "@/lib/roles";
 import { cn } from "@/lib/utils";
+
+/** O que é da conta mora aqui, e não no menu principal, que é do caminho da live. */
+const ATALHOS_DA_CONTA = [
+  { href: "/perfil", rotulo: "Minha conta", Icone: UserIcon },
+  { href: "/creditos", rotulo: "Créditos", Icone: Zap },
+  { href: "/planos", rotulo: "Plano", Icone: CreditCard },
+  { href: "/notificacoes", rotulo: "Notificações", Icone: Bell },
+] as const;
 
 const ROTULO_PAPEL: Record<Papel, string> = {
   user: "Usuário",
@@ -90,15 +98,18 @@ export function MenuUsuario({
             </div>
           </div>
 
-          <Link
-            href="/perfil"
-            role="menuitem"
-            onClick={() => setAberto(false)}
-            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-fg-muted hover:bg-surface-hover hover:text-fg"
-          >
-            <UserIcon className="size-4" aria-hidden />
-            Perfil
-          </Link>
+          {ATALHOS_DA_CONTA.map(({ href, rotulo, Icone }) => (
+            <Link
+              key={href}
+              href={href}
+              role="menuitem"
+              onClick={() => setAberto(false)}
+              className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-fg-muted hover:bg-surface-hover hover:text-fg"
+            >
+              <Icone className="size-4" aria-hidden />
+              {rotulo}
+            </Link>
+          ))}
 
           <form action={sair}>
             <button

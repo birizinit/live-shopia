@@ -5,7 +5,7 @@ import {
   origemDaRequisicao,
   tokenDoCabecalho,
 } from "@/lib/dados/extensao";
-import { montagemAtivaParaExtensao } from "@/lib/dados/ext-live";
+import { montagemAtivaParaExtensao, revisaoDaMontagem } from "@/lib/dados/ext-live";
 import { modoDemo } from "@/lib/env";
 
 /**
@@ -92,8 +92,12 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    // Revisão anti-restrição do texto de cada fala. Informa, não bloqueia:
+    // a extensão mostra onde corrigir e quem decide tocar é o vendedor.
+    const protecao = await revisaoDaMontagem(licenca.perfilId, montagem.id);
+
     return NextResponse.json(
-      { ok: true, montagem, bloco: "/api/ext/bloco" },
+      { ok: true, montagem, protecao, bloco: "/api/ext/bloco" },
       { headers: { "cache-control": "no-store" } },
     );
   } catch (erro) {

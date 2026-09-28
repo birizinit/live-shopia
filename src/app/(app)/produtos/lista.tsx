@@ -421,7 +421,7 @@ function CartaoProduto({
       <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-border pt-3">
         {!arquivado && (
           <Link
-            href={`/roteiro?produto=${produto.id}`}
+            href={`/criar?produto=${produto.id}`}
             className={cn(
               "inline-flex h-8 items-center gap-1.5 rounded-md bg-primary px-3 text-sm font-medium text-primary-fg",
               "transition-colors duration-[--dur-fast] hover:bg-primary-hover",

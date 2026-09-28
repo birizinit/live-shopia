@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { ThemeScript } from "@/components/theme/theme-script";
 import { THEME_COLOR } from "@/components/theme/constants";
 import { fontVariables } from "./fonts";
@@ -27,11 +28,14 @@ export const viewport: Viewport = {
   themeColor: THEME_COLOR.light,
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  // Gerado pelo proxy a cada requisição (src/lib/csp.ts).
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+
   return (
     <html lang="pt-BR" suppressHydrationWarning className={fontVariables}>
       <body className="min-h-dvh bg-bg text-fg antialiased">
-        <ThemeScript />
+        <ThemeScript nonce={nonce} />
         <Providers>{children}</Providers>
       </body>
     </html>
