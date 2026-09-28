@@ -1,6 +1,8 @@
 import "server-only";
 import { bd } from "@/lib/db";
 import { comoJson, numeroDe } from "./comum";
+import { ehCumprimento } from "@/lib/cumprimento";
+import { falaPronta } from "./fala";
 
 /**
  * A decisão de responder — e de calar.
@@ -46,6 +48,15 @@ function esperaComJitter(minS: number, maxS: number) {
   const min = Math.max(1, minS) * 1000;
   const max = Math.max(min, maxS * 1000);
   return Math.round(min + Math.random() * (max - min));
+}
+
+/**
+ * Voz não aparece no chat como mensagem, então não precisa da espera longa que
+ * disfarça digitação. Um respiro curto e irregular basta: boas-vindas que chega
+ * 40 segundos depois já não é boas-vindas.
+ */
+function esperaDaVoz() {
+  return esperaComJitter(1, 4);
 }
 
 async function configDaLive(perfilId: string): Promise<LinhaConfig | null> {
@@ -113,12 +124,12 @@ export async function decidirResposta(
       return { acao: "ignorar", motivo: "teto_por_minuto" };
     }
 
-    return {
-      acao: "escrever",
-      texto: modelo.replaceAll("{nome}", apelido).slice(0, 280),
-      esperarMs: esperaComJitter(config.chat_intervalo_min_s, config.chat_intervalo_max_s),
-      tema: null,
-    };
+    return falarOuCalar(
+      perfilId,
+      modelo.replaceAll("{nome}", apelido).slice(0, 280),
+      esperaDaVoz(),
+      "boas_vindas",
+    );
   }
 
   // --------------------------------------------------------------- comentário
@@ -143,6 +154,20 @@ export async function decidirResposta(
       from casar_tema(${perfilId}, ${texto}, ${pedido.produtoId})
      where id is not null
   `;
+
+  // Cumprimento solto ("oi", "boa noite") não casa com tema nenhum, mas pede
+  // resposta: quem cumprimenta a apresentadora e é ignorado vai embora.
+  if (ehCumprimento(texto) && config.dar_boas_vindas) {
+    const apelido = pedido.apelido?.trim() || "";
+    const modelo = config.boas_vindas_texto?.trim() || "Seja bem-vindo(a), {nome}!";
+    const frase = apelido ? modelo.replaceAll("{nome}", apelido) : "Oi! Seja bem-vindo(a) à live!";
+    return falarOuCalar(
+      perfilId,
+      frase.slice(0, 280),
+      esperaDaVoz(),
+      "cumprimento",
+    );
+  }
 
   const tema = temas[0];
   // Sem tema, silêncio. Inventar resposta com IA a cada comentário solto é
@@ -180,18 +205,32 @@ export async function decidirResposta(
         tema: tema.chave,
       };
     }
-    // Áudio marcado mas sem bloco pronto: responde por texto em vez de calar.
+    // Áudio marcado mas sem bloco pronto: sintetiza a resposta agora.
   }
 
-  await bd()`update temas_resposta set vezes_usado = vezes_usado + 1 where id = ${tema.id}`;
-
-  return {
-    acao: "escrever",
-    texto: tema.resposta.slice(0, 280),
-    esperarMs,
-    tema: tema.chave,
-  };
+  const decisao = await falarOuCalar(perfilId, tema.resposta.slice(0, 280), esperarMs, tema.chave);
+  if (decisao.acao === "falar") {
+    await bd()`update temas_resposta set vezes_usado = vezes_usado + 1 where id = ${tema.id}`;
+  }
+  return decisao;
 }
+
+/**
+ * Resposta sempre por VOZ. Escrever no chat dependia de simular digitação no
+ * editor do TikTok, e na primeira live real o texto entrou no campo sem ser
+ * enviado. Sem voz a tempo, silêncio — nunca texto.
+ */
+async function falarOuCalar(
+  perfilId: string,
+  texto: string,
+  esperarMs: number,
+  tema: string,
+): Promise<Decisao> {
+  const fala = await falaPronta(perfilId, texto);
+  if (!fala) return { acao: "ignorar", motivo: "sem_voz" };
+  return { acao: "falar", texto, audioId: fala.audioId, blocos: fala.blocos, esperarMs, tema };
+}
+
 
 /**
  * Registra que a resposta saiu.
