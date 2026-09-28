@@ -648,6 +648,15 @@ export type ContatoRegistrado = {
 };
 
 /** Heartbeat. É o denominador do alerta de quebra. */
+/** Versão que esta instalação informou no último batimento. */
+export async function versaoDaInstalacao(licencaId: string, chave: string): Promise<string | null> {
+  const linhas = await bd()<{ versao: string }[]>`
+    select versao from ext_instalacoes
+     where licenca_id = ${licencaId} and instalacao_chave = ${chave}
+  `;
+  return linhas[0]?.versao ?? null;
+}
+
 export async function registrarContato(
   licencaId: string,
   dados: {

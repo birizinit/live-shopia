@@ -1,6 +1,7 @@
 import "server-only";
 import { bd } from "@/lib/db";
 import { revisarTexto } from "@/lib/termos-restritos";
+import { encerramentoNormal } from "@/lib/telemetria-legado";
 import { ErroDominio } from "./erros";
 import { comoJson, numeroDe } from "./comum";
 
@@ -315,6 +316,9 @@ export async function fecharSessaoExtensao(
   erro: string | null,
 ): Promise<boolean> {
   const sql = bd();
+  // "Encerrada pelo usuário", "tempo programado encerrado"... chegam neste
+  // campo mas não são erro: a pessoa desligou. Só o resto é queda.
+  const falha = encerramentoNormal(erro) ? null : erro;
 
   // Encerrar com erro é "caiu", não "encerrada": para quem lê o dashboard, a
   // diferença entre a live que o dono desligou e a que morreu sozinha é a
@@ -323,8 +327,8 @@ export async function fecharSessaoExtensao(
     update live_sessoes
        set fim = now(),
            visto_em = now(),
-           estado = ${erro ? "caiu" : "encerrada"}::estado_live,
-           erro = ${erro}
+           estado = ${falha ? "caiu" : "encerrada"}::estado_live,
+           erro = ${falha}
      where id = ${sessaoId} and perfil_id = ${perfilId} and fim is null
     returning id
   `;
@@ -333,7 +337,7 @@ export async function fecharSessaoExtensao(
 
   await sql`
     insert into live_eventos (live_sessao_id, perfil_id, tipo, texto)
-    values (${sessaoId}, ${perfilId}, ${erro ? "erro" : "fim"}, ${erro})
+    values (${sessaoId}, ${perfilId}, ${falha ? "erro" : "fim"}, ${erro})
   `;
 
   return true;

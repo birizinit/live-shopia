@@ -11,9 +11,11 @@ import {
   registrarContato,
   registrarTelemetria,
   tokenDoCabecalho,
+  versaoDaInstalacao,
   type FalhaTelemetria,
 } from "@/lib/dados/extensao";
 import { ErroDominio } from "@/lib/dados/erros";
+import { normalizarCorpoTelemetria } from "@/lib/telemetria-legado";
 import { modoDemo } from "@/lib/env";
 
 /**
@@ -113,7 +115,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: false, erro: "json_invalido" }, { status: 400 });
     }
 
-    const lido = esquemaCorpo.safeParse(json);
+    // A extensão já instalada (até a 1.2.0) manda o formato antigo e sem
+    // versão: a versão sai do último batimento desta instalação.
+    const chave = typeof (json as { instalacao?: unknown })?.instalacao === "string"
+      ? (json as { instalacao: string }).instalacao
+      : null;
+    const versaoConhecida =
+      chave && typeof (json as { versao?: unknown }).versao !== "string"
+        ? await versaoDaInstalacao(licenca.licencaId, chave)
+        : null;
+    const lido = esquemaCorpo.safeParse(normalizarCorpoTelemetria(json, versaoConhecida));
     if (!lido.success) {
       return NextResponse.json(
         {
