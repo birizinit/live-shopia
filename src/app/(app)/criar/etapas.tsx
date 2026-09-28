@@ -325,6 +325,12 @@ async function LiveMontada({ perfilId }: { perfilId: string }) {
             {formatarDuracao(jornada.audio.duracaoMs)} por volta. A extensão repete em laço
             pelo tempo que você quiser, sem gastar créditos.
           </p>
+          {jornada.audio.falas < 2 && (
+            <p className="mt-1.5">
+              Dica: crie mais uma versão do roteiro deste produto e escolha “Tocar junto”. Com
+              dois ou mais áudios, a ordem muda a cada volta e a live não soa repetida.
+            </p>
+          )}
         </div>
       </div>
 

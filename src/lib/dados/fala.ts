@@ -87,3 +87,68 @@ export async function falaPronta(perfilId: string, texto: string): Promise<Fala 
   }
   return null;
 }
+
+// -----------------------------------------------------------------------------
+// Falas curtas da live: pontes e interações.
+// -----------------------------------------------------------------------------
+
+/**
+ * Ditas depois de responder alguém, antes de retomar o roteiro. Sem elas a
+ * apresentadora voltava do ponto exato em que parou, como fita que despausa.
+ */
+export const PONTES = [
+  "Então, voltando aqui…",
+  "Bom, como eu tava falando…",
+  "Mas continuando…",
+  "Enfim, voltando pro que eu tava mostrando…",
+];
+
+/**
+ * Ditas de vez em quando entre as partes do roteiro. É o que uma apresentadora
+ * de verdade faz entre um argumento e outro — e o que faltava para a live não
+ * soar como gravação lida em laço.
+ */
+export const INTERACOES = [
+  "Se você acabou de chegar, seja muito bem-vindo! Comenta aqui de onde você tá assistindo.",
+  "Qualquer dúvida sobre o produto, pode mandar no chat que eu respondo.",
+  "Deixa o seu like aí pra live chegar em mais gente!",
+  "Pra garantir o seu, é só tocar no carrinho aqui embaixo.",
+];
+
+export type FalasCurtas = { pontes: Fala[]; interacoes: Fala[] };
+
+/**
+ * As falas curtas que já estão prontas na voz da live.
+ *
+ * Não espera síntese: a montagem é pedida no caminho quente da extensão. O que
+ * falta é encomendado agora e aparece na próxima vez que a extensão atualizar
+ * a montagem — cobrado uma vez só (~350 caracteres no total), pela chave
+ * derivada do texto.
+ */
+export async function falasCurtasDaLive(perfilId: string): Promise<FalasCurtas> {
+  const vazio: FalasCurtas = { pontes: [], interacoes: [] };
+  if (!servicos.voz) return vazio;
+  const vozId = await vozDaLive(perfilId);
+  if (!vozId) return vazio;
+
+  const pronta = async (texto: string): Promise<Fala | null> => {
+    const igual = await audioProntoIgual(perfilId, vozId, texto);
+    if (igual) {
+      const blocos = blocosDe(await estadoAoVivo(perfilId, igual.id));
+      if (blocos.length) return { audioId: igual.id, blocos };
+    }
+    const chave = `fala:${createHash("sha256").update(`${vozId}|${texto}`).digest("hex").slice(0, 40)}`;
+    void gerarAudioPago(
+      perfilId,
+      { vozId, titulo: `Fala da live: ${texto.slice(0, 50)}`, texto, roteiroVersaoId: null },
+      chave,
+      contarCaracteres(texto),
+    ).catch(() => {});
+    return null;
+  };
+
+  const prontas = async (textos: string[]) =>
+    (await Promise.all(textos.map(pronta))).filter((f): f is Fala => f !== null);
+
+  return { pontes: await prontas(PONTES), interacoes: await prontas(INTERACOES) };
+}

@@ -2,6 +2,7 @@ import "server-only";
 import { env, servicos } from "@/lib/env";
 import { ErroDominio } from "@/lib/dados/erros";
 import { contarCaracteres, duracaoEstimadaMs } from "@/lib/caracteres";
+import { comPausas } from "@/lib/pausas";
 
 /**
  * Sintese de voz.
@@ -130,9 +131,18 @@ export async function sintetizar(
         Accept: "audio/mpeg",
       },
       body: JSON.stringify({
-        text: texto,
+        // Parágrafo vira pausa de verdade; o texto cobrado segue sem marcação.
+        text: comPausas(texto),
         model_id: env.elevenlabsModelo,
-        voice_settings: { stability: 0.5, similarity_boost: 0.75, speed: 1 },
+        // Estabilidade mais baixa e um pouco de "style" dão entonação que varia
+        // de frase para frase — em 0.5 a leitura saía uniforme, cara de robô.
+        voice_settings: {
+          stability: 0.38,
+          similarity_boost: 0.75,
+          style: 0.25,
+          use_speaker_boost: true,
+          speed: 1,
+        },
       }),
     },
   );

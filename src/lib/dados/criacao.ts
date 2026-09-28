@@ -110,7 +110,9 @@ export async function colocarNaLive(
     trilhaId: base?.trilhaId ?? null,
     volumeTrilha: base?.volumeTrilha ?? 15,
     intervaloMs: base?.intervaloMs ?? 800,
-    embaralhar: base?.embaralhar ?? false,
+    // Com dois ou mais áudios, a ordem varia a cada volta: quem fica meia hora
+    // na live não ouve a mesma sequência se repetindo igual.
+    embaralhar: lista.length >= 2 ? true : (base?.embaralhar ?? false),
     audios: lista,
   });
 

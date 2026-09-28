@@ -24,7 +24,9 @@ const EsquemaRoteiro = z.object({
       secao: z.enum(["gancho", "oferta", "prova", "objecoes", "cta"]),
       texto: z
         .string()
-        .describe("Texto falado, em português do Brasil, pronto para narração"),
+        .describe(
+          "Texto falado, em português do Brasil, pronto para narração, em parágrafos curtos separados por linha em branco",
+        ),
     }),
   ),
 });
@@ -54,6 +56,8 @@ Estrutura obrigatória, nesta ordem: gancho, oferta, prova, objeções, cta.
 Como escrever:
 - Texto para ser FALADO, não lido. Frases curtas. Sem marcador, sem título, sem emoji solto no meio da fala.
 - Segunda pessoa, direto com quem está assistindo.
+- Converse, não recite: jeito de quem está ao vivo, com expressões naturais ("olha só", "sabe aquele…"), uma ou duas perguntas para o público por seção ("comenta aí de onde você tá assistindo", "quem aí já passou por isso?") e respiros.
+- Dentro de cada seção, separe as ideias em parágrafos curtos, com uma linha em branco entre eles: cada quebra vira uma pausa na voz. Parágrafo de no máximo três frases.
 - Nada de afirmação que você não pode sustentar: sem promessa de resultado, sem alegação de saúde, sem "aprovado por especialistas" se ninguém disse isso.
 - Preço e cupom só se vierem no pedido. Não invente número, prazo de entrega nem estoque.
 - O roteiro roda em LOOP por horas: evite "agora há pouco", "daqui a cinco minutos" e qualquer marca de tempo que fique errada na segunda repetição.

@@ -6,6 +6,7 @@ import {
   tokenDoCabecalho,
 } from "@/lib/dados/extensao";
 import { montagemAtivaParaExtensao, revisaoDaMontagem } from "@/lib/dados/ext-live";
+import { falasCurtasDaLive } from "@/lib/dados/fala";
 import { modoDemo } from "@/lib/env";
 
 /**
@@ -94,10 +95,14 @@ export async function GET(request: NextRequest) {
 
     // Revisão anti-restrição do texto de cada fala. Informa, não bloqueia:
     // a extensão mostra onde corrigir e quem decide tocar é o vendedor.
-    const protecao = await revisaoDaMontagem(licenca.perfilId, montagem.id);
+    const [protecao, curtas] = await Promise.all([
+      revisaoDaMontagem(licenca.perfilId, montagem.id),
+      // Pontes e interações na voz da live: é o que tira a cara de gravação.
+      falasCurtasDaLive(licenca.perfilId),
+    ]);
 
     return NextResponse.json(
-      { ok: true, montagem, protecao, bloco: "/api/ext/bloco" },
+      { ok: true, montagem: { ...montagem, curtas }, protecao, bloco: "/api/ext/bloco" },
       { headers: { "cache-control": "no-store" } },
     );
   } catch (erro) {

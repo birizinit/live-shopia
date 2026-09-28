@@ -48,7 +48,10 @@ export function fatiarEmBlocos(texto: string, teto = CHARS_POR_BLOCO): string[] 
   if (!limpo) return [];
   if (contarCaracteres(limpo) <= teto) return [limpo];
 
-  const frases = limpo.split(/(?<=[.!?…])\s+/);
+  // A quebra de parágrafo vai junto da frase anterior: é ela que vira pausa na
+  // síntese (src/lib/pausas.ts). Juntar tudo com espaço simples apagava os
+  // respiros de qualquer roteiro maior que um bloco.
+  const frases = limpo.split(/(?<=[.!?…])[ \t]+|(?<=\n\n)/);
   const blocos: string[] = [];
   let atual = "";
 
@@ -75,7 +78,7 @@ export function fatiarEmBlocos(texto: string, teto = CHARS_POR_BLOCO): string[] 
     }
 
     if (contarCaracteres(atual) + contarCaracteres(frase) + 1 > teto) empurrar();
-    atual = atual ? `${atual} ${frase}` : frase;
+    atual = !atual ? frase : atual.endsWith("\n\n") ? `${atual}${frase}` : `${atual} ${frase}`;
   }
 
   empurrar();

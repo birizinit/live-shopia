@@ -68,6 +68,38 @@ function embaralhado(lista) {
 
 const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
 
+/** Um número entre min e max — pausa de gente não tem duração fixa. */
+const entre = (min, max) => min + Math.random() * (max - min);
+
+function sortear(lista) {
+  return Array.isArray(lista) && lista.length ? lista[Math.floor(Math.random() * lista.length)] : null;
+}
+
+/**
+ * Leva o volume até `alvo` aos poucos. Cortar o som de uma vez era o que
+ * soava como "fita pausada": a voz some e volta num clique.
+ */
+function desvanecer(elemento, alvo, duracaoMs) {
+  return new Promise((resolve) => {
+    const inicio = elemento.volume;
+    const passos = Math.max(1, Math.round(duracaoMs / 30));
+    let passo = 0;
+    const relogio = setInterval(() => {
+      passo += 1;
+      elemento.volume = Math.min(1, Math.max(0, inicio + ((alvo - inicio) * passo) / passos));
+      if (passo >= passos) {
+        clearInterval(relogio);
+        resolve();
+      }
+    }, 30);
+  });
+}
+
+/** Quanto voltar ao retomar o roteiro: sem isso ele recomeçava no meio da palavra. */
+const VOLTA_AO_RETOMAR_S = 2;
+/** Chance de uma fala de interação entre uma parte do roteiro e a seguinte. */
+const CHANCE_DE_INTERACAO = 0.35;
+
 /**
  * Toca a montagem em laço.
  *
@@ -208,11 +240,14 @@ export class Reprodutor {
 
           for (const bloco of fala.blocos) {
             if (this.parando) break;
+            // Resposta no meio do intervalo: espera ela terminar, senão as
+            // duas vozes tocavam juntas.
+            await this.#esperarResposta();
             await this.#tocarBloco(bloco.arquivoId);
           }
 
-          const intervalo = this.montagem.intervaloMs ?? 0;
-          if (intervalo > 0 && !this.parando) await dormir(intervalo);
+          await this.#respiro();
+          await this.#talvezInteragir();
         }
 
         if (this.parando) break;
@@ -224,6 +259,53 @@ export class Reprodutor {
     } finally {
       this.#limpar();
     }
+  }
+
+  async #esperarResposta() {
+    while (this.falando && !this.parando) await dormir(150);
+  }
+
+  /** Pausa entre as partes: o intervalo da montagem, nunca igual duas vezes. */
+  async #respiro() {
+    if (this.parando) return;
+    const base = Math.max(this.montagem.intervaloMs ?? 0, 600);
+    await dormir(entre(base * 0.7, base * 1.5));
+  }
+
+  /** De vez em quando, uma fala curta para o público entre as partes. */
+  async #talvezInteragir() {
+    const interacao = sortear(this.montagem?.curtas?.interacoes);
+    if (!interacao || this.parando || Math.random() > CHANCE_DE_INTERACAO) return;
+    await this.#esperarResposta();
+    await this.#tocarAvulsos(interacao.blocos);
+    await dormir(entre(400, 900));
+  }
+
+  /** Toca uma lista curta de blocos fora do laço (resposta, ponte, interação). */
+  async #tocarAvulsos(blocos) {
+    for (const bloco of blocos) {
+      if (this.parando) break;
+      const blob = await this.buscarBlob(bloco.arquivoId);
+      const url = URL.createObjectURL(blob);
+      const voz = new Audio(url);
+      await this.#aplicarSaida(voz);
+      try {
+        await voz.play();
+        await new Promise((resolve) => {
+          voz.onended = resolve;
+          voz.onerror = resolve;
+        });
+      } finally {
+        URL.revokeObjectURL(url);
+      }
+    }
+  }
+
+  /** Som ambiente mais baixo enquanto ela conversa com alguém. */
+  #abafarAmbiente(abafar) {
+    if (!this.ambiente) return;
+    const normal = Math.max(0, Math.min(1, this.montagem?.volumeTrilha ?? 0.15));
+    void desvanecer(this.ambiente, abafar ? normal * 0.4 : normal, 400);
   }
 
   /**
@@ -244,39 +326,38 @@ export class Reprodutor {
     const laco = this.elemento;
     const estavaTocando = laco && !laco.paused;
 
-    if (estavaTocando) laco.pause();
+    // Como gente: a voz do roteiro vai baixando, um respiro, e só então a
+    // resposta — em vez de cortar no meio da palavra.
+    if (estavaTocando) {
+      await desvanecer(laco, 0, 450);
+      laco.pause();
+    }
+    this.#abafarAmbiente(true);
+    await dormir(entre(250, 500));
 
     try {
-      for (const bloco of blocos) {
-        if (this.parando) break;
-
-        const blob = await this.buscarBlob(bloco.arquivoId);
-        const url = URL.createObjectURL(blob);
-        const voz = new Audio(url);
-        await this.#aplicarSaida(voz);
-
-        try {
-          await voz.play();
-          await new Promise((resolve) => {
-            voz.onended = resolve;
-            voz.onerror = resolve;
-          });
-        } finally {
-          URL.revokeObjectURL(url);
-        }
+      await this.#tocarAvulsos(blocos);
+      // "Então, voltando aqui…" antes de retomar, e não a fita despausando.
+      const ponte = estavaTocando ? sortear(this.montagem?.curtas?.pontes) : null;
+      if (ponte && !this.parando) {
+        await dormir(entre(300, 600));
+        await this.#tocarAvulsos(ponte.blocos);
       }
       return true;
     } catch (erro) {
       this.aoErro("Não deu para falar a resposta.", erro);
       return false;
     } finally {
-      this.falando = false;
+      this.#abafarAmbiente(false);
       // Só retoma se o laço ainda é o mesmo elemento: se a montagem trocou ou
       // a live parou enquanto a resposta tocava, retomar ressuscitaria áudio
       // que já devia estar morto.
       if (estavaTocando && laco === this.elemento && !this.parando) {
-        laco.play().catch(() => {});
+        laco.currentTime = Math.max(0, laco.currentTime - VOLTA_AO_RETOMAR_S);
+        laco.volume = 0;
+        laco.play().then(() => desvanecer(laco, 1, 700)).catch(() => {});
       }
+      this.falando = false;
     }
   }
 
