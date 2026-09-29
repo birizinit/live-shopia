@@ -14,6 +14,7 @@ import * as api from "./api.js";
 
 const ALARME_LICENCA = "shopia:licenca";
 const ALARME_EVENTOS = "shopia:eventos";
+const ALARME_SESSAO = "shopia:sessao";
 const CHAVE_CHAT = "shopia_chat";
 
 /** Estado vivo. Reconstruído do storage quando o worker renasce. */
@@ -167,20 +168,47 @@ async function despejarFila() {
   }
 }
 
+/**
+ * Mantém viva a sessão aberta, mesmo com o painel lateral fechado.
+ *
+ * No modo só chat nada precisa do painel: quem lê o chat é o content script e
+ * quem guarda o token é este worker. Mas o batimento da sessão morava no
+ * painel, junto do motor de áudio — então fechar o painel derrubava a sessão
+ * pela faxina do servidor, e o chat parava de responder sem ninguém entender
+ * por quê. Aqui ele sobrevive: `chrome.alarms` acorda o worker morto.
+ */
+async function baterSessaoAberta() {
+  const sessaoId = await api.lerLocal(api.CHAVES.sessao);
+  if (!sessaoId) return;
+
+  try {
+    await api.baterSessao(sessaoId, null);
+  } catch (erro) {
+    // 409 = o servidor já fechou esta sessão. Insistir seria bater numa porta
+    // que não existe mais a cada minuto, para sempre.
+    if (erro?.codigo === "sessao_encerrada") {
+      await chrome.storage.local.remove(api.CHAVES.sessao);
+    }
+  }
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create(ALARME_LICENCA, { periodInMinutes: 2 });
   chrome.alarms.create(ALARME_EVENTOS, { periodInMinutes: 0.5 });
+  chrome.alarms.create(ALARME_SESSAO, { periodInMinutes: 1 });
   chrome.sidePanel?.setPanelBehavior?.({ openPanelOnActionClick: true }).catch(() => {});
 });
 
 chrome.runtime.onStartup.addListener(() => {
   chrome.alarms.create(ALARME_LICENCA, { periodInMinutes: 2 });
   chrome.alarms.create(ALARME_EVENTOS, { periodInMinutes: 0.5 });
+  chrome.alarms.create(ALARME_SESSAO, { periodInMinutes: 1 });
 });
 
 chrome.alarms.onAlarm.addListener((alarme) => {
   if (alarme.name === ALARME_LICENCA) void baterLicenca();
   if (alarme.name === ALARME_EVENTOS) void despejarFila();
+  if (alarme.name === ALARME_SESSAO) void baterSessaoAberta();
 });
 
 chrome.action.onClicked.addListener((aba) => {
@@ -202,7 +230,23 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
       case "mapa": {
         const mapa = await api.lerLocal(api.CHAVES.mapa);
         const versao = await api.lerLocal(api.CHAVES.mapaVersao);
-        responder({ ok: true, mapa, versao });
+        const locais = await api.lerLocal(api.CHAVES.ancorasLocais);
+        responder({ ok: true, mapa, versao, locais: locais ?? {} });
+        break;
+      }
+
+      case "aprendeu": {
+        // A âncora aprendida é gravada AQUI e não no content script: storage da
+        // extensão é do service worker, e uma aba que recarrega perderia o que
+        // a pessoa acabou de ensinar.
+        if (mensagem.ancora && Array.isArray(mensagem.cascata) && mensagem.cascata.length > 0) {
+          const atuais = (await api.lerLocal(api.CHAVES.ancorasLocais)) ?? {};
+          await api.gravarLocal({
+            [api.CHAVES.ancorasLocais]: { ...atuais, [mensagem.ancora]: mensagem.cascata },
+          });
+        }
+        // O painel escuta esta mesma mensagem para repintar; aqui só confirma.
+        responder({ ok: true });
         break;
       }
 

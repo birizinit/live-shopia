@@ -8,35 +8,53 @@ import { Info } from "lucide-react";
  * abriam a extensão e viam "(sem nome)" no cabo, sem nada para tocar e sem
  * saber que o chat é lido pela página da live no tiktok.com. Cada passo abaixo
  * responde a uma dessas dúvidas.
+ *
+ * A ordem mudou quando o áudio virou opcional: os passos que TODA live precisa
+ * vêm primeiro, e os de cabo caem para o fim, etiquetados. Antes, a lista abria
+ * mandando escolher o cabo como microfone — o que fazia quem só queria
+ * responder comentário achar que precisava instalar driver para começar.
  */
 
-const PASSOS: { titulo: string; texto: string }[] = [
+const PASSOS: { titulo: string; texto: string; so?: "audio" | "produtos" }[] = [
+  {
+    titulo: "No Chrome, abra o painel da Shopia",
+    texto:
+      "Clique no ícone da Shopia na barra do Chrome. O painel abre do lado direito e mostra o que falta para entrar no ar — cada item tem o botão que resolve.",
+  },
+  {
+    titulo: "Escolha o que a Shopia vai fazer nesta live",
+    texto:
+      "“Só chat” responde comentários, dá boas-vindas pelo nome e fixa produtos, usando só o navegador. “Chat + áudio” faz tudo isso e ainda coloca a apresentadora falando — este exige o cabo virtual.",
+  },
+  {
+    titulo: "Escreva o seu @ do TikTok e clique em “Entrar no ar”",
+    texto:
+      "A Shopia abre a sua live sozinha na mesma janela, se ela ainda não estiver aberta, e começa a ler o chat. O cronômetro corre. Em “Encerrar sozinho depois de”, dá para programar a live para parar em 1, 2, 3 horas ou mais.",
+  },
+  {
+    titulo: "Para fixar produto, ensine uma vez onde ficam os botões",
+    so: "produtos",
+    texto:
+      "Na seção Produtos do painel, clique nos três passos e aponte na sua própria live: a lista, um produto e o botão de fixar. O painel de produtos do LIVE Studio muda de conta para conta — em vez de adivinhar e arriscar clicar no botão errado no meio da sua live, a Shopia pergunta. É uma vez só, fica guardado.",
+  },
   {
     titulo: "No LIVE Studio, escolha o cabo como microfone",
+    so: "audio",
     texto:
       "Nas configurações de áudio, o microfone é o cabo virtual: CABLE Output no Windows, BlackHole 2ch no Mac. Pode começar a transmitir normalmente.",
   },
   {
-    titulo: "No Chrome, abra o painel da Shopia",
-    texto:
-      "Clique no ícone da Shopia na barra do Chrome. O painel mostra o que falta para entrar no ar — áudio, cabo e chat — e cada item tem o botão que resolve.",
-  },
-  {
     titulo: "Na primeira vez, clique em “Liberar acesso”",
+    so: "audio",
     texto:
       "Sem essa permissão o Chrome esconde o nome das saídas de áudio e o cabo aparece como “sem nome”. Abre uma aba, você clica em Permitir e volta: o cabo passa a ser achado sozinho.",
   },
-  {
-    titulo: "Abra a página da sua live no tiktok.com",
-    texto:
-      "Use o botão “Abrir minha live no TikTok” do painel, na mesma janela do Chrome. É por essa página que a Shopia lê o chat para dar boas-vindas e responder. O áudio funciona mesmo sem ela.",
-  },
-  {
-    titulo: "Clique em “Entrar no ar”",
-    texto:
-      "A apresentadora começa a falar e o cronômetro corre. Em “Encerrar sozinho depois de”, dá para programar a live para parar em 1, 2, 3 horas ou mais.",
-  },
 ];
+
+const ETIQUETA = {
+  audio: "só no modo com áudio",
+  produtos: "só para fixar produto",
+} as const;
 
 export function NoAr() {
   return (
@@ -48,7 +66,14 @@ export function NoAr() {
               {indice + 1}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-fg">{passo.titulo}</p>
+              <p className="text-sm font-medium text-fg">
+                {passo.titulo}
+                {passo.so && (
+                  <span className="ml-2 rounded-full border border-border px-2 py-0.5 align-middle text-[11px] font-normal text-fg-subtle">
+                    {ETIQUETA[passo.so]}
+                  </span>
+                )}
+              </p>
               <p className="mt-0.5 text-sm text-fg-muted">{passo.texto}</p>
             </div>
           </li>

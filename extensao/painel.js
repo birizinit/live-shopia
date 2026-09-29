@@ -4,13 +4,21 @@
 // áudio que para no meio da live é o produto quebrado. Enquanto este painel
 // estiver aberto, a apresentadora fala.
 //
-// O painel é organizado como a lista do que falta para entrar no ar — áudio,
-// cabo, chat — e cada pendência traz o botão que a resolve. Quem abre a
-// extensão pela primeira vez não deveria precisar de manual para saber o que
-// fazer em seguida.
+// O painel é organizado como a lista do que falta para entrar no ar — e cada
+// pendência traz o botão que a resolve. Quem abre a extensão pela primeira vez
+// não deveria precisar de manual para saber o que fazer em seguida.
+//
+// MODO DE OPERAÇÃO
+//
+// São dois, e o padrão é o SEM ÁUDIO. Responder comentário, dar boas-vindas e
+// fixar produto não precisam de áudio nenhum — e exigir cabo virtual instalado
+// no sistema operacional para isso barrava na porta a maioria das lives, que
+// são apresentadas por gente de verdade e só querem a parte automática do
+// chat. O áudio virou o que sempre foi: um recurso a mais, para quem quer.
 
 import * as api from "./api.js";
 import { Reprodutor, listarSaidas, pareceCabo } from "./audio.js";
+import { ANCORAS } from "./produtos.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -24,6 +32,17 @@ let respostasDadas = 0;
 
 /** "ok" | "manual" | "sem_rotulo" | "nao_achado" | "procurando" */
 let estadoCabo = "procurando";
+
+/** "chat" | "chat_audio" — ver o cabeçalho. */
+let modo = "chat";
+const comAudio = () => modo === "chat_audio";
+
+/** Âncoras de produto que esta instalação já aprendeu. */
+let ancorasLocais = {};
+let rodizioMinutos = 0;
+let relogioRodizio = null;
+let produtoAtual = 1;
+let totalProdutos = 0;
 
 let inicioNoAr = null;
 let relogioCronometro = null;
@@ -279,6 +298,18 @@ const TEXTO_CHAT = {
 
 function pintarChat(estado) {
   const [cor, texto] = TEXTO_CHAT[estado] ?? TEXTO_CHAT.sem_aba;
+
+  // Ler o chat e PODER responder são coisas diferentes: o plano libera a
+  // segunda. Sem este aviso, a extensão ficaria com a bolinha verde de "lendo"
+  // e sem responder ninguém — o sintoma não apontaria para a causa.
+  if (estadoLicenca?.licenciada && estadoLicenca.recursos && !estadoLicenca.recursos.chat) {
+    pintarPonto("ponto-chat", "alerta");
+    $("chat-texto").textContent =
+      "O seu plano não inclui respostas no chat, então a Shopia não vai responder " +
+      "nem dar boas-vindas. Fixar produto continua funcionando.";
+    return;
+  }
+
   pintarPonto("ponto-chat", cor);
   $("chat-texto").textContent = texto;
 }
@@ -301,32 +332,147 @@ function usuarioTikTokValido(bruto) {
   return /^[A-Za-z0-9._]{2,24}$/.test(usuario) ? usuario : null;
 }
 
+// ---------------------------------------------------------------- produtos
+
+const INSTRUCOES = {
+  [ANCORAS.lista]: "Clique na LISTA de produtos da sua live (a caixa que contém todos). Esc cancela.",
+  [ANCORAS.item]: "Clique em UM produto da lista — qualquer um serve. Esc cancela.",
+  [ANCORAS.fixar]: "Clique no botão de FIXAR de um produto. Ele não será fixado agora. Esc cancela.",
+};
+
+function ancoraAprendida(nome) {
+  return Array.isArray(ancorasLocais[nome]) && ancorasLocais[nome].length > 0;
+}
+
+function pintarProdutos() {
+  const prontas = Object.values(ANCORAS).every(ancoraAprendida);
+  $("produto-ensinar").hidden = prontas;
+  $("produto-pronto").hidden = !prontas;
+
+  $("ok-produto-lista").hidden = !ancoraAprendida(ANCORAS.lista);
+  $("ok-produto-item").hidden = !ancoraAprendida(ANCORAS.item);
+  $("ok-produto-fixar").hidden = !ancoraAprendida(ANCORAS.fixar);
+
+  if (prontas) {
+    $("produto-total").textContent =
+      totalProdutos > 0
+        ? `${totalProdutos} produto(s) na lista da sua live.`
+        : "Abra a sua live para a Shopia enxergar a lista de produtos.";
+  }
+}
+
+/** Manda um recado para a aba da live. Devolve se alguma aba recebeu. */
+async function falarComALive(mensagem) {
+  const abas = await chrome.tabs.query({ url: "*://*.tiktok.com/*" }).catch(() => []);
+  const daLive = abas.filter((a) => ehUrlDeLive(a.url));
+  if (daLive.length === 0) return false;
+  for (const aba of daLive) chrome.tabs.sendMessage(aba.id, mensagem).catch(() => {});
+  return true;
+}
+
+async function ensinar(ancora) {
+  const chegou = await falarComALive({ tipo: "aprender", ancora, instrucao: INSTRUCOES[ancora] });
+  if (!chegou) {
+    recadoDeProduto("Abra a sua live no TikTok primeiro — é lá que você vai apontar.");
+    return;
+  }
+  recadoDeProduto("Vá até a aba da live e clique no que foi pedido.");
+}
+
+function recadoDeProduto(texto) {
+  $("produto-recado").textContent = texto ?? "";
+}
+
+const MOTIVO_FIXAR = {
+  sem_ancora: "Falta ensinar onde fica o botão de fixar.",
+  lista_fechada: "A lista de produtos não está à vista na live. Abra ela e tente de novo.",
+  lista_vazia: "Não achei produto nenhum na lista. A sua live está com produtos?",
+  sem_botao: "Achei o produto, mas não o botão de fixar dentro dele. Ensine de novo o passo 3.",
+  botao_desligado: "O botão de fixar está desabilitado nesse produto.",
+};
+
+async function fixar(posicao) {
+  const chegou = await falarComALive({ tipo: "fixar", posicao });
+  if (!chegou) recadoDeProduto("A live não está aberta nesta janela.");
+}
+
+// ------------------------------------------------------------------ rodízio
+
+/**
+ * Roda entre os produtos sozinho.
+ *
+ * O ponteiro anda mesmo quando um produto falha ao fixar: parar no que falhou
+ * deixaria o rodízio travado para sempre naquele item, e a live inteira
+ * mostrando o produto errado.
+ */
+function iniciarRodizio() {
+  pararRodizio();
+  if (rodizioMinutos <= 0) return;
+  relogioRodizio = setInterval(() => {
+    if (totalProdutos <= 0) {
+      void falarComALive({ tipo: "contar_produtos" });
+      return;
+    }
+    produtoAtual = (produtoAtual % totalProdutos) + 1;
+    $("produto-posicao").value = String(produtoAtual);
+    void fixar(produtoAtual);
+  }, rodizioMinutos * 60_000);
+}
+
+function pararRodizio() {
+  clearInterval(relogioRodizio);
+  relogioRodizio = null;
+}
+
 // ---------------------------------------------------------------- controle
 
-/** Um motivo só, o primeiro que impede: é o que a pessoa resolve em seguida. */
+/**
+ * Um motivo só, o primeiro que impede: é o que a pessoa resolve em seguida.
+ *
+ * Cada modo cobra só o que ele usa. Antes, áudio e cabo eram cobrados sempre —
+ * e era isso que impedia de responder comentário quem nunca quis áudio.
+ */
 function motivoDeBloqueio() {
   if (!estadoLicenca?.licenciada) return "A licença não está ativa.";
   if (estadoLicenca.pararAgora) return "A operação foi suspensa pelo painel.";
-  if (!estadoLicenca.recursos?.mixer) return "O seu plano não inclui o áudio da live.";
-  if (!montagem) return "Falta o áudio da live (item 1 acima).";
-  if (estadoCabo !== "ok" && estadoCabo !== "manual") return "Falta achar o cabo de áudio (item 2 acima).";
+
+  if (comAudio()) {
+    if (!estadoLicenca.recursos?.mixer) return "O seu plano não inclui o áudio da live.";
+    if (!montagem) return "Falta o áudio da live (item 1 acima).";
+    if (estadoCabo !== "ok" && estadoCabo !== "manual") {
+      return "Falta achar o cabo de áudio (item 2 acima).";
+    }
+  }
+
   return null;
 }
 
 function atualizarBotao() {
-  const motivo = reprodutor.tocando ? null : motivoDeBloqueio();
+  const noAr = comAudio() ? reprodutor.tocando : sessaoId !== null;
+  const motivo = noAr ? null : motivoDeBloqueio();
   $("btn-tocar").disabled = Boolean(motivo);
   $("motivo-bloqueio").textContent = motivo ?? "";
   $("motivo-bloqueio").hidden = !motivo;
 }
 
+/**
+ * "Estar no ar" quer dizer coisas diferentes em cada modo, e o botão tem que
+ * dizer a verdade do modo em que a pessoa está.
+ *
+ * Com áudio, é o reprodutor: se a voz parou, a live está muda, e o botão
+ * precisa oferecer entrar de novo — não "encerrar" algo que já se calou.
+ * Só chat, é a sessão: não há nada tocando para consultar, e amarrar a tela ao
+ * áudio deixaria o botão em "Entrar no ar" com a live já respondendo, um
+ * segundo clique abrindo outra sessão, e nenhum jeito de encerrar.
+ */
 function pintarReproducao(estado) {
-  $("m-fala").textContent = estado.fala?.titulo ?? "—";
-  $("m-voltas").textContent = String(estado.voltas);
-  $("btn-tocar").hidden = estado.tocando;
-  $("btn-parar").hidden = !estado.tocando;
-  $("no-ar").hidden = !estado.tocando;
-  if (!estado.tocando) pararCronometro();
+  const noAr = comAudio() ? Boolean(estado?.tocando) : sessaoId !== null;
+  $("m-fala").textContent = estado?.fala?.titulo ?? (comAudio() ? "—" : "sem áudio");
+  $("m-voltas").textContent = String(estado?.voltas ?? 0);
+  $("btn-tocar").hidden = noAr;
+  $("btn-parar").hidden = !noAr;
+  $("no-ar").hidden = !noAr;
+  if (!noAr) pararCronometro();
   atualizarBotao();
 }
 
@@ -347,8 +493,9 @@ function pintarFimProgramado() {
   aviso.hidden = false;
 }
 
-function iniciarCronometro() {
-  inicioNoAr = Date.now();
+function iniciarCronometro(desde = null) {
+  inicioNoAr = desde ?? Date.now();
+  void api.gravarLocal({ [api.CHAVES.inicioNoAr]: inicioNoAr });
   clearInterval(relogioCronometro);
   const tique = () => {
     const decorrido = Date.now() - inicioNoAr;
@@ -374,7 +521,13 @@ async function entrarNoAr() {
   if (motivoDeBloqueio()) return;
 
   try {
-    const r = await api.abrirSessao({ montagemId: montagem.id, contaTikTokId: null });
+    // No modo só chat não existe montagem, e o servidor já aceita sessão sem
+    // ela (`montagemId` é opcional na rota). Ler `montagem.id` direto estourava
+    // aqui e derrubava o clique inteiro.
+    const r = await api.abrirSessao({
+      montagemId: comAudio() ? (montagem?.id ?? null) : null,
+      contaTikTokId: null,
+    });
     sessaoId = r.sessaoId;
     await chrome.runtime.sendMessage({ tipo: "sessao", sessaoId }).catch(() => {});
   } catch (erro) {
@@ -388,10 +541,54 @@ async function entrarNoAr() {
   }
 
   // O play tem que sair do mesmo gesto do clique: navegador recusa áudio
-  // iniciado fora de interação do usuário, e a falha seria silenciosa.
-  void reprodutor.iniciar();
+  // iniciado fora de interação do usuário, e a falha seria silenciosa. Por
+  // isso ele vem antes de abrir aba: `chrome.tabs.create` é await, e o gesto
+  // já teria expirado do outro lado dele.
+  if (comAudio()) void reprodutor.iniciar();
+
   iniciarCronometro();
   void baterSessao();
+  void garantirAbaDaLive();
+  iniciarRodizio();
+
+  // Sem áudio não existe `aoMudar` do reprodutor para repintar a tela, e o
+  // botão ficaria em "Entrar no ar" com a sessão já aberta.
+  if (!comAudio()) pintarReproducao({ tocando: true, voltas: 0, fala: null });
+}
+
+/**
+ * Garante que a live está aberta nesta janela.
+ *
+ * A Shopia lê o chat pela página da live no tiktok.com — sem a aba, não há o
+ * que ler. Pedir para a pessoa abrir na mão era um passo que ela esquecia, e
+ * o sintoma ("não responde ninguém") não aponta para a causa.
+ *
+ * Só ATIVA uma aba que já exista; abrir uma segunda live da mesma pessoa
+ * confunde o TikTok e a própria pessoa.
+ */
+async function garantirAbaDaLive() {
+  const abas = await chrome.tabs.query({ url: "*://*.tiktok.com/*" }).catch(() => []);
+  const daLive = abas.filter((a) => ehUrlDeLive(a.url));
+  if (daLive.length > 0) {
+    await chrome.tabs.update(daLive[0].id, { active: true }).catch(() => {});
+    return;
+  }
+
+  const usuario = usuarioTikTokValido($("usuario-tiktok").value);
+  await chrome.tabs
+    .create({
+      url: usuario ? `https://www.tiktok.com/@${usuario}/live` : "https://www.tiktok.com/live",
+      active: true,
+    })
+    .catch(() => {});
+}
+
+function ehUrlDeLive(url) {
+  try {
+    return /\/(live|studio|live_studio)(\/|$)/i.test(new URL(url ?? "", "https://x").pathname);
+  } catch {
+    return false;
+  }
 }
 
 let relogioBatimento = null;
@@ -414,6 +611,7 @@ async function baterSessao() {
 async function encerrar(motivo = null) {
   reprodutor.parar();
   clearInterval(relogioBatimento);
+  pararRodizio();
   pararCronometro();
 
   if (sessaoId) {
@@ -425,6 +623,10 @@ async function encerrar(motivo = null) {
     sessaoId = null;
     await chrome.runtime.sendMessage({ tipo: "sessao", sessaoId: null }).catch(() => {});
   }
+
+  // Depois de zerar a sessão, nunca antes: é ela que a tela lê para saber se
+  // ainda está no ar.
+  pintarReproducao({ tocando: false, voltas: 0, fala: null });
 }
 
 // ---------------------------------------------------------------- ligação
@@ -440,15 +642,74 @@ async function carregarPreferencias() {
   $("limite").value = String(limiteMinutos);
   const usuario = await api.lerLocal(api.CHAVES.usuarioTikTok, "");
   $("usuario-tiktok").value = usuario ? `@${usuario}` : "";
+
+  modo = (await api.lerLocal(api.CHAVES.modo, "chat")) === "chat_audio" ? "chat_audio" : "chat";
+  const escolhido = document.querySelector(`input[name="modo"][value="${modo}"]`);
+  if (escolhido) escolhido.checked = true;
+
+  rodizioMinutos = Number(await api.lerLocal(api.CHAVES.rodizioMinutos, 0)) || 0;
+  $("rodizio").value = String(rodizioMinutos);
+
+  ancorasLocais = (await api.lerLocal(api.CHAVES.ancorasLocais)) ?? {};
+
+  aplicarModo();
+  pintarProdutos();
+}
+
+/** O modo decide o que a tela mostra e o que o portão cobra. */
+function aplicarModo() {
+  $("bloco-audio").hidden = !comAudio();
+  $("bloco-cabo").hidden = !comAudio();
+  atualizarBotao();
 }
 
 async function abrirOperacao() {
   mostrar("operar");
   await carregarPreferencias();
+  await retomarSessao();
   const estado = await atualizarEstado();
   await Promise.all([carregarSaidas(), conferirChat()]);
   if (estado?.licenciada) await carregarMontagem();
   else pintarProtecao();
+}
+
+/**
+ * Reassume a sessão que ficou aberta com o painel fechado.
+ *
+ * Sem isto, reabrir o painel no modo só chat mostraria "Entrar no ar" com a
+ * live já respondendo — e, pior, escondendo o "Encerrar": a pessoa não teria
+ * como desligar pelo lugar de onde ligou. É o preço de deixar a sessão
+ * sobreviver ao painel, e tem que ser pago aqui.
+ */
+async function retomarSessao() {
+  const guardada = await api.lerLocal(api.CHAVES.sessao);
+  if (!guardada) return;
+
+  // No modo com áudio, retomar seria mentira: o motor de som mora neste painel
+  // e não estava tocando nada enquanto ele esteve fechado. Mostrar "no ar"
+  // com a live muda é pior do que fechar e deixar a pessoa entrar de novo.
+  if (comAudio()) {
+    sessaoId = guardada;
+    await encerrar("painel reaberto sem áudio tocando");
+    return;
+  }
+
+  try {
+    await api.baterSessao(guardada, null);
+  } catch {
+    // Servidor fechou (409) ou está fora do ar. Nos dois casos, não assumimos
+    // uma sessão que talvez não exista: o próximo "Entrar no ar" abre outra, e
+    // abrir sessão já é idempotente do lado de lá.
+    await chrome.storage.local.remove(api.CHAVES.sessao);
+    return;
+  }
+
+  sessaoId = guardada;
+  const desde = Number(await api.lerLocal(api.CHAVES.inicioNoAr, 0)) || Date.now();
+  iniciarCronometro(desde);
+  void baterSessao();
+  iniciarRodizio();
+  pintarReproducao({ tocando: false, voltas: 0, fala: null });
 }
 
 async function iniciar() {
@@ -518,6 +779,50 @@ $("limite").addEventListener("change", async (evento) => {
   pintarFimProgramado();
 });
 
+// --- modo ---
+
+for (const radio of document.querySelectorAll('input[name="modo"]')) {
+  radio.addEventListener("change", async (evento) => {
+    if (!evento.target.checked) return;
+    modo = evento.target.value === "chat_audio" ? "chat_audio" : "chat";
+    await api.gravarLocal({ [api.CHAVES.modo]: modo });
+    aplicarModo();
+    // Trocar para o modo com áudio exige o cabo, que pode nunca ter sido
+    // procurado — quem começou sem áudio nunca passou por essa tela.
+    if (comAudio()) {
+      await carregarSaidas();
+      if (!montagem) await carregarMontagem();
+    }
+  });
+}
+
+// --- produtos ---
+
+for (const id of ["btn-ensinar-lista", "btn-ensinar-item", "btn-ensinar-fixar"]) {
+  $(id).addEventListener("click", (evento) => void ensinar(evento.currentTarget.dataset.ancora));
+}
+
+$("btn-reensinar").addEventListener("click", async () => {
+  ancorasLocais = {};
+  await api.gravarLocal({ [api.CHAVES.ancorasLocais]: {} });
+  totalProdutos = 0;
+  pintarProdutos();
+  recadoDeProduto("");
+});
+
+$("btn-fixar").addEventListener("click", () => {
+  produtoAtual = Math.max(1, Number($("produto-posicao").value) || 1);
+  recadoDeProduto("Fixando…");
+  void fixar(produtoAtual);
+});
+
+$("rodizio").addEventListener("change", async (evento) => {
+  rodizioMinutos = Number(evento.target.value) || 0;
+  await api.gravarLocal({ [api.CHAVES.rodizioMinutos]: rodizioMinutos });
+  if (sessaoId) iniciarRodizio();
+  else pararRodizio();
+});
+
 $("saidas").addEventListener("change", async (evento) => {
   await api.gravarLocal({ [api.CHAVES.cabo]: evento.target.value });
   await carregarSaidas();
@@ -562,6 +867,33 @@ chrome.runtime.onMessage.addListener((mensagem) => {
     comentariosLidos += mensagem.quantidade ?? 0;
     $("m-chat").textContent = String(comentariosLidos);
   }
+
+  // --- produtos ---
+  if (mensagem?.tipo === "aprendeu") {
+    if (mensagem.cancelado) {
+      recadoDeProduto("Cancelado.");
+    } else if (Array.isArray(mensagem.cascata) && mensagem.cascata.length > 0) {
+      ancorasLocais = { ...ancorasLocais, [mensagem.ancora]: mensagem.cascata };
+      recadoDeProduto("Anotado.");
+      void falarComALive({ tipo: "contar_produtos" });
+    } else {
+      recadoDeProduto("Não consegui descrever o que você clicou. Tente clicar no botão em si.");
+    }
+    pintarProdutos();
+  }
+  if (mensagem?.tipo === "produtos") {
+    totalProdutos = mensagem.total ?? 0;
+    pintarProdutos();
+  }
+  if (mensagem?.tipo === "fixou") {
+    recadoDeProduto(
+      mensagem.ok
+        ? `Produto ${mensagem.posicao} fixado.`
+        : mensagem.motivo === "posicao_inexistente"
+          ? `A sua live tem ${mensagem.total} produto(s); não existe o número ${$("produto-posicao").value}.`
+          : (MOTIVO_FIXAR[mensagem.motivo] ?? "Não deu para fixar."),
+    );
+  }
 });
 
 // Cabo plugado ou driver instalado com o painel aberto: a lista se refaz sozinha.
@@ -579,9 +911,13 @@ chrome.tabs.onUpdated.addListener((_id, mudanca) => {
 });
 chrome.tabs.onRemoved.addListener(() => void conferirChat());
 
-// Fechar o painel é o mesmo que sair do ar: sem ele, não há quem toque.
+// Com áudio, fechar o painel é sair do ar: o motor de som mora aqui, e sem ele
+// não há quem toque. No modo só chat não é: quem lê o chat é o content script
+// e quem bate a sessão é o service worker, então a live continua respondendo
+// com o painel fechado — que é o comportamento que a pessoa espera de algo que
+// ela deixou ligado.
 window.addEventListener("pagehide", () => {
-  if (reprodutor.tocando) void encerrar("painel fechado");
+  if (comAudio() && reprodutor.tocando) void encerrar("painel fechado");
 });
 
 void iniciar();

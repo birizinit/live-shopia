@@ -80,9 +80,9 @@ const RECURSOS: Recurso[] = [
   },
   {
     icone: TicketPercent,
-    titulo: "Aciona o cupom e fixa o produto",
+    titulo: "Fixa o produto e aciona o cupom",
     texto:
-      "Solta o cupom no momento combinado e destaca na tela o produto de que a apresentadora está falando, sem ninguém clicando nada.",
+      "Fixa o produto que você escolher no LIVE Studio, e pode rodar entre eles sozinha durante a live. Na primeira vez você aponta os botões na sua tela — o painel de produtos muda de conta para conta, e a Shopia prefere perguntar a arriscar clicar no lugar errado.",
   },
 ];
 

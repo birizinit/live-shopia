@@ -81,19 +81,41 @@ const EXECUTORES = {
 };
 
 export class Mapa {
-  constructor(mapa, versao) {
+  /**
+   * @param mapa    o mapa publicado pelo servidor, igual para toda a base
+   * @param versao  versão do mapa, para a telemetria dizer o que quebrou
+   * @param locais  âncoras aprendidas NESTA instalação, apontando na tela
+   */
+  constructor(mapa, versao, locais = null) {
     this.mapa = mapa ?? {};
     this.versao = versao ?? null;
+    this.locais = locais ?? {};
     /** Âncoras que falharam desde o último relatório, com a contagem. */
     this.falhas = new Map();
   }
 
   get ancoras() {
-    return Object.keys(this.mapa);
+    return [...new Set([...Object.keys(this.mapa), ...Object.keys(this.locais)])];
+  }
+
+  /**
+   * O que a pessoa apontou na própria tela vence o que publicamos.
+   *
+   * Sempre nessa ordem, e não o contrário: o mapa do servidor é o palpite bom
+   * para a média, e a âncora local é fato observado naquela conta. Quando os
+   * dois discordam, quem viu a tela tem razão.
+   */
+  #cascataDe(ancora) {
+    const locais = this.locais[ancora];
+    const publicada = this.mapa[ancora];
+    return [
+      ...(Array.isArray(locais) ? locais : []),
+      ...(Array.isArray(publicada) ? publicada : []),
+    ];
   }
 
   #resolver(ancora, raiz, todos) {
-    const cascata = this.mapa[ancora];
+    const cascata = this.#cascataDe(ancora);
     if (!Array.isArray(cascata) || cascata.length === 0) {
       this.#anotarFalha(ancora, "ancora_ausente");
       return todos ? [] : null;
@@ -150,4 +172,93 @@ export class Mapa {
     this.falhas.clear();
     return lista;
   }
+}
+
+// -----------------------------------------------------------------------------
+// APRENDER UMA ÂNCORA APONTANDO NA TELA
+//
+// O painel de produtos do LIVE Studio não é igual para todo mundo: muda por
+// país, por tipo de conta e por teste A/B do TikTok. Publicar um seletor nosso
+// para ele seria chute — e chute que clica em botão errado no meio de uma live
+// de vendas é pior do que não clicar em nada.
+//
+// Então a pessoa aponta uma vez: clica no botão de fixar que ela já usa, e a
+// extensão descreve aquele elemento. Deixa de ser palpite e vira observação.
+// -----------------------------------------------------------------------------
+
+/** Atributos que o TikTok usa para teste automatizado — os mais estáveis que existem na página. */
+const ATRIBUTOS_ESTAVEIS = ["data-e2e", "data-testid", "data-tt"];
+
+function escaparAtributo(valor) {
+  return String(valor).replace(/["\\]/g, "\\$&");
+}
+
+/**
+ * Descreve um elemento como uma CASCATA de candidatos, do mais estável para o
+ * mais frágil — o mesmo formato que o mapa publicado usa.
+ *
+ * Cascata, e não um seletor só, porque o primeiro degrau pode morrer numa
+ * atualização do TikTok sem que os de baixo morram junto. Um seletor único
+ * transforma qualquer mudança de layout em quebra total.
+ */
+export function descrever(no) {
+  if (!no || no.nodeType !== Node.ELEMENT_NODE) return [];
+
+  const candidatos = [];
+  const visto = new Set();
+  const juntar = (entrada) => {
+    if (entrada && !visto.has(entrada)) {
+      visto.add(entrada);
+      candidatos.push(entrada);
+    }
+  };
+
+  // 1. Atributo de teste no próprio nó: é o que o TikTok mantém entre releases.
+  for (const attr of ATRIBUTOS_ESTAVEIS) {
+    const valor = no.getAttribute?.(attr);
+    if (valor) juntar(`css=[${attr}="${escaparAtributo(valor)}"]`);
+  }
+
+  // 2. Atributo de teste num ancestral próximo + a tag daqui. Serve quando o
+  //    botão em si é anônimo mas mora dentro de um bloco identificado.
+  let pai = no.parentElement;
+  for (let salto = 0; pai && salto < 4; salto++, pai = pai.parentElement) {
+    for (const attr of ATRIBUTOS_ESTAVEIS) {
+      const valor = pai.getAttribute?.(attr);
+      if (!valor) continue;
+      const alvo = no.tagName.toLowerCase();
+      juntar(`css=[${attr}="${escaparAtributo(valor)}"] ${alvo}`);
+    }
+  }
+
+  // 3. aria-label: sobrevive a troca de classe, e é o que a acessibilidade
+  //    obriga a manter estável. Quebra se o TikTok traduzir a interface.
+  const rotulo = no.getAttribute?.("aria-label")?.trim();
+  if (rotulo) juntar(`aria=${rotulo}`);
+
+  // 4. Texto visível, se o nó for folha. Mesma fragilidade do aria, e por isso
+  //    vem depois dele.
+  const texto = textoVisivel(no);
+  if (texto && texto.length <= 40 && no.children.length === 0) juntar(`texto=${texto}`);
+
+  return candidatos;
+}
+
+/**
+ * Sobe do nó clicado até achar algo digno de virar âncora.
+ *
+ * Quem clica acerta o <svg> do ícone, ou o <span> do rótulo — quase nunca o
+ * botão. Descrever o nó exato gravaria uma âncora que casa com o ícone e não
+ * com a coisa clicável, e o clique programado não faria nada.
+ */
+export function alvoClicavel(no) {
+  let atual = no;
+  for (let salto = 0; atual && salto < 6; salto++, atual = atual.parentElement) {
+    if (atual.nodeType !== Node.ELEMENT_NODE) continue;
+    const tag = atual.tagName.toLowerCase();
+    const papel = atual.getAttribute("role");
+    const temAtributo = ATRIBUTOS_ESTAVEIS.some((a) => atual.getAttribute(a));
+    if (tag === "button" || tag === "a" || papel === "button" || temAtributo) return atual;
+  }
+  return no?.nodeType === Node.ELEMENT_NODE ? no : null;
 }

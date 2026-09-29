@@ -50,12 +50,40 @@
         <div id="aviso-parar" class="aviso perigo" role="alert" hidden></div>
         <div id="aviso-versao" class="aviso alerta" hidden></div>
 
+        <!-- Modo de operação -->
+        <div class="bloco">
+          <h2>O que a Shopia faz nesta live</h2>
+          <div class="modos" role="radiogroup" aria-label="Modo de operação">
+            <label class="modo">
+              <input type="radio" name="modo" value="chat" checked />
+              <span>
+                <strong>Só chat</strong>
+                <small>
+                  Responde comentários, dá boas-vindas pelo nome e fixa
+                  produtos. Funciona só com o navegador — não precisa instalar
+                  nada no computador.
+                </small>
+              </span>
+            </label>
+            <label class="modo">
+              <input type="radio" name="modo" value="chat_audio" />
+              <span>
+                <strong>Chat + áudio</strong>
+                <small>
+                  Tudo do modo acima e mais a apresentadora falando na live.
+                  Exige um cabo de áudio virtual instalado no computador.
+                </small>
+              </span>
+            </label>
+          </div>
+        </div>
+
         <!-- Para entrar no ar: cada item diz o que falta e resolve ali mesmo -->
         <div class="bloco">
           <h2>Para entrar no ar</h2>
 
           <!-- 1. Áudio -->
-          <div class="pendencia">
+          <div class="pendencia" id="bloco-audio">
             <div class="linha-estado">
               <span class="ponto" id="ponto-audio"></span>
               <strong>Áudio da live</strong>
@@ -70,7 +98,7 @@
           </div>
 
           <!-- 2. Cabo -->
-          <div class="pendencia">
+          <div class="pendencia" id="bloco-cabo">
             <div class="linha-estado">
               <span class="ponto" id="ponto-cabo"></span>
               <strong>Cabo de áudio</strong>
@@ -107,12 +135,12 @@
             </details>
           </div>
 
-          <!-- 3. Chat (opcional para o áudio, necessário para responder) -->
+          <!-- 3. Chat -->
           <div class="pendencia">
             <div class="linha-estado">
               <span class="ponto" id="ponto-chat"></span>
               <strong>Chat da live</strong>
-              <span class="versao empurra">para responder e dar boas-vindas</span>
+              <span class="versao empurra">responder, boas-vindas e produtos</span>
             </div>
             <p id="chat-texto" class="ajuda">
               O LIVE Studio transmite; a Shopia lê o chat pela página da sua live
@@ -125,6 +153,69 @@
               </label>
             </div>
             <button id="btn-abrir-live" class="botao pequeno">Abrir minha live no TikTok</button>
+          </div>
+        </div>
+
+        <!-- Produtos -->
+        <div class="bloco">
+          <h2>Produtos</h2>
+
+          <div id="produto-ensinar" class="aviso alerta">
+            <p>
+              Para fixar produto, a Shopia precisa que você mostre onde ficam os
+              botões na SUA tela. O painel de produtos do LIVE Studio muda de
+              conta para conta — em vez de adivinhar e arriscar clicar no botão
+              errado no meio da sua live, ela pergunta uma vez.
+            </p>
+            <p class="ajuda">
+              Abra a sua live com a lista de produtos à vista e ensine os três.
+            </p>
+            <ol class="passos-ensinar">
+              <li>
+                <button id="btn-ensinar-lista" class="botao pequeno" data-ancora="produto.lista">
+                  1. A lista de produtos
+                </button>
+                <span class="marca-ok" id="ok-produto-lista" hidden>✓</span>
+              </li>
+              <li>
+                <button id="btn-ensinar-item" class="botao pequeno" data-ancora="produto.item">
+                  2. Um produto da lista
+                </button>
+                <span class="marca-ok" id="ok-produto-item" hidden>✓</span>
+              </li>
+              <li>
+                <button id="btn-ensinar-fixar" class="botao pequeno" data-ancora="produto.fixar">
+                  3. O botão de fixar
+                </button>
+                <span class="marca-ok" id="ok-produto-fixar" hidden>✓</span>
+              </li>
+            </ol>
+          </div>
+
+          <div id="produto-pronto" hidden>
+            <p id="produto-total" class="ajuda"></p>
+            <div class="bloco-topo">
+              <label class="campo">
+                <span>Fixar o produto nº</span>
+                <input id="produto-posicao" type="number" min="1" max="99" value="1" />
+              </label>
+              <button id="btn-fixar" class="botao primario pequeno">Fixar agora</button>
+            </div>
+
+            <label class="campo">
+              <span>Rodar entre os produtos a cada</span>
+              <select id="rodizio">
+                <option value="0">Não rodar</option>
+                <option value="2">2 minutos</option>
+                <option value="5">5 minutos</option>
+                <option value="10">10 minutos</option>
+                <option value="15">15 minutos</option>
+                <option value="30">30 minutos</option>
+              </select>
+            </label>
+
+            <p id="produto-recado" class="ajuda" role="status"></p>
+            <button id="btn-reensinar" class="botao texto">Ensinar de novo</button>
           </div>
         </div>
 

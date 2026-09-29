@@ -425,25 +425,27 @@ export default async function ExtensaoPage() {
         </Card>
       </Secao>
 
-      {/* 5 — A seção que mais gera dúvida. */}
-      <Secao
-        id="cabo-virtual"
-        titulo="Cabo virtual e LIVE Studio"
-        descricao="É a peça que leva a voz da Shopia até a transmissão. Funciona com ou sem a extensão instalada."
-      >
-        <Card>
-          <CaboVirtual />
-        </Card>
-      </Secao>
-
-      {/* 5b — Do LIVE Studio aberto à apresentadora falando. */}
+      {/* 5 — A seção que mais gera dúvida. Fica DEPOIS do "entrar no ar"
+          porque é opcional: quem só quer responder comentário e fixar produto
+          não passa por aqui, e ler sobre cabo antes de operar dava a impressão
+          errada de que era obrigatório. */}
       <Secao
         id="no-ar"
         titulo="Entrar no ar, na prática"
-        descricao="Com a extensão instalada e o cabo configurado, é isto a cada live."
+        descricao="Com a extensão instalada e conectada, é isto a cada live."
       >
         <Card>
           <NoAr />
+        </Card>
+      </Secao>
+
+      <Secao
+        id="cabo-virtual"
+        titulo="Cabo virtual — só para o modo com áudio"
+        descricao="A peça que leva a voz da Shopia até a transmissão. Se você só quer responder comentários, dar boas-vindas e fixar produtos, pule esta seção inteira."
+      >
+        <Card>
+          <CaboVirtual />
         </Card>
       </Secao>
 

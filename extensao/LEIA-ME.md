@@ -1,7 +1,29 @@
 # Extensão Shopia
 
-Coloca o áudio da sua live no TikTok LIVE Studio, lê o chat e reporta o que
-acontece — falando com o painel da Shopia por token de licença.
+Responde os comentários da sua live no TikTok, dá boas-vindas pelo nome e fixa
+produtos — falando com o painel da Shopia por token de licença. Opcionalmente,
+também coloca a voz da apresentadora no LIVE Studio.
+
+## Os dois modos
+
+| | Só chat (padrão) | Chat + áudio |
+|---|---|---|
+| Responder comentários | sim | sim |
+| Boas-vindas pelo nome | sim | sim |
+| Fixar produto | sim | sim |
+| Apresentadora falando | não | sim |
+| Precisa instalar algo no computador | **não** | sim, o cabo virtual |
+| Precisa do painel aberto | não | **sim** |
+
+O padrão é **só chat** porque é o modo que funciona com o que a pessoa já tem:
+o navegador. Exigir cabo virtual instalado no sistema operacional para
+responder comentário barrava na porta a maioria das lives, que são
+apresentadas por gente de verdade e só querem a parte automática do chat.
+
+No modo só chat, fechar o painel **não** derruba a live: quem lê o chat é o
+content script e quem mantém a sessão viva é o service worker. No modo com
+áudio derruba, porque o motor de som mora no painel — em MV3 o service worker
+morre ocioso, e áudio que para no meio da live é o produto quebrado.
 
 ## Como instalar (modo desenvolvedor)
 
@@ -16,7 +38,22 @@ acontece — falando com o painel da Shopia por token de licença.
 > versão nova, o painel avisa e você repete os passos 1 e 4. É o maior custo
 > de suporte desse caminho, e é por isso que a Web Store entra depois.
 
-## O cabo de áudio
+## Fixar produtos
+
+A Shopia **não traz seletor pronto** para o painel de produtos do LIVE Studio.
+O chat nós mapeamos: tem `data-e2e` estável e o mapa publicado foi validado
+contra uma página real. O painel de produtos não — ele muda por país, por tipo
+de conta de vendedor e por teste A/B do TikTok.
+
+Publicar um palpite seria pior do que não ter o recurso. Um seletor errado não
+falha em silêncio numa lista de produtos: ele acha **algum** botão e clica. Numa
+live de vendas, o botão ao lado pode ser arquivar o produto, tirar do ar ou
+aplicar desconto.
+
+Então você aponta uma vez, na seção **Produtos** do painel: a lista, um produto
+e o botão de fixar. Fica guardado neste navegador e vence o mapa publicado.
+
+## O cabo de áudio — só no modo com áudio
 
 A voz não vai para o alto-falante: vai para um **cabo virtual**, e o LIVE
 Studio escuta esse cabo como se fosse um microfone.
@@ -34,9 +71,10 @@ botão **Liberar acesso**, que abre `permissao.html` numa aba normal: você clic
 em Permitir e volta. A permissão é da extensão, então passa a valer no painel.
 Nada é gravado: a captura é encerrada no mesmo instante.
 
-Enquanto o cabo não for identificado, o botão **Entrar no ar** fica bloqueado e
-diz por quê. Antes (até a 1.1.1) ele deixava entrar no ar tocando no
-alto-falante, e a live ia ao ar muda.
+No modo com áudio, enquanto o cabo não for identificado o botão **Entrar no
+ar** fica bloqueado e diz por quê. Antes (até a 1.1.1) ele deixava entrar no ar
+tocando no alto-falante, e a live ia ao ar muda. No modo só chat o cabo não é
+cobrado: não há áudio para levar a lugar nenhum.
 
 ## Entrar no ar
 

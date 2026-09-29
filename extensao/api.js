@@ -21,6 +21,35 @@ export const CHAVES = {
   usuarioTikTok: "shopia_usuario_tiktok",
   /** Encerramento automático, em minutos. 0 = sem limite. */
   limiteMinutos: "shopia_limite_minutos",
+  /**
+   * "chat" | "chat_audio".
+   *
+   * O padrão é "chat" porque é o modo que funciona com o que a pessoa JÁ tem:
+   * o navegador. O modo com áudio exige cabo virtual instalado no sistema
+   * operacional, e exigir isso de todo mundo é barrar na porta a maioria, que
+   * só quer responder comentário e fixar produto.
+   */
+  modo: "shopia_modo",
+  /**
+   * Âncoras que ESTA instalação aprendeu apontando na própria tela.
+   *
+   * O mapa do servidor vale para todo mundo; estas valem só aqui e vencem o
+   * mapa. Existem porque o painel de produtos do LIVE Studio varia por conta
+   * (vendedor, país, teste A/B do TikTok) e um seletor publicado por nós seria
+   * chute — e chute que clica em botão errado numa live é pior que não clicar.
+   */
+  ancorasLocais: "shopia_ancoras_locais",
+  /** Rodízio de produto fixado, em minutos. 0 = desligado. */
+  rodizioMinutos: "shopia_rodizio_minutos",
+  /**
+   * Quando esta live entrou no ar (epoch ms).
+   *
+   * Guardado porque a sessão sobrevive ao painel fechado: sem isto, reabrir o
+   * painel zeraria o cronômetro — e o "encerrar sozinho depois de 1 hora"
+   * passaria a contar da reabertura, nunca chegando ao fim se a pessoa abrir o
+   * painel de vez em quando.
+   */
+  inicioNoAr: "shopia_inicio_no_ar",
 };
 
 /** Abre uma página do painel da Shopia numa aba nova. */

@@ -63,9 +63,10 @@ export function Hero({ versao, temPacote, ticket }: HeroProps) {
         </h1>
 
         <p className="mt-3 max-w-2xl text-base text-fg-muted sm:text-lg">
-          Ela mora no Chrome: entrega a voz da apresentadora ao TikTok LIVE Studio pelo
-          cabo virtual, toca em laço o áudio que você montou e responde o chat enquanto
-          você cuida de outra coisa.
+          Ela mora no Chrome: responde os comentários da sua live, dá boas-vindas pelo
+          nome e fixa os produtos enquanto você cuida de outra coisa. Só com o
+          navegador — não precisa instalar nada no computador. Se quiser, ela também
+          narra a live com a voz da apresentadora.
         </p>
       </div>
 

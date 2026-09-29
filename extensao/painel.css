@@ -199,3 +199,46 @@ input:focus-visible, select:focus-visible, button:focus-visible, summary:focus-v
 .empurra { margin-left: auto; }
 .fluido { flex: 1; }
 .sem-margem { margin: 0; }
+
+/* --- modo de operação ----------------------------------------------------- */
+
+.modos { display: grid; gap: 8px; }
+
+.modo {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  background: var(--surface);
+}
+
+.modo:hover { background: var(--surface-hover); }
+
+/* :has() em vez de uma classe trocada por JS: o estado visual passa a ser
+   consequência do rádio marcado, e não de mais um estado para o JS esquecer
+   de sincronizar. */
+.modos:has(input:checked) .modo:has(input:checked) {
+  border-color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.modo input { margin-top: 3px; accent-color: var(--primary); }
+.modo strong { display: block; font-size: 13px; }
+.modo small { display: block; color: var(--text-muted); font-size: 12px; line-height: 1.45; margin-top: 2px; }
+
+/* --- ensinar as âncoras de produto ---------------------------------------- */
+
+.passos-ensinar {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+  display: grid;
+  gap: 6px;
+}
+
+.passos-ensinar li { display: flex; align-items: center; gap: 8px; }
+.passos-ensinar .botao { flex: 1; justify-content: flex-start; }
+.marca-ok { color: var(--success); font-weight: 700; }

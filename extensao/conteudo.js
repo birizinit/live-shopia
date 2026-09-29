@@ -17,9 +17,12 @@
   // própria live não recarrega a página — o script já estava aqui, dormindo.
   const ehPaginaDaLive = () => /\/(live|studio|live_studio)(\/|$)/i.test(location.pathname);
 
-  const { Mapa } = await import(chrome.runtime.getURL("seletores.js"));
+  const { Mapa, descrever, alvoClicavel } = await import(chrome.runtime.getURL("seletores.js"));
+  const produtos = await import(chrome.runtime.getURL("produtos.js"));
 
   let mapa = new Mapa({}, null);
+  /** Âncoras aprendidas nesta instalação. Vencem o mapa publicado. */
+  let ancorasLocais = {};
   let observador = null;
   let listaObservada = null;
   let ligado = false;
@@ -50,7 +53,8 @@
 
   async function carregarMapa() {
     const r = await pedir({ tipo: "mapa" });
-    if (r?.mapa) mapa = new Mapa(r.mapa, r.versao);
+    if (r?.locais) ancorasLocais = r.locais;
+    if (r?.mapa) mapa = new Mapa(r.mapa, r.versao, ancorasLocais);
     return Boolean(r?.mapa);
   }
 
@@ -122,6 +126,83 @@
   }
 
   const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  // ------------------------------------------------------- aprender apontando
+  //
+  // A pessoa clica no botão que ela já usa e a extensão descreve aquele
+  // elemento. É como o painel de produtos deixa de ser palpite nosso e vira
+  // observação da tela dela. Ver produtos.js para o porquê.
+
+  /** Âncora que estamos esperando a pessoa apontar, ou null. */
+  let aprendendo = null;
+  let aviso = null;
+
+  function mostrarAviso(texto, tom = "info") {
+    aviso?.remove();
+    aviso = document.createElement("div");
+    aviso.textContent = texto;
+    // Estilo embutido de propósito: a folha de estilo do TikTok é território
+    // deles e uma classe nossa pode colidir com uma classe deles.
+    aviso.style.cssText = [
+      "position:fixed", "z-index:2147483647", "left:50%", "top:16px",
+      "transform:translateX(-50%)", "max-width:min(90vw,460px)",
+      "padding:12px 16px", "border-radius:10px",
+      "font:600 14px/1.4 system-ui,-apple-system,Segoe UI,sans-serif",
+      "color:#fff", "box-shadow:0 8px 24px rgba(0,0,0,.35)", "text-align:center",
+      `background:${tom === "ok" ? "#15803d" : tom === "erro" ? "#b91c1c" : "#1d4ed8"}`,
+    ].join(";");
+    document.body.appendChild(aviso);
+    return aviso;
+  }
+
+  function pararDeAprender() {
+    aprendendo = null;
+    document.removeEventListener("click", capturarClique, true);
+    document.removeEventListener("keydown", cancelarComEsc, true);
+    aviso?.remove();
+    aviso = null;
+  }
+
+  function cancelarComEsc(evento) {
+    if (evento.key !== "Escape") return;
+    const qual = aprendendo;
+    pararDeAprender();
+    void pedir({ tipo: "aprendeu", ancora: qual, cancelado: true });
+  }
+
+  function capturarClique(evento) {
+    // Captura na fase de captura e SEGURA o clique: durante o aprendizado, o
+    // clique da pessoa é a resposta a uma pergunta nossa, não uma ordem para o
+    // TikTok. Deixar passar fixaria um produto que ela não pediu para fixar.
+    evento.preventDefault();
+    evento.stopPropagation();
+
+    const alvo = alvoClicavel(evento.target);
+    const cascata = descrever(alvo);
+    const qual = aprendendo;
+    pararDeAprender();
+
+    if (cascata.length === 0) {
+      mostrarAviso("Não consegui descrever esse elemento. Tente clicar no botão em si.", "erro");
+      setTimeout(() => { aviso?.remove(); aviso = null; }, 4000);
+      void pedir({ tipo: "aprendeu", ancora: qual, cascata: [] });
+      return;
+    }
+
+    ancorasLocais = { ...ancorasLocais, [qual]: cascata };
+    mapa = new Mapa(mapa.mapa, mapa.versao, ancorasLocais);
+    mostrarAviso("Anotado. Pode voltar ao painel da Shopia.", "ok");
+    setTimeout(() => { aviso?.remove(); aviso = null; }, 3000);
+    void pedir({ tipo: "aprendeu", ancora: qual, cascata });
+  }
+
+  function comecarAAprender(ancora, instrucao) {
+    pararDeAprender();
+    aprendendo = ancora;
+    mostrarAviso(instrucao);
+    document.addEventListener("click", capturarClique, true);
+    document.addEventListener("keydown", cancelarComEsc, true);
+  }
 
   /** Pergunta ao servidor e cumpre o que ele mandar. */
   async function consultarEResponder(evento) {
@@ -280,6 +361,19 @@
     }
     if (mensagem?.tipo === "estado" && mensagem.estado && !mensagem.estado.pararAgora) {
       suspenso = false;
+    }
+
+    // --- produtos ---
+    if (mensagem?.tipo === "aprender" && mensagem.ancora) {
+      comecarAAprender(mensagem.ancora, mensagem.instrucao ?? "Clique no botão que você quer ensinar.");
+    }
+    if (mensagem?.tipo === "fixar") {
+      const r = produtos.fixarProduto(mapa, mensagem.posicao ?? 1);
+      void pedir({ tipo: "fixou", ...r });
+      return;
+    }
+    if (mensagem?.tipo === "contar_produtos") {
+      void pedir({ tipo: "produtos", total: produtos.quantosProdutos(mapa) });
     }
   });
 
