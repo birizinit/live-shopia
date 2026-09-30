@@ -346,7 +346,7 @@ function exemploDoTour(): EstadoTour {
       chave: "boas-vindas",
       titulo: "O que a Shopia faz",
       corpo:
-        "A Shopia é uma apresentadora de IA para o TikTok Shop: ela narra o seu roteiro de vendas com voz realista, sem parar, e responde os comentários do chat enquanto a live está no ar. Você não precisa aparecer, não precisa falar e não precisa ficar acordado.",
+        "A Shopia cuida do chat da sua live no TikTok Shop: responde quem pergunta, dá boas-vindas pelo nome e fixa o produto na tela, enquanto você apresenta. Ela usa só o que você cadastrou — quando não sabe responder, cala e te avisa depois.",
       rotaAlvo: "/inicio",
       ordem: 10,
       obrigatorio: false,
@@ -355,9 +355,9 @@ function exemploDoTour(): EstadoTour {
     },
     {
       chave: "caminho",
-      titulo: "O caminho: o que vender → roteiro e voz → áudio → extensão → no ar",
+      titulo: "O caminho: o que vender → o manual → extensão → no ar",
       corpo:
-        "No assistente Criar live você diz o que vai vender e a IA escreve o roteiro; você escolhe a voz, vê o custo e gera o áudio, que entra sozinho no que a extensão toca. Depois é instalar a extensão e entrar no ar. Vale caprichar na descrição do produto: sem detalhe o roteiro sai genérico.",
+        "Você cadastra o produto e monta o manual: as perguntas que a audiência faz e o que responder a cada uma. Depois instala a extensão no Chrome e entra no ar. Vale caprichar no manual: é dele que sai cada palavra que a Shopia escreve no chat.",
       rotaAlvo: "/criar",
       ordem: 20,
       obrigatorio: false,
@@ -365,23 +365,12 @@ function exemploDoTour(): EstadoTour {
       vistoEm: null,
     },
     {
-      chave: "loop-gratis",
-      titulo: "Por que o loop é de graça",
+      chave: "manual",
+      titulo: "Ela nunca inventa resposta",
       corpo:
-        "O áudio é gerado UMA vez e repete por horas sem custar crédito de novo. O único jeito de queimar crédito à toa é mandar gerar de novo o que já está pronto: refazer o áudio para trocar uma palavra, gerar três versões para escolher uma. Gerou, ficou bom, deixa rodando.",
-      rotaAlvo: "/audio",
+        "Tudo o que a Shopia escreve no chat sai do manual que você cadastrou — palavra por palavra. Ela não gera texto: escolhe uma resposta que já existe. Quando a pergunta não está no manual, ela cala, e o comentário fica registrado para você ensinar antes da próxima live. É o que garante que nenhuma promessa que você não fez chegue à sua audiência.",
+      rotaAlvo: "/manual",
       ordem: 30,
-      obrigatorio: false,
-      exigeAceite: false,
-      vistoEm: null,
-    },
-    {
-      chave: "creditos",
-      titulo: "Crédito é caractere, não é minuto",
-      corpo:
-        "O provedor de voz cobra por caractere, então é assim que o crédito é medido aqui. Cerca de 600 caracteres viram 1 minuto de fala. O débito acontece ANTES da geração, com a estimativa na tela antes de você confirmar; se a geração falhar, o crédito volta por estorno.",
-      rotaAlvo: "/creditos",
-      ordem: 40,
       obrigatorio: false,
       exigeAceite: false,
       vistoEm: null,
@@ -390,7 +379,7 @@ function exemploDoTour(): EstadoTour {
       chave: "risco-automacao",
       titulo: "O aviso que a gente precisa dar antes de você ligar a extensão",
       corpo:
-        "Automatizar o LIVE Studio tende a violar os Termos de Serviço do TikTok. Não existe modo oficial de fazer isso. O risco de restrição ou bloqueio recai sobre a SUA conta do TikTok, não sobre a Shopia. A gente reduz o que dá para reduzir — cadência variável no chat, áudio e chat em módulos separados —, mas reduzir não é eliminar.",
+        "Automatizar o chat do TikTok tende a violar os Termos de Serviço. Não existe modo oficial de fazer isso. O risco de restrição ou bloqueio recai sobre a SUA conta do TikTok, não sobre a Shopia. A gente reduz o que dá para reduzir — espera sorteada entre respostas, teto por minuto e revisão do manual contra o que costuma restringir uma live —, mas reduzir não é eliminar.",
       rotaAlvo: "/extensao",
       ordem: 50,
       obrigatorio: true,

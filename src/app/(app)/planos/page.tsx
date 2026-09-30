@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { BadgeCheck, Check, LogIn, Minus, Repeat } from "lucide-react";
+import { BadgeCheck, Check, LogIn, Repeat } from "lucide-react";
 import { assinar } from "./actions";
 import { PageHeader } from "@/components/layout/page-header";
 import { Alerta } from "@/components/ui/alerta";
@@ -12,7 +12,6 @@ import { Propriedade, Propriedades } from "@/components/ui/propriedades";
 import { Cabecalho, Celula, Linha, Tabela } from "@/components/ui/tabela";
 import {
   assinaturaDoPerfil,
-  falaDe,
   formatarData,
   formatarPreco,
   listarPlanos,
@@ -52,22 +51,7 @@ const COTA_INDEFINIDA = "Teto ainda não definido";
 
 function cotaMensal(plano: Plano) {
   if (plano.creditosMes === null) return COTA_INDEFINIDA;
-  return `${numero(plano.creditosMes)} caracteres · ~${falaDe(plano.creditosMes)} de fala`;
-}
-
-function Incluido({ sim, oQue }: { sim: boolean; oQue: string }) {
-  const Icone = sim ? Check : Minus;
-  return (
-    <>
-      <Icone
-        className={cn("inline size-4", sim ? "text-success" : "text-fg-subtle")}
-        aria-hidden
-      />
-      <span className="sr-only">
-        {sim ? "Incluído" : "Não incluído"}: {oQue}
-      </span>
-    </>
-  );
+  return numero(plano.creditosMes);
 }
 
 /** Estado da assinatura, do ciclo vigente e da cota do periodo. */
@@ -402,15 +386,6 @@ export default async function PlanosPage() {
                 {planos.map((plano) => (
                   <Celula key={plano.id} numerica>
                     {numero(plano.contasTiktok)}
-                  </Celula>
-                ))}
-              </Linha>
-
-              <Linha>
-                <Celula linha>Voz premium</Celula>
-                {planos.map((plano) => (
-                  <Celula key={plano.id} numerica>
-                    <Incluido sim={plano.vozPremium} oQue={`voz premium no ${plano.nome}`} />
                   </Celula>
                 ))}
               </Linha>

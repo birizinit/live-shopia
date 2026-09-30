@@ -1,17 +1,21 @@
 /**
- * Revisão anti-restrição do que a apresentadora vai falar.
+ * Revisão anti-restrição do que a Shopia vai escrever no chat.
  *
  * O TikTok restringe (derruba o alcance ou encerra) a live que tira o
  * comprador da plataforma, pede pagamento por fora, promete resultado ou fala
  * de produto proibido. Esses são os motivos mais comuns de restrição em live
- * de venda — e todos estão no TEXTO, então dá para pegar antes de o áudio
- * ser gerado e pago.
+ * de venda — e todos estão no TEXTO, então dá para pegar antes de a frase
+ * chegar ao chat.
+ *
+ * A revisão é do MANUAL, e não da resposta na hora do envio: ali a frase já
+ * estaria escolhida, e recusá-la ao vivo deixaria a pessoa sem resposta sem
+ * saber por quê.
  *
  * Isto NÃO esconde automação de ninguém: é a mesma regra que um vendedor
- * humano precisa seguir, conferida antes de a fala existir.
+ * humano precisa seguir.
  *
- * Módulo puro, sem servidor: roda no assistente de criação, no editor e na
- * rota da extensão com a mesma lista.
+ * Módulo puro, sem servidor: roda no painel e na rota da extensão com a mesma
+ * lista.
  */
 
 export type CategoriaRestricao =

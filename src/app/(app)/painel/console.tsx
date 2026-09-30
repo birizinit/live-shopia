@@ -633,7 +633,7 @@ export function KillSwitch({
         rotuloConfirmar="Parar tudo"
         texto="Use quando algo estiver saindo errado no ar. É reversível: religar é um clique nos interruptores."
         perdas={[
-          "O áudio da apresentadora para imediatamente",
+          "A Shopia para de responder imediatamente",
           "As respostas automáticas no chat param",
           temSessao
             ? "A sessão da live é encerrada e entra no histórico"

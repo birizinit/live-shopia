@@ -295,8 +295,9 @@ export default async function LivePage() {
 
               {extensao.chatDesligadoNaBase && (
                 <Alerta tom="info" className="mt-3">
-                  A automação de chat está desligada para toda a base agora. O
-                  mixer de áudio continua funcionando.
+                  A automação de chat está desligada para toda a base agora. A
+                  Shopia continua lendo o chat e fixando produto, mas não
+                  responde nada.
                 </Alerta>
               )}
 

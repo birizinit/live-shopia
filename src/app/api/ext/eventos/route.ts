@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
         tipo,
         // Apelido de espectador é dado de terceiro que nunca aceitou nada
         // conosco. Entra porque o painel ao vivo precisa mostrar com quem a
-        // apresentadora está falando, e sai do histórico junto com a conta.
+        // Shopia está respondendo, e sai do histórico junto com a conta.
         apelido: texto(e?.apelido, 80),
         texto: texto(e?.texto, 500),
         espectadores,

@@ -48,19 +48,6 @@ export const PAGINAS = {
     ],
     api: ["GET /aulas"],
   },
-  "/audio": {
-    titulo: "Áudio da live",
-    descricao:
-      "Monta o áudio contínuo que vai ao ar e joga no cabo virtual do LIVE Studio.",
-    fase: 2,
-    entrega: [
-      "Montagem do loop a partir dos blocos gerados no estúdio",
-      "Camada de som ambiente para a live não soar sintética",
-      "Player com forma de onda e marcação dos blocos",
-      "Download e stream do arquivo final",
-      "O loop não gasta crédito de novo: é o que sustenta a margem",
-    ],
-  },
   "/extensao": {
     titulo: "Extensão",
     descricao: "Download, licença e instalação da extensão do Chrome.",
@@ -74,9 +61,8 @@ export const PAGINAS = {
     api: ["GET /ext/licenca", "GET /ext/baixar"],
   },
   "/live": {
-    titulo: "Live IA",
-    descricao:
-      "A apresentadora no ar: narra o roteiro em loop e responde o chat.",
+    titulo: "Ao vivo",
+    descricao: "A Shopia no ar: responde o chat pelo manual e fixa o produto.",
     fase: 5,
     entrega: [
       "Iniciar e parar a live",
@@ -96,54 +82,6 @@ export const PAGINAS = {
       "Kill switch por cliente",
     ],
   },
-  "/vozes": {
-    titulo: "Vozes",
-    descricao: "Catálogo de vozes premium ultrarrealistas.",
-    fase: 1,
-    entrega: [
-      "Catálogo com gênero, idade, sotaque, categoria e uso",
-      "Prévia de cada voz antes de gastar crédito",
-      "Definir a voz ativa da live",
-      "10 idiomas",
-    ],
-    api: ["GET /vozes/catalogo", "GET /vozes/biblioteca", "POST /vozes/usar"],
-  },
-  "/estudio": {
-    titulo: "Estúdio de voz",
-    descricao: "Gera e guarda os áudios da apresentadora.",
-    fase: 1,
-    entrega: [
-      "Texto para fala com a voz escolhida",
-      "Estimativa de custo em caracteres ANTES de confirmar",
-      "Débito de crédito antes da chamada, nunca depois",
-      "Job em fila com progresso e retry: 3h de áudio não cabe numa requisição",
-      "Áudio salvo e reaproveitável sem gastar de novo",
-    ],
-    api: ["POST /vozes/gerar", "GET /assistente/estimativa"],
-  },
-  "/clonar": {
-    titulo: "Clonagem de voz",
-    descricao: "Clona uma voz a partir de uma amostra de áudio.",
-    fase: 7,
-    entrega: [
-      "Upload da amostra com checagem de qualidade",
-      "Modos treino e rápido",
-      "Consentimento de uso da voz registrado",
-    ],
-    api: ["POST /vozes/clonar", "GET /vozes/clonadas"],
-  },
-  "/roteiro": {
-    titulo: "Roteiros",
-    descricao: "A IA escreve o roteiro de vendas do produto.",
-    fase: 1,
-    entrega: [
-      "Estrutura gancho, oferta, prova, objeções e CTA",
-      "Geração a partir do produto cadastrado (Claude)",
-      "Editar, salvar, versionar e excluir",
-      "Contagem de caracteres ligada à estimativa de áudio",
-    ],
-    api: ["POST /roteiro/assistente", "GET /roteiros", "POST /roteiros"],
-  },
   "/produtos": {
     titulo: "Produtos",
     descricao: "O que vai ser vendido na live.",
@@ -154,17 +92,6 @@ export const PAGINAS = {
       "Produto fixado da live",
     ],
     api: ["GET /produtos", "POST /produtos"],
-  },
-  "/biblioteca": {
-    titulo: "Biblioteca",
-    descricao: "Áudios e roteiros salvos num lugar só.",
-    fase: 1,
-    entrega: [
-      "Busca e filtro por produto, voz e data",
-      "Reaproveitar um áudio sem gerar de novo",
-      "Armazenamento no R2, servido por CDN",
-    ],
-    api: ["GET /vozes/meus"],
   },
   "/indique": {
     titulo: "Indique e ganhe",
@@ -204,7 +131,7 @@ export const PAGINAS = {
   },
   "/creditos": {
     titulo: "Créditos",
-    descricao: "Compra de créditos avulsos de voz e texto.",
+    descricao: "Saldo, extrato e compra de crédito avulso.",
     fase: 3,
     entrega: [
       "Pacotes avulsos sem trocar de plano",

@@ -1,5 +1,5 @@
 import { headers } from "next/headers";
-import { FlaskConical, Info, TriangleAlert, X } from "lucide-react";
+import { FlaskConical, Info, X } from "lucide-react";
 import { modoDemo, servicos } from "@/lib/env";
 import { cn } from "@/lib/utils";
 
@@ -7,8 +7,8 @@ import { cn } from "@/lib/utils";
  * Faixa de honestidade sobre o que está ligado de verdade.
  *
  * Sem chave, a funcionalidade vira exemplo rotulado ou fica desligada
- * (src/lib/env.ts). Quem está na tela precisa saber disso ANTES de confundir
- * um roteiro de exemplo com um roteiro gerado para o produto dele.
+ * (src/lib/env.ts). Quem está na tela precisa saber disso ANTES de contar com
+ * algo que não está no ar.
  *
  * Mostra no máximo UM aviso, o mais grave: a faixa aparece nas 11 telas do
  * app e duas tarjas empilhadas viram moldura — ninguém lê nenhuma das duas.
@@ -40,22 +40,6 @@ function escolherAviso(): Aviso | null {
       titulo: "Modo demonstração.",
       texto:
         "A sessão é falsa e os dados são de exemplo. Nada do que você fizer aqui é salvo.",
-    };
-  }
-
-  const semIa = !servicos.roteiroIa;
-  const semVoz = !servicos.voz;
-
-  if (semIa || semVoz) {
-    return {
-      id: semIa && semVoz ? "ia-voz" : semIa ? "ia" : "voz",
-      tom: "alerta",
-      Icone: TriangleAlert,
-      titulo: "Conteúdo de exemplo.",
-      texto:
-        `Sem chave ${semIa && semVoz ? "de IA e de voz" : semIa ? "de IA" : "de voz"}, ` +
-        `${semIa && semVoz ? "roteiros e áudios saem" : semIa ? "os roteiros saem" : "os áudios saem"} ` +
-        "como exemplo — não são gerados para o seu produto.",
     };
   }
 

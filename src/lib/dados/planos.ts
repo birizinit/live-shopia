@@ -47,7 +47,6 @@ export type Plano = {
   /** Preço dividido pelos meses — é o número que permite comparar planos. */
   precoMensalCentavos: number;
   contasTiktok: number;
-  vozPremium: boolean;
   /**
    * Teto mensal em CARACTERES. `null` e um estado de verdade, nao um zero
    * disfarcado: a cota ainda nao foi definida (PLANO.md §9.4), e a tela precisa
@@ -177,15 +176,13 @@ const PLANOS_DEMO: Plano[] = [
     meses: 1,
     precoMensalCentavos: 9700,
     contasTiktok: 3,
-    vozPremium: true,
     creditosMes: 30000,
     recursos: [
       "Acesso a tudo",
-      "Voz premium",
-      "Roteiro por IA",
-      "Áudio contínuo da live",
+      "Respostas no chat pelo manual",
+      "Boas-vindas pelo nome",
+      "Produto fixado na tela",
       "3 contas TikTok",
-      "30 mil caracteres por mês",
     ],
   },
   {
@@ -197,15 +194,13 @@ const PLANOS_DEMO: Plano[] = [
     meses: 3,
     precoMensalCentavos: 6567,
     contasTiktok: 3,
-    vozPremium: true,
     creditosMes: 30000,
     recursos: [
       "Acesso a tudo",
-      "Voz premium",
-      "Roteiro por IA",
-      "Áudio contínuo da live",
+      "Respostas no chat pelo manual",
+      "Boas-vindas pelo nome",
+      "Produto fixado na tela",
       "3 contas TikTok",
-      "30 mil caracteres por mês",
       "Economia de 32% sobre o mensal",
     ],
   },
@@ -218,15 +213,13 @@ const PLANOS_DEMO: Plano[] = [
     meses: 12,
     precoMensalCentavos: 4142,
     contasTiktok: 3,
-    vozPremium: true,
     creditosMes: 30000,
     recursos: [
       "Acesso a tudo",
-      "Voz premium",
-      "Roteiro por IA",
-      "Áudio contínuo da live",
+      "Respostas no chat pelo manual",
+      "Boas-vindas pelo nome",
+      "Produto fixado na tela",
       "3 contas TikTok",
-      "30 mil caracteres por mês",
       "Economia de 57% sobre o mensal",
     ],
   },
@@ -332,7 +325,6 @@ type LinhaPlano = {
   preco_centavos: number;
   meses: number;
   contas_tiktok: number;
-  voz_premium: boolean;
   creditos_mes: string | null;
   recursos: unknown;
 };
@@ -353,7 +345,6 @@ function montarPlano(l: LinhaPlano): Plano {
       numeroDe(l.preco_centavos) / Math.max(1, numeroDe(l.meses, 1)),
     ),
     contasTiktok: numeroDe(l.contas_tiktok, 1),
-    vozPremium: l.voz_premium,
     // `numeroDe(null)` devolveria 0, e 0 aqui mentiria: "plano sem crédito
     // nenhum" e "cota ainda não definida" sao coisas diferentes na tela.
     creditosMes: l.creditos_mes === null ? null : numeroDe(l.creditos_mes),
@@ -368,7 +359,7 @@ export async function listarPlanos(): Promise<Plano[]> {
     async () => {
       const linhas = await bd()<LinhaPlano[]>`
         select id, slug, nome, descricao, preco_centavos, meses, contas_tiktok,
-               voz_premium, creditos_mes, recursos
+               creditos_mes, recursos
           from planos
          where ativo
          order by ordem, preco_centavos
@@ -443,7 +434,7 @@ export async function assinaturaDoPerfil(perfilId: string): Promise<Assinatura |
                a.inicio,
                a.fim,
                p.id, p.slug, p.nome, p.descricao, p.preco_centavos, p.meses,
-               p.contas_tiktok, p.voz_premium, p.creditos_mes, p.recursos,
+               p.contas_tiktok, p.creditos_mes, p.recursos,
                c.id as ciclo_id,
                c.inicio as ciclo_inicio,
                c.fim as ciclo_fim,

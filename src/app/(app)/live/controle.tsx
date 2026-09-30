@@ -494,7 +494,7 @@ export function ConfiguracaoDaLive({
                 <span className="num">{Math.max(minimo, maximo)}</span> segundos.
               </>
             ) : (
-              "Respostas desligadas: a apresentadora não escreve no chat."
+              "Respostas desligadas: a Shopia lê o chat mas não escreve nada."
             )}
           </p>
         </div>

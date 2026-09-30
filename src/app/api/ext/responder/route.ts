@@ -10,7 +10,7 @@ import { decidirResposta, registrarResposta } from "@/lib/dados/respostas";
 import { modoDemo } from "@/lib/env";
 
 /**
- * POST /api/ext/responder — o que a apresentadora faz com um comentário.
+ * POST /api/ext/responder — o que a Shopia faz com um comentário.
  *
  * A extensão pergunta, o servidor decide. Ela nunca escolhe sozinha se
  * responde, o que responde ou quando: essas três decisões protegem a conta do

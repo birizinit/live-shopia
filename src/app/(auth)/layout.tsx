@@ -4,10 +4,10 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { modoDemo } from "@/lib/env";
 
 const ARGUMENTOS = [
-  "Roteiro de vendas escrito pela IA: gancho, oferta, prova, objeções e CTA.",
-  "Voz de apresentadora ultrarrealista — de catálogo ou clonada da sua.",
-  "Áudio contínuo de até 3 horas; o loop não gasta crédito de novo.",
-  "Vendas e GMV da live acompanhados em tempo real.",
+  "Responde os comentários usando só o que você escreveu — nunca inventa.",
+  "Boas-vindas pelo nome e produto fixado na tela, sem você parar a live.",
+  "Quando não sabe responder, ela cala e te mostra depois o que faltou.",
+  "Roda só no navegador: nada para instalar no computador.",
 ];
 
 export default function AuthLayout({ children }: LayoutProps<"/">) {
@@ -39,7 +39,7 @@ export default function AuthLayout({ children }: LayoutProps<"/">) {
 
         <div className="relative max-w-md">
           <h2 className="font-[family-name:var(--font-display)] text-4xl font-extrabold text-white">
-            Sua apresentadora de IA que vende ao vivo.
+            Quem responde o chat da sua live.
           </h2>
           <ul className="mt-8 space-y-3">
             {ARGUMENTOS.map((texto) => (

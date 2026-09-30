@@ -28,13 +28,15 @@ export const env = {
     "http://localhost:3000"
   ).replace(/\/$/, ""),
 
-  // Fase 1 — roteiro e voz
+  /**
+   * Fica configurada sem consumidor por enquanto. O gerador de roteiro que a
+   * usava saiu com o áudio; o próximo uso é sugerir, a partir dos comentários
+   * que ninguém soube responder, as perguntas que faltam no manual.
+   */
   anthropicApiKey: texto(process.env.ANTHROPIC_API_KEY),
   anthropicModelo: texto(process.env.ANTHROPIC_MODELO) || "claude-opus-5",
-  elevenlabsApiKey: texto(process.env.ELEVENLABS_API_KEY),
-  elevenlabsModelo: texto(process.env.ELEVENLABS_MODELO) || "eleven_multilingual_v2",
 
-  // Fase 2 — armazenamento
+  // Armazenamento
   r2Bucket: texto(process.env.R2_BUCKET),
   r2AccountId: texto(process.env.R2_ACCOUNT_ID),
   r2AccessKeyId: texto(process.env.R2_ACCESS_KEY_ID),
@@ -112,11 +114,8 @@ export const configuracaoFaltando = !bancoConfigurado && !modoDemo;
  * entre operar, mostrar exemplo rotulado, ou desabilitar o botão.
  */
 export const servicos = {
-  get roteiroIa() {
+  get ia() {
     return Boolean(env.anthropicApiKey);
-  },
-  get voz() {
-    return Boolean(env.elevenlabsApiKey);
   },
   get pagamento() {
     return Boolean(env.gatewayToken && env.gatewayNome);

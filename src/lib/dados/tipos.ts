@@ -25,6 +25,15 @@ export type Periodo = "hoje" | "ontem" | "7d" | "30d" | "total";
 
 export type EstadoJob = "pendente" | "processando" | "concluido" | "falhou" | "cancelado";
 
+/**
+ * Os tipos que a fila pode DEVOLVER, não os que ela aceita.
+ *
+ * `roteiro`, `tts`, `montagem` e `clonagem` foram desligados na 0026 e não têm
+ * mais handler — mas continuam no catálogo porque `jobs` guarda histórico
+ * apontando para eles, e uma consulta de job antigo devolve esses valores.
+ * Tirar daqui faria o TypeScript afirmar que não existem justamente onde eles
+ * aparecem.
+ */
 export type TipoJob =
   | "roteiro"
   | "tts"
@@ -56,22 +65,6 @@ export type Estimativa = {
   faltam: number;
 };
 
-export type SecaoRoteiro = "gancho" | "oferta" | "prova" | "objecoes" | "cta";
-
-export const ROTULO_SECAO: Record<SecaoRoteiro, string> = {
-  gancho: "Gancho",
-  oferta: "Oferta",
-  prova: "Prova",
-  objecoes: "Objeções",
-  cta: "Chamada para ação",
-};
-
-export type BlocoRoteiro = {
-  secao: SecaoRoteiro;
-  texto: string;
-};
-
-export type EstadoAudio = "rascunho" | "na_fila" | "gerando" | "pronto" | "falhou";
 
 export type ResultadoAcao<T = void> =
   | { ok: true; dado: T }

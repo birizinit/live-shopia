@@ -21,12 +21,12 @@ import { ipDoPedido } from "@/lib/rede";
  * Acoes da sala de live e do painel.
  *
  * Todas seguem o mesmo contrato de `useActionState`: (estado, FormData) ->
- * EstadoAcao. Nenhuma delas gasta credito — a live toca a montagem em laco, e
- * laco nao chama TTS. Por isso aqui nao existe chave de idempotencia vinda de
- * campo oculto: ela pertence a `debitarEEnfileirar`, que e a unica porta de
- * gasto (src/lib/dados/creditos.ts). O que protege o duplo clique aqui e o
- * indice unico de conta com live aberta, mais a devolucao da sessao ja existente
- * em `iniciarLive`.
+ * EstadoAcao. Nenhuma delas gasta credito: a resposta do chat ja esta escrita
+ * no manual, nao ha servico pago no caminho. Por isso aqui nao existe chave de
+ * idempotencia vinda de campo oculto: ela pertence a `debitarEEnfileirar`, que
+ * e a unica porta de gasto (src/lib/dados/creditos.ts). O que protege o duplo
+ * clique aqui e o indice unico de conta com live aberta, mais a devolucao da
+ * sessao ja existente em `iniciarLive`.
  */
 
 export type EstadoAcao = {

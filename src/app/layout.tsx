@@ -8,11 +8,11 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "Shopia — sua apresentadora de IA que vende ao vivo",
+    default: "Shopia — quem responde o chat da sua live",
     template: "%s · Shopia",
   },
   description:
-    "Gera o roteiro de vendas, sintetiza a voz da apresentadora e monta o áudio contínuo da live — com acompanhamento de vendas em tempo real.",
+    "Responde os comentários da sua live no TikTok usando o manual que você cadastrou, dá boas-vindas pelo nome e fixa o produto na tela. Nunca inventa resposta.",
   applicationName: "Shopia",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "Shopia", statusBarStyle: "default" },

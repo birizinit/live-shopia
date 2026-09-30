@@ -13,7 +13,6 @@ import { Cabecalho, Celula, Linha, Tabela } from "@/components/ui/tabela";
 import {
   consumoRecente,
   extratoDoPerfil,
-  falaDe,
   formatarData,
   formatarDataHora,
   formatarPreco,
@@ -195,8 +194,8 @@ export default async function CreditosPage() {
             <span className="text-sm text-fg-muted">caracteres</span>
           </p>
           <p className="mt-1 text-sm text-fg-muted">
-            Dá para gerar cerca de{" "}
-            <span className="font-medium text-fg">{falaDe(saldo)}</span> de fala.
+            O crédito está parado: a Shopia deixou de gerar áudio, e a moderação
+            do chat não consome nada por enquanto. O saldo fica guardado.
           </p>
 
           <Propriedades className="mt-5">
@@ -241,9 +240,7 @@ export default async function CreditosPage() {
                     <p className="num mt-3 text-2xl font-bold tracking-tight">
                       {numero(pacote.caracteres)}
                     </p>
-                    <p className="text-xs text-fg-subtle">
-                      caracteres · ~{falaDe(pacote.caracteres)} de fala
-                    </p>
+                    <p className="text-xs text-fg-subtle">caracteres</p>
 
                     <p className="num mt-4 text-lg font-semibold">
                       {formatarPreco(pacote.precoCentavos)}
@@ -362,18 +359,17 @@ export default async function CreditosPage() {
 
         <ul className="mt-4 space-y-2.5 text-sm text-fg-muted">
           <li>
-            Crédito é medido em{" "}
-            <strong className="font-medium text-fg">caracteres</strong>, não em
-            minutos nem em número de gerações — é a unidade que a geração de voz
-            cobra. Cerca de 600 caracteres viram um minuto de fala.
+            <strong className="font-medium text-fg">
+              Nada consome crédito hoje.
+            </strong>{" "}
+            O crédito era medido em caracteres porque a geração de voz cobrava
+            por caractere, e a Shopia deixou de gerar voz. Responder o chat pelo
+            manual não chama serviço pago nenhum: a resposta já está escrita.
           </li>
           <li>
-            <strong className="font-medium text-fg">
-              Repetir o áudio em laço não consome nada.
-            </strong>{" "}
-            O loop toca um arquivo que já existe: você paga uma vez pelo texto e
-            roda a live inteira em cima dele. Reaproveitar um áudio da biblioteca
-            também é de graça.
+            O saldo fica guardado. Quando a moderação passar a usar algum
+            serviço que cobra, ele volta a ser consumido — e esta tela vai
+            dizer por quê antes de qualquer débito.
           </li>
           <li>
             O débito acontece <em>antes</em> da chamada de voz, no mesmo commit

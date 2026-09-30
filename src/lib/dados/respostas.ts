@@ -136,7 +136,7 @@ export async function decidirResposta(
   `;
 
   // Cumprimento solto ("oi", "boa noite") não casa com tema nenhum, mas pede
-  // resposta: quem cumprimenta a apresentadora e é ignorado vai embora.
+  // resposta: quem cumprimenta e é ignorado vai embora.
   if (ehCumprimento(texto) && config.dar_boas_vindas) {
     const apelido = pedido.apelido?.trim() || "";
     const modelo = config.boas_vindas_texto?.trim() || "Seja bem-vindo(a), {nome}!";
@@ -152,7 +152,7 @@ export async function decidirResposta(
   const tema = temas[0];
   // Sem tema, silêncio. Inventar resposta com IA a cada comentário solto é
   // custo por evento num produto cuja margem depende de custo por geração —
-  // e é assim que a apresentadora responde bobagem na frente da audiência.
+  // e é assim que a Shopia responde bobagem na frente da audiência.
   if (!tema) return { acao: "ignorar", motivo: "sem_tema" };
 
   const esperarMs = esperaComJitter(
@@ -175,7 +175,7 @@ export async function decidirResposta(
  *
  * Chamado pela extensão DEPOIS do envio, e não junto da decisão: contar antes
  * de enviar faria a cadência apertar por respostas que nunca saíram — e a
- * apresentadora ficaria muda porque o servidor achou que ela já tinha falado.
+ * Shopia ficaria calada porque o servidor achou que ela já tinha respondido.
  */
 export async function registrarResposta(
   perfilId: string,

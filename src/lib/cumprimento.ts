@@ -2,7 +2,7 @@
  * Comentário que é só um cumprimento — "oi", "olá", "boa noite".
  *
  * Não casa com tema nenhum, mas pede resposta: quem cumprimenta a
- * apresentadora e é ignorado vai embora. Sem `\b` de propósito: em JavaScript
+ * Shopia e é ignorado vai embora. Sem `\b` de propósito: em JavaScript
  * "á" não conta como letra, e "olá" nunca casaria.
  */
 const CUMPRIMENTO =
