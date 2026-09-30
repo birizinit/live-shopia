@@ -3,10 +3,7 @@ import { bd } from "@/lib/db";
 import { comoJson } from "@/lib/dados/comum";
 import { env, modoDemo } from "@/lib/env";
 import { ErroDominio, type CodigoErro } from "@/lib/dados/erros";
-import { executarRoteiro } from "./trabalhos/roteiro";
-import { executarTts } from "./trabalhos/tts";
 import { executarFaxina } from "./trabalhos/faxina";
-import { executarClonagem } from "./trabalhos/clonagem";
 import { executarPush } from "./trabalhos/push";
 import { executarComissao, executarLiberacaoDeComissoes } from "./trabalhos/comissoes";
 
@@ -31,8 +28,8 @@ export type Contexto = {
   progresso: (porcentagem: number) => Promise<void>;
   /**
    * Abortado quando a reserva do job se perdeu — outro worker pode já estar
-   * nele. Trabalho em laço (TTS, bloco a bloco) confere antes de cada chamada
-   * paga.
+   * nele. Trabalho que chama serviço pago em laço confere antes de cada
+   * chamada.
    */
   sinal: AbortSignal;
 };
@@ -48,9 +45,6 @@ class ReservaPerdida extends Error {
 type Handler = (ctx: Contexto) => Promise<Record<string, unknown> | void>;
 
 const HANDLERS: Record<string, Handler> = {
-  roteiro: executarRoteiro,
-  tts: executarTts,
-  clonagem: executarClonagem,
   push: executarPush,
   faxina: executarFaxina,
   comissao: executarComissao,
@@ -63,8 +57,8 @@ const IDENTIDADE = `worker-${process.pid}`;
 const INTERVALO_OCIOSO_MS = 5_000;
 /**
  * Renovação da reserva enquanto o trabalho roda. Abaixo do menor lease do
- * catálogo (30s): um áudio de 3h é UM job de TTS com ~45 chamadas pagas, e sem
- * renovar, o lease de 10 min vencia no meio e outro worker pegava o mesmo job.
+ * catálogo (30s), porque job longo com lease curto é job processado duas vezes:
+ * o lease vencia no meio e outro worker pegava o mesmo trabalho.
  */
 const INTERVALO_BATIMENTO_MS = 20_000;
 

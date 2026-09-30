@@ -16,20 +16,10 @@ export const CHAVES = {
   mapa: "shopia_mapa",
   mapaVersao: "shopia_mapa_versao",
   sessao: "shopia_sessao",
-  cabo: "shopia_cabo",
   /** @ do TikTok, para o botão "Abrir minha live". Só neste navegador. */
   usuarioTikTok: "shopia_usuario_tiktok",
   /** Encerramento automático, em minutos. 0 = sem limite. */
   limiteMinutos: "shopia_limite_minutos",
-  /**
-   * "chat" | "chat_audio".
-   *
-   * O padrão é "chat" porque é o modo que funciona com o que a pessoa JÁ tem:
-   * o navegador. O modo com áudio exige cabo virtual instalado no sistema
-   * operacional, e exigir isso de todo mundo é barrar na porta a maioria, que
-   * só quer responder comentário e fixar produto.
-   */
-  modo: "shopia_modo",
   /**
    * Âncoras que ESTA instalação aprendeu apontando na própria tela.
    *
@@ -175,10 +165,6 @@ export async function seletores(versaoConhecida) {
   return chamar("/api/ext/seletores", { query: { versao: versaoConhecida } });
 }
 
-export async function montagem() {
-  return chamar("/api/ext/montagem");
-}
-
 /** URL de um bloco. Não passa por `chamar` porque o corpo é áudio, não JSON. */
 export async function urlDoBloco(arquivoId) {
   return `${SERVIDOR}/api/ext/bloco?id=${encodeURIComponent(arquivoId)}`;
@@ -194,10 +180,10 @@ export async function baixarBloco(arquivoId) {
   return resposta.blob();
 }
 
-export async function abrirSessao({ montagemId, contaTikTokId }) {
+export async function abrirSessao({ contaTikTokId }) {
   return chamar("/api/ext/sessao", {
     metodo: "POST",
-    corpo: { acao: "abrir", montagemId, contaTikTokId },
+    corpo: { acao: "abrir", contaTikTokId },
   });
 }
 

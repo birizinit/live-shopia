@@ -13,6 +13,7 @@ import {
   excluirProduto,
   fixarProduto,
   listarProdutos,
+  vinculosDoProduto,
   type EntradaProduto,
   type Produto,
 } from "@/lib/dados/produtos";
@@ -28,8 +29,8 @@ import { exigirUsuario } from "@/lib/sessao";
  * para a camada de dados, que o usa no `where`.
  *
  * Nada aqui gasta credito — produto e cadastro, nao geracao. Por isso nao ha
- * chave de idempotencia neste arquivo: quem cobra e `debitarEEnfileirar`, na
- * tela de roteiro e na de estudio.
+ * chave de idempotencia neste arquivo: quem cobra e `debitarEEnfileirar`, e ele
+ * nao passa por aqui.
  */
 
 export type EstadoFormProduto = {
@@ -218,8 +219,29 @@ export async function alternarArquivado(
 }
 
 /**
- * Excluir de vez. A camada de dados recusa se houver roteiro ou audio preso no
- * produto — e a mensagem que volta ja diz para arquivar.
+ * Quantas respostas do manual saem junto com o produto.
+ *
+ * A tela pergunta isto ANTES de abrir a confirmacao: o cascade de
+ * `temas_resposta` e silencioso, e descobrir depois que o manual encolheu nao
+ * tem volta. Nao gasta nada e nao muda nada — e leitura, so mora aqui porque a
+ * lista e Client Component e nao pode importar a camada de dados.
+ */
+export async function contarRespostasDoProduto(
+  produtoId: string,
+): Promise<ResultadoAcao<number>> {
+  const usuario = await exigirUsuario("/produtos");
+
+  try {
+    const { respostasManual } = await vinculosDoProduto(usuario.id, produtoId);
+    return { ok: true, dado: respostasManual };
+  } catch (erro) {
+    return { ok: false, erro: mensagem(erro) };
+  }
+}
+
+/**
+ * Excluir de vez. Leva com o produto as respostas do manual presas a ele — a
+ * confirmacao da tela diz quantas sao antes de chegar aqui.
  */
 export async function removerProduto(produtoId: string): Promise<ResultadoAcao<null>> {
   const usuario = await exigirUsuario("/produtos");

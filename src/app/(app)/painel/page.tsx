@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ListOrdered, Radio } from "lucide-react";
+import { Radio } from "lucide-react";
 import { ConsoleAoVivo, KillSwitch } from "./console";
 import { PageHeader } from "@/components/layout/page-header";
 import { Alerta } from "@/components/ui/alerta";
@@ -9,7 +9,6 @@ import { Card, CardDescricao, CardTitulo } from "@/components/ui/card";
 import { EstadoVazio } from "@/components/ui/estado-vazio";
 import { Indicador } from "@/components/ui/indicador";
 import { Propriedade, Propriedades } from "@/components/ui/propriedades";
-import { formatarDuracao } from "@/lib/caracteres";
 import { consoleLive, minutosDesde } from "@/lib/dados/live";
 import { exigirUsuario } from "@/lib/sessao";
 import { numero } from "@/lib/utils";
@@ -18,7 +17,7 @@ export const metadata: Metadata = { title: "Painel ao vivo" };
 
 export default async function PainelPage() {
   const usuario = await exigirUsuario("/painel");
-  const { sessao, conta, cadencia, fila, eventos, extensao } = await consoleLive(usuario.id);
+  const { sessao, conta, cadencia, eventos, extensao } = await consoleLive(usuario.id);
 
   const contatoMinutos = minutosDesde(extensao.ultimoContato);
   const contatoTexto =
@@ -28,13 +27,11 @@ export default async function PainelPage() {
         ? "agora há pouco"
         : `há ${numero(contatoMinutos)} min`;
 
-  const duracaoDoLaco = fila.reduce((total, fala) => total + fala.duracaoMs, 0);
-
   return (
     <>
       <PageHeader
         titulo="Painel ao vivo"
-        descricao="O que está acontecendo na transmissão agora: fila de falas, chat e o que a IA respondeu."
+        descricao="O que está acontecendo na transmissão agora: o chat que chega e o que a Shopia respondeu."
         acoes={
           <>
             <Indicador
@@ -78,79 +75,25 @@ export default async function PainelPage() {
               fim: sessao.fim,
             }}
             eventos={eventos}
-            fila={fila}
           />
         ) : (
-          <>
-            <Card>
-              <EstadoVazio
-                icone={Radio}
-                titulo="Nenhuma live no ar"
-                texto="O console acende quando a sessão abre. Até lá, dá para conferir a fila de falas e deixar o kill switch à mão."
-                acao={
-                  <Link
-                    href="/live"
-                    className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-fg hover:bg-primary-hover"
-                  >
-                    Ir para a sala de live
-                  </Link>
-                }
-                className="border-0"
-              />
-            </Card>
-
-            <Card>
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <CardTitulo className="flex items-center gap-2">
-                    <ListOrdered className="size-4 text-fg-subtle" aria-hidden />
-                    Fila de falas da próxima live
-                  </CardTitulo>
-                  <CardDescricao>
-                    A montagem ativa, na ordem em que a extensão vai tocar — e
-                    repetir em laço até você encerrar.
-                  </CardDescricao>
-                </div>
-                <Badge>
-                  <span className="num">{formatarDuracao(duracaoDoLaco)}</span>
-                </Badge>
-              </div>
-
-              {fila.length === 0 ? (
-                <p className="mt-4 text-sm text-fg-muted">
-                  Nenhuma montagem escolhida.{" "}
-                  <Link
-                    href="/audio"
-                    className="font-medium text-primary underline-offset-2 hover:underline"
-                  >
-                    Montar o áudio da live
-                  </Link>
-                  .
-                </p>
-              ) : (
-                <ol className="mt-4 space-y-2">
-                  {fila.map((fala) => (
-                    <li
-                      key={fala.id}
-                      className="flex items-center gap-3 rounded-md border border-border bg-bg-subtle px-3 py-2"
-                    >
-                      <span className="num grid size-6 shrink-0 place-items-center rounded-full border border-border text-xs font-semibold text-fg-subtle">
-                        {fala.ordem}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate text-sm font-medium">
-                        {fala.titulo}
-                      </span>
-                      <span className="num shrink-0 text-xs text-fg-subtle">
-                        {formatarDuracao(fala.duracaoMs)}
-                      </span>
-                    </li>
-                  ))}
-                </ol>
-              )}
-            </Card>
-          </>
+          <Card>
+            <EstadoVazio
+              icone={Radio}
+              titulo="Nenhuma live no ar"
+              texto="O console acende quando a sessão abre. Até lá, revise o manual e deixe o kill switch à mão."
+              acao={
+                <Link
+                  href="/live"
+                  className="inline-flex h-10 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-fg hover:bg-primary-hover"
+                >
+                  Ir para a sala de live
+                </Link>
+              }
+              className="border-0"
+            />
+          </Card>
         )}
-
         <div className="grid gap-4 lg:grid-cols-2">
           <Card>
             <CardTitulo>Cadência em uso</CardTitulo>
@@ -214,7 +157,6 @@ export default async function PainelPage() {
 
           <KillSwitch
             licenciada={extensao.licenciada}
-            mixerInicial={extensao.mixer}
             chatInicial={extensao.chat}
             chatDesligadoNaBase={extensao.chatDesligadoNaBase}
             contatoTexto={contatoTexto}

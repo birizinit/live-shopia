@@ -246,8 +246,8 @@ export function ModalProduto({
       titulo={produto ? "Editar produto" : "Novo produto"}
       descricao={
         produto
-          ? "O que mudar aqui vale para os próximos roteiros — os já gerados não são reescritos."
-          : "Quanto mais concreto o benefício e a objeção, melhor o roteiro que a IA escreve."
+          ? "O que mudar aqui vale para a próxima live — as respostas que você já escreveu no manual continuam como estão."
+          : "Preço, cupom e link são as perguntas que mais aparecem no chat. Cadastre agora para não procurar ao vivo."
       }
       tamanho="lg"
       travado={ocupado}
@@ -298,7 +298,7 @@ export function ModalProduto({
             onChange={(evento) => mudar("descricao", evento.target.value)}
             maximo={limites.descricao}
             placeholder="O que é, o que acompanha e para quem serve."
-            auxiliar="É daqui que a IA tira o contexto do roteiro."
+            auxiliar="É a sua referência na hora de escrever as respostas do manual."
             aria-invalid={estado.campo === "descricao" || undefined}
           />
         </div>

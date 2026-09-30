@@ -12,6 +12,7 @@ import {
   versaoPara,
 } from "@/lib/dados/extensao";
 import { configuracao } from "@/lib/dados/comum";
+import { revisaoDoManual } from "@/lib/dados/ext-live";
 import { ErroDominio } from "@/lib/dados/erros";
 import { modoDemo } from "@/lib/env";
 
@@ -137,6 +138,8 @@ export async function GET(request: NextRequest) {
           })
         : null;
 
+    const protecao = await revisaoDoManual(licenca.perfilId);
+
     return NextResponse.json(
       {
         ok: true,
@@ -150,12 +153,15 @@ export async function GET(request: NextRequest) {
         },
         recursos: {
           ...licenca.recursos,
-          mixer: licenca.mixer,
           // Dois freios independentes (PLANO.md §6): por conta, na licença; na
-          // base inteira, em `configuracoes`. Nenhum dos dois toca o mixer.
+          // base inteira, em `configuracoes`.
           chat: licenca.chat && licenca.recursos.chat && !chatDesligado,
           chatDesligadoNaBase: chatDesligado,
         },
+        // Viaja no batimento, e não numa rota própria: a extensão já chama esta
+        // a cada dois minutos, e a revisão é um aviso, não uma consulta que
+        // alguém faz de propósito.
+        protecao,
         versao: versao
           ? {
               publicada: versao.versao,

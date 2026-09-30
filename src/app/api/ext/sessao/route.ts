@@ -20,7 +20,7 @@ import { modoDemo } from "@/lib/env";
  * Três ações numa rota só porque são o mesmo objeto e o mesmo dono; separar em
  * três endpoints só multiplicaria autenticação e teto de uso.
  *
- * Corpo: { acao: "abrir" | "batimento" | "fechar", sessaoId?, montagemId?,
+ * Corpo: { acao: "abrir" | "batimento" | "fechar", sessaoId?,
  *          contaTikTokId?, espectadores?, erro? }
  */
 
@@ -80,7 +80,6 @@ export async function POST(request: NextRequest) {
       }
 
       const { sessaoId, jaEstavaAberta } = await abrirSessaoExtensao(licenca.perfilId, {
-        montagemId: uuidOuNulo(corpo?.montagemId),
         contaTikTokId: uuidOuNulo(corpo?.contaTikTokId),
       });
       return NextResponse.json({ ok: true, sessaoId, jaEstavaAberta });

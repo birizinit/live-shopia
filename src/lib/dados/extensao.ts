@@ -31,6 +31,12 @@ import { ipDoPedido } from "@/lib/rede";
 // ---------------------------------------------------------------------------
 
 export type CanalExtensao = "estavel" | "canario";
+/**
+ * `"mixer"` continua aqui, e não é resto esquecido: o enum `modulo_extensao` do
+ * banco guarda telemetria de quebra de seletor gravada quando o produto ainda
+ * tocava áudio. Recriar o tipo para apagar o rótulo estragaria dado histórico
+ * por estética. Nada NOVO usa esse valor.
+ */
 export type ModuloExtensao = "nucleo" | "mixer" | "chat" | "painel";
 export type EstadoLicenca = "sem_licenca" | "ativa" | "expirada" | "revogada";
 
@@ -41,10 +47,8 @@ export type EstadoLicenca = "sem_licenca" | "ativa" | "expirada" | "revogada";
  * pode mudar em silêncio o que a extensão já instalada faz no meio do mês.
  */
 export type RecursosExtensao = {
-  mixer: boolean;
   chat: boolean;
   camera_virtual: boolean;
-  sons_naturais: boolean;
   analise_live: boolean;
   contas_tiktok: number;
   plano: string | null;
@@ -56,7 +60,6 @@ export type Licenca = {
   /** Últimos 4 caracteres do token. Quatro de quarenta e oito não reconstroem nada. */
   dica: string | null;
   canal: CanalExtensao;
-  mixer: boolean;
   chat: boolean;
   recursos: RecursosExtensao;
   emitidaEm: string;
@@ -100,7 +103,7 @@ export type EstadoExtensao = {
   instalacoes: Instalacao[];
   /** Versão do mapa de seletores no ar. Conserta quebra de DOM sem republicar. */
   mapaVersao: number | null;
-  /** Freio global do PLANO.md §6: mata o chat na base inteira sem tocar no mixer. */
+  /** Freio global do PLANO.md §6: mata o chat na base inteira, de uma vez. */
   chatDesligadoNaBase: boolean;
   /** Sem assinatura ativa a janela de graça não é renovada no heartbeat. */
   assinaturaAtiva: boolean;
@@ -114,7 +117,6 @@ export type LicencaAutenticada = {
   perfilId: string;
   estado: Exclude<EstadoLicenca, "sem_licenca">;
   canal: CanalExtensao;
-  mixer: boolean;
   chat: boolean;
   recursos: RecursosExtensao;
   expiraEm: string;
@@ -227,11 +229,10 @@ export function recursosDoPlano(plano: PlanoDoPerfil | null): RecursosExtensao {
   const tem = (agulha: string) => texto.includes(normalizar(agulha));
 
   return {
-    // O mixer é o produto. Ele só cai por revogação da licença, nunca por plano.
-    mixer: true,
-    chat: tem("respostas no chat"),
+    // Responder o chat é o produto. Só cai por revogação da licença ou pelo
+    // freio global, nunca por plano — plano nenhum existe sem isto.
+    chat: true,
     camera_virtual: tem("camera virtual"),
-    sons_naturais: tem("sons naturais"),
     analise_live: tem("analise da live"),
     contas_tiktok: plano?.contas_tiktok ?? 1,
     plano: plano?.slug ?? null,
@@ -241,10 +242,11 @@ export function recursosDoPlano(plano: PlanoDoPerfil | null): RecursosExtensao {
 function lerRecursos(bruto: unknown): RecursosExtensao {
   const fonte = (bruto ?? {}) as Partial<Record<keyof RecursosExtensao, unknown>>;
   return {
-    mixer: fonte.mixer !== false,
-    chat: fonte.chat === true,
+    // `!== false` e não `=== true`: licença emitida antes de o chat deixar de
+    // ser opcional não tem a chave, e tratá-la como desligada calaria a
+    // extensão de quem já é cliente.
+    chat: fonte.chat !== false,
     camera_virtual: fonte.camera_virtual === true,
-    sons_naturais: fonte.sons_naturais === true,
     analise_live: fonte.analise_live === true,
     contas_tiktok: numeroDe(fonte.contas_tiktok, 1),
     plano: typeof fonte.plano === "string" ? fonte.plano : null,
@@ -259,7 +261,6 @@ type LinhaLicenca = {
   id: string;
   token_dica: string | null;
   canal: CanalExtensao;
-  mixer: boolean;
   chat: boolean;
   recursos: unknown;
   emitida_em: Date;
@@ -281,7 +282,6 @@ function montarLicenca(linha: LinhaLicenca): Licenca {
     estado,
     dica: linha.token_dica,
     canal: linha.canal,
-    mixer: linha.mixer,
     chat: linha.chat,
     recursos: lerRecursos(linha.recursos),
     emitidaEm: linha.emitida_em.toISOString(),
@@ -302,7 +302,7 @@ export async function estadoExtensao(perfilId: string): Promise<EstadoExtensao> 
     const sql = bd();
 
     const licencas = await sql<LinhaLicenca[]>`
-      select id, token_dica, canal, mixer, chat, recursos,
+      select id, token_dica, canal, chat, recursos,
              emitida_em, rotacionada_em, expira_em, revogada_em, revogada_motivo
         from ext_licencas
        where perfil_id = ${perfilId}
@@ -545,7 +545,7 @@ export async function emitirLicenca(perfilId: string): Promise<LicencaEmitida> {
     const token = novoToken();
 
     const linhas = await sql<LinhaLicenca[]>`
-      select id, token_dica, canal, mixer, chat, recursos,
+      select id, token_dica, canal, chat, recursos,
              emitida_em, rotacionada_em, expira_em, revogada_em, revogada_motivo
         from emitir_licenca_ext(
           ${perfilId},
@@ -595,7 +595,7 @@ export async function autenticarLicenca(
   if (!pareceToken(token)) return null;
 
   const linhas = await bd()<(LinhaLicenca & { perfil_id: string })[]>`
-    select id, perfil_id, token_dica, canal, mixer, chat, recursos,
+    select id, perfil_id, token_dica, canal, chat, recursos,
            emitida_em, rotacionada_em, expira_em, revogada_em, revogada_motivo
       from ext_licencas
      where token_hash = ${hashDoToken(token)}
@@ -610,7 +610,6 @@ export async function autenticarLicenca(
     perfilId: linha.perfil_id,
     estado: licenca.estado as Exclude<EstadoLicenca, "sem_licenca">,
     canal: licenca.canal,
-    mixer: licenca.mixer,
     chat: licenca.chat,
     recursos: licenca.recursos,
     expiraEm: licenca.expiraEm,
@@ -982,13 +981,10 @@ function exemploEstado(): EstadoExtensao {
       estado: "ativa",
       dica: "d3m0",
       canal: "estavel",
-      mixer: true,
       chat: true,
       recursos: {
-        mixer: true,
         chat: true,
         camera_virtual: true,
-        sons_naturais: true,
         analise_live: false,
         contas_tiktok: 3,
         plano: "premium",

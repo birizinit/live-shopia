@@ -18,8 +18,9 @@ export const metadata: Metadata = { title: "Início" };
  *
  * Antes era uma lista fixa de seis telas com "0 de 6" escrito à mão, e quem
  * chegava não sabia por onde começar — as primeiras clientes instalaram a
- * extensão sem ter áudio para tocar. Agora o passo da vez fica em destaque,
- * com UM botão, e os feitos dizem o que já está pronto.
+ * extensão sem nada cadastrado, e a Shopia ficou muda a live inteira. Agora o
+ * passo da vez fica em destaque, com UM botão, e os feitos dizem o que já está
+ * pronto.
  */
 
 function desde(iso: string | null) {
@@ -39,38 +40,52 @@ type Passo = {
 function montarPassos(j: JornadaDaLive): Passo[] {
   return [
     {
-      titulo: "Crie o áudio da live",
-      feito: j.audio.pronto,
-      texto: j.audio.pronto
-        ? `Pronto: “${j.audio.montagemNome}”, ${j.audio.falas} ${j.audio.falas === 1 ? "áudio" : "áudios"}, cerca de ${formatarDuracao(j.audio.duracaoMs)} por volta — e repete em laço sem gastar créditos.`
-        : j.audio.gerando > 0
-          ? "A voz está sendo gerada. Assim que terminar, é só colocar na live."
-          : "Diga o que vai vender; a IA escreve o roteiro e você escolhe a voz. Leva uns 5 minutos.",
-      acao: j.audio.pronto
-        ? { href: "/criar", rotulo: "Adicionar outro produto" }
-        : { href: "/criar", rotulo: j.audio.gerando > 0 ? "Continuar" : "Criar agora" },
+      titulo: "Cadastre o que você vende",
+      feito: j.produto.pronto,
+      texto: j.produto.pronto
+        ? `${j.produto.quantos} ${j.produto.quantos === 1 ? "produto" : "produtos"} cadastrados${j.produto.nome ? ` — o último foi “${j.produto.nome}”` : ""}.`
+        : "Nome, preço e cupom. É o que a Shopia usa para responder quem pergunta na live.",
+      acao: {
+        href: "/criar",
+        rotulo: j.produto.pronto ? "Cadastrar outro" : "Cadastrar agora",
+      },
+    },
+    {
+      titulo: "Monte o manual",
+      feito: j.manual.pronto,
+      texto: j.manual.pronto
+        ? `${j.manual.perguntas} ${j.manual.perguntas === 1 ? "pergunta" : "perguntas"} que ela sabe responder${j.manual.semResposta > 0 ? ` — e ${j.manual.semResposta} que a sua audiência fez e ficou sem resposta.` : "."}`
+        : "As perguntas que a audiência faz e o que responder. A Shopia nunca inventa: se não está no manual, ela cala.",
+      acao: {
+        href: "/manual",
+        rotulo: j.manual.pronto
+          ? j.manual.semResposta > 0
+            ? "Revisar o que faltou"
+            : "Ver o manual"
+          : "Montar o manual",
+      },
     },
     {
       titulo: "Instale a extensão no Chrome",
       feito: j.extensao.instalada,
       texto: j.extensao.instalada
         ? `Conectada. Último contato ${desde(j.extensao.vistaEm) ?? "—"}.`
-        : "É ela que toca o áudio no LIVE Studio, pelo cabo virtual, e lê o chat da live.",
+        : "É ela que lê o chat da sua live e responde por lá. Não precisa instalar nada além dela.",
       acao: { href: "/extensao", rotulo: j.extensao.instalada ? "Ver instruções" : "Instalar" },
     },
     {
       titulo: "Entre no ar",
       feito: j.live.noAr,
       texto: j.live.noAr
-        ? `A apresentadora está no ar ${desde(j.live.desde) ?? ""}.`
-        : "Com o áudio pronto e a extensão conectada:",
+        ? `A Shopia está cuidando do chat ${desde(j.live.desde) ?? ""}.`
+        : "Com o manual pronto e a extensão conectada:",
       acao: j.live.noAr ? { href: "/live", rotulo: "Acompanhar" } : null,
       extra: j.live.noAr ? null : (
         <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-fg-muted">
-          <li>Abra o TikTok LIVE Studio e escolha o cabo virtual como microfone.</li>
-          <li>No Chrome, abra a página da sua live no tiktok.com.</li>
+          <li>Comece a sua transmissão como você já faz.</li>
           <li>
-            Clique no ícone da Shopia e em <strong className="text-fg">Entrar no ar</strong>.
+            No Chrome, clique no ícone da Shopia, escreva o seu @ e clique em{" "}
+            <strong className="text-fg">Entrar no ar</strong> — ela abre a sua live sozinha.
           </li>
           {!j.riscoAceito && (
             <li>

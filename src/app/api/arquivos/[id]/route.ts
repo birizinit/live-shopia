@@ -1,30 +1,26 @@
 import { ler } from "@/lib/armazenamento";
-import { ehIdValido } from "@/lib/dados/audios";
-import { modoDemo } from "@/lib/env";
 import { obterUsuario } from "@/lib/sessao";
 
 export const dynamic = "force-dynamic";
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 /**
- * Serve UM bloco de áudio.
- *
- * Um bloco, nunca o áudio inteiro: o arquivo contínuo de 3h não existe neste
- * produto (db/migrations/0003_infra.sql). O player recebe a lista de blocos e
- * toca em ordem, e é esta rota que entrega cada um.
+ * Serve um arquivo guardado — hoje o vídeo de reação da live.
  *
  * A checagem de dono está dentro de `ler()` (src/lib/armazenamento.ts), que
  * filtra por `perfil_id`. Sem RLS, é ela que impede um id adivinhado entregar
- * o áudio de outra conta; arquivo global (prévia de voz) tem perfil nulo e é
- * legível por qualquer sessão.
+ * o arquivo de outra conta.
+ *
+ * Nasceu servindo bloco de áudio e sobreviveu à saída do áudio por causa do
+ * suporte a `Range` abaixo, que vídeo exige ainda mais do que som.
  */
 export async function GET(pedido: Request, contexto: { params: Promise<{ id: string }> }) {
   const usuario = await obterUsuario();
   if (!usuario) return new Response("sessão expirada", { status: 401 });
 
   const { id } = await contexto.params;
-  if (!ehIdValido(id)) return new Response("identificador inválido", { status: 400 });
-
-  if (modoDemo) return servir(pedido, tomDeExemplo(id), "audio/wav");
+  if (!UUID.test(id)) return new Response("identificador inválido", { status: 400 });
 
   const arquivo = await ler(usuario.id, id);
   if (!arquivo) return new Response("arquivo não encontrado", { status: 404 });
@@ -35,9 +31,9 @@ export async function GET(pedido: Request, contexto: { params: Promise<{ id: str
 /**
  * Responde com suporte a `Range`.
  *
- * Não é refinamento: o Safari (e o WebView do iOS) só considera um áudio
- * tocável se a origem aceitar faixa, e sem isso o player fica mudo justamente
- * no celular, que é onde a live é assistida.
+ * Não é refinamento: Safari (e o WebView do iOS) só considera mídia tocável se
+ * a origem aceitar faixa, e o player de vídeo pede o fim do arquivo antes do
+ * começo para achar o índice. Sem faixa, o vídeo não abre.
  */
 function servir(pedido: Request, conteudo: Buffer, mime: string) {
   const total = conteudo.byteLength;
@@ -46,7 +42,7 @@ function servir(pedido: Request, conteudo: Buffer, mime: string) {
     "content-type": mime,
     "accept-ranges": "bytes",
     // O id É o conteúdo: um arquivo gravado nunca muda de bytes. `private`
-    // porque o áudio é de uma conta só e não pode ficar num cache compartilhado.
+    // porque o arquivo é de uma conta só e não pode ficar em cache compartilhado.
     "cache-control": "private, max-age=31536000, immutable",
   });
 
@@ -81,49 +77,8 @@ function servir(pedido: Request, conteudo: Buffer, mime: string) {
 /**
  * `Buffer` do Node vive num pool compartilhado entre alocações; o corpo de uma
  * `Response` pede um buffer próprio. A cópia é o que fecha os dois mundos — e
- * ela cabe porque um bloco tem no máximo 8 MB (arquivos_tamanho_por_linha).
+ * ela cabe porque a linha tem no máximo 8 MB (arquivos_tamanho_por_linha).
  */
 function corpo(bytes: Buffer): Uint8Array<ArrayBuffer> {
   return new Uint8Array(bytes);
-}
-
-/**
- * Tom curto em WAV para o modo demo.
- *
- * A sessão demo não tem linha no banco, então não há bloco nenhum para ler — e
- * uma tela de estúdio sem nada para tocar não demonstra nada. Isto é um bipe, e
- * a interface diz que é exemplo: nunca se apresenta como voz gerada.
- */
-function tomDeExemplo(id: string): Buffer {
-  const taxa = 8_000;
-  const duracaoMs = 8_000;
-  const amostras = Math.round((taxa * duracaoMs) / 1000);
-
-  // Frequência derivada do id: blocos diferentes soam diferentes, e dá para
-  // ouvir a virada de um bloco para o outro no player.
-  const semente = [...id].reduce((soma, letra) => soma + letra.charCodeAt(0), 0);
-  const frequencia = 180 + (semente % 7) * 40;
-
-  const dados = Buffer.alloc(amostras * 2);
-  for (let i = 0; i < amostras; i += 1) {
-    const envelope = Math.min(1, i / 800) * Math.min(1, (amostras - i) / 800);
-    const valor = Math.sin((2 * Math.PI * frequencia * i) / taxa) * 0.16 * envelope;
-    dados.writeInt16LE(Math.round(valor * 32767), i * 2);
-  }
-
-  const cabecalho = Buffer.alloc(44);
-  cabecalho.write("RIFF", 0);
-  cabecalho.writeUInt32LE(36 + dados.length, 4);
-  cabecalho.write("WAVEfmt ", 8);
-  cabecalho.writeUInt32LE(16, 16);
-  cabecalho.writeUInt16LE(1, 20);
-  cabecalho.writeUInt16LE(1, 22);
-  cabecalho.writeUInt32LE(taxa, 24);
-  cabecalho.writeUInt32LE(taxa * 2, 28);
-  cabecalho.writeUInt16LE(2, 32);
-  cabecalho.writeUInt16LE(16, 34);
-  cabecalho.write("data", 36);
-  cabecalho.writeUInt32LE(dados.length, 40);
-
-  return Buffer.concat([cabecalho, dados]);
 }

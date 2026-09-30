@@ -63,15 +63,14 @@ export default async function LivePage() {
   const { sessao, config, extensao } = sala;
   const marcador = indicadorDa(sessao);
   const contaEmUso = sala.contas.find((conta) => conta.id === config.contaId) ?? null;
-  const montagemEmUso = sala.montagens.find((m) => m.id === config.montagemId) ?? null;
   const pendencias = sala.checklist.filter((item) => !item.ok);
   const contatoMinutos = minutosDesde(extensao.ultimoContato);
 
   return (
     <>
       <PageHeader
-        titulo="Live IA"
-        descricao="A apresentadora narra a montagem em laço e responde o chat com cadência humana."
+        titulo="Ao vivo"
+        descricao="A Shopia responde o chat pelo seu manual, com cadência humana, e fixa o produto."
         acoes={
           <>
             <Indicador estado={marcador.estado} texto={marcador.texto} className="self-center" />
@@ -126,15 +125,6 @@ export default async function LivePage() {
                     )
                   }
                 />
-                <Propriedade
-                  rotulo="Montagem"
-                  valor={montagemEmUso ? montagemEmUso.nome : "Nenhuma escolhida"}
-                />
-                <Propriedade
-                  rotulo="Duração do laço"
-                  numerica
-                  valor={montagemEmUso ? formatarDuracao(montagemEmUso.duracaoMs) : "—"}
-                />
                 {sessao && (
                   <>
                     <Propriedade rotulo="No ar desde" numerica valor={hora(sessao.inicio)} />
@@ -165,7 +155,6 @@ export default async function LivePage() {
                 <Transmissao
                   sessao={sessao}
                   contaId={config.contaId}
-                  montagemId={config.montagemId}
                   bloqueios={pendencias.map((item) => item.rotulo.toLowerCase())}
                 />
               </div>
@@ -177,12 +166,7 @@ export default async function LivePage() {
               limite={sala.limiteContas}
             />
 
-            <ConfiguracaoDaLive
-              config={config}
-              contas={sala.contas}
-              vozes={sala.vozes}
-              montagens={sala.montagens}
-            />
+            <ConfiguracaoDaLive config={config} contas={sala.contas} />
 
             <Card>
               <CardTitulo>Últimas transmissões</CardTitulo>

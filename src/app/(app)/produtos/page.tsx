@@ -38,7 +38,7 @@ export default async function Page(props: PageProps<"/produtos">) {
     <>
       <PageHeader
         titulo="Produtos"
-        descricao="O que vai ser vendido na live. É daqui que saem o roteiro, o áudio da apresentadora e a oferta do chat — o produto fixado é o que a live destaca."
+        descricao="O que vai ser vendido na live. O produto fixado é o que a live destaca — e é ele que decide quais respostas do seu manual valem no chat."
       />
 
       <ListaProdutos

@@ -4,9 +4,8 @@ import { BotaoCopiar } from "@/components/ui/copiar";
 /**
  * Instalação em modo desenvolvedor, do zip até a conta conectada.
  *
- * Uma lista só, e não abas por sistema: até o pacote existir, o caminho é
- * idêntico no Windows e no Mac. O que de fato diverge entre os dois é o cabo
- * virtual — e isso tem seção própria, logo abaixo, com abas de verdade.
+ * Uma lista só, e não abas por sistema: como nada é instalado fora do Chrome, o
+ * caminho é idêntico no Windows e no Mac, passo por passo.
  */
 
 const ENDERECO = "chrome://extensions";

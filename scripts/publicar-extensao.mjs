@@ -89,6 +89,15 @@ const EXTENSOES_VARRIDAS = new Set([".js", ".mjs", ".cjs", ".json", ".html", ".h
  * pacote já montado (um .crx dentro do ZIP é sobra de build, e o Chrome ignora).
  */
 const NUNCA_EMPACOTAR = [".pem", ".key", ".p12", ".pfx", ".crx"];
+
+/**
+ * Teste não é produto.
+ *
+ * Um `.test.js` no pacote é peso morto que todo cliente baixa, e entrega de
+ * graça o desenho interno de quem quiser ler. Sai da lista de arquivos, não da
+ * pasta: o teste continua rodando no `npm test` onde ele mora.
+ */
+const SUFIXOS_DE_TESTE = [".test.js", ".test.mjs", ".spec.js"];
 const PASTAS_IGNORADAS = new Set([".git", "node_modules", ".next", ".vscode", "__MACOSX"]);
 const ARQUIVOS_IGNORADOS = new Set([".DS_Store", "Thumbs.db", "desktop.ini"]);
 
@@ -345,6 +354,7 @@ async function lerPasta(caminho) {
       if (ARQUIVOS_IGNORADOS.has(item.name)) continue;
 
       const minusculo = item.name.toLowerCase();
+      if (SUFIXOS_DE_TESTE.some((sufixo) => minusculo.endsWith(sufixo))) continue;
       if (NUNCA_EMPACOTAR.some((ext) => minusculo.endsWith(ext))) {
         recusados.push(relative(caminho, cheio));
         continue;

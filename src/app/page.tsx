@@ -1,12 +1,12 @@
 import Link from "next/link";
 import {
   ArrowRight,
-  AudioLines,
-  ChartColumn,
-  FileText,
-  Mic,
-  Moon,
+  BadgeCheck,
+  BookOpenCheck,
+  MessagesSquare,
   Puzzle,
+  ShieldCheck,
+  ShoppingBag,
 } from "lucide-react";
 import { Logo } from "@/components/logo";
 import { ThemeToggle } from "@/components/theme/theme-toggle";
@@ -14,39 +14,40 @@ import { obterUsuario } from "@/lib/sessao";
 
 const PIPELINE = [
   {
-    Icone: FileText,
-    titulo: "A IA escreve o roteiro",
-    texto: "Gancho, oferta, prova, objeções e CTA, a partir do seu produto.",
+    Icone: ShoppingBag,
+    titulo: "Você cadastra o produto",
+    texto: "Nome, preço, cupom e prazo — o que a audiência pergunta em toda live.",
   },
   {
-    Icone: Mic,
-    titulo: "A voz é sintetizada",
-    texto: "Voz premium de catálogo ou a sua, clonada a partir de uma amostra.",
-  },
-  {
-    Icone: AudioLines,
-    titulo: "O áudio vira loop",
-    texto: "Até 3 horas contínuas. Repetir não gasta crédito de novo.",
+    Icone: BookOpenCheck,
+    titulo: "Escreve o manual",
+    texto:
+      "Cada linha é uma pergunta, as palavras que a disparam e a resposta no seu jeito de falar.",
   },
   {
     Icone: Puzzle,
-    titulo: "A extensão põe no ar",
-    texto: "O áudio entra no LIVE Studio como se fosse um microfone.",
+    titulo: "Liga a extensão no Chrome",
+    texto: "Só o navegador: nada para instalar no sistema operacional.",
+  },
+  {
+    Icone: MessagesSquare,
+    titulo: "Ela assume o chat",
+    texto: "Responde, chama quem entra pelo nome e fixa o produto na tela.",
   },
 ] as const;
 
 const DIFERENCIAIS = [
   {
-    Icone: Moon,
-    titulo: "Vende enquanto você dorme",
+    Icone: BadgeCheck,
+    titulo: "Não inventa resposta",
     texto:
-      "A apresentadora narra em loop, dá boas-vindas pelo nome e responde preço, frete e cupom no chat.",
+      "A Shopia devolve o que está no seu manual, palavra por palavra. Pergunta que não está lá ela deixa passar em silêncio — e anota, para você cadastrar antes da próxima live.",
   },
   {
-    Icone: ChartColumn,
-    titulo: "Venda que você enxerga",
+    Icone: ShieldCheck,
+    titulo: "Cuida da sua conta",
     texto:
-      "Faturamento, GMV e espectadores por evento, em tempo real, com push no celular a cada venda.",
+      "Antes de subir, ela revisa o manual e aponta as frases que costumam fazer o TikTok restringir a live. No chat, responde com espera sorteada e teto por minuto — rajada de resposta idêntica é a assinatura mais óbvia de automação.",
   },
 ] as const;
 
@@ -71,16 +72,17 @@ export default async function LandingPage() {
       <main>
         <section className="mx-auto max-w-6xl px-5 pt-12 pb-16 sm:pt-20 sm:pb-24">
           <p className="inline-flex items-center gap-2 rounded-full border border-primary-border bg-primary-soft px-3 py-1 text-xs font-medium text-primary-soft-fg">
-            Live commerce com IA
+            Moderação de live com IA
           </p>
 
           <h1 className="mt-5 max-w-3xl text-4xl font-extrabold sm:text-6xl">
-            Sua apresentadora de IA que vende ao vivo.
+            A Shopia responde o chat da sua live.
           </h1>
 
           <p className="mt-5 max-w-xl text-lg text-fg-muted">
-            A Shopia escreve o roteiro, dá voz a ele e monta o áudio contínuo da
-            live. Você acompanha as vendas — sem aparecer, sem narrar por horas.
+            Você escreve as respostas uma vez, no manual do produto. Na live, quem
+            pergunta preço, frete ou cupom recebe o que você escreveu — na hora, e
+            sem você digitar.
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3">
@@ -89,7 +91,7 @@ export default async function LandingPage() {
               className="inline-flex h-12 items-center gap-2 rounded-md px-6 text-base font-medium text-white shadow-md"
               style={{ background: "var(--brand-gradient)" }}
             >
-              {usuario ? "Abrir o estúdio" : "Criar conta"}
+              {usuario ? "Abrir o app" : "Criar conta"}
               <ArrowRight className="size-4" aria-hidden />
             </Link>
             <Link
@@ -105,7 +107,8 @@ export default async function LandingPage() {
           <div className="mx-auto max-w-6xl px-5 py-16">
             <h2 className="text-2xl font-bold sm:text-3xl">Como funciona</h2>
             <p className="mt-2 max-w-xl text-fg-muted">
-              Quatro etapas entre o produto cadastrado e a live no ar.
+              Quatro etapas entre o produto cadastrado e a Shopia respondendo no
+              chat.
             </p>
 
             <ol className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -148,17 +151,17 @@ export default async function LandingPage() {
             style={{ background: "var(--brand-gradient)" }}
           >
             <h2 className="max-w-lg text-3xl font-extrabold">
-              Coloque a primeira live no ar hoje.
+              Deixe a Shopia cuidar do chat da próxima live.
             </h2>
             <p className="mt-3 max-w-lg text-white/80">
-              Cadastre o produto, gere o roteiro e escolha a voz. O resto é a
-              Shopia que faz.
+              Cadastre o produto, escreva as respostas e ligue a extensão. O chat
+              passa a ser dela.
             </p>
             <Link
               href={usuario ? "/inicio" : "/cadastro"}
               className="mt-7 inline-flex h-12 items-center gap-2 rounded-md bg-white px-6 text-base font-semibold text-[color:var(--green-800)]"
             >
-              {usuario ? "Abrir o estúdio" : "Começar agora"}
+              {usuario ? "Abrir o app" : "Começar agora"}
               <ArrowRight className="size-4" aria-hidden />
             </Link>
           </div>

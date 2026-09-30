@@ -4,7 +4,6 @@ import { useCallback, useEffect, useRef, useState, useTransition } from "react";
 import {
   Bot,
   CircleStop,
-  ListOrdered,
   MessageCircle,
   Radio,
   ShoppingBag,
@@ -19,11 +18,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardDescricao, CardTitulo } from "@/components/ui/card";
 import { ConfirmarAcao } from "@/components/ui/confirmar-acao";
-import { EstadoVazio } from "@/components/ui/estado-vazio";
 import { Indicador } from "@/components/ui/indicador";
 import { Interruptor } from "@/components/ui/interruptor";
 import { formatarDuracao } from "@/lib/caracteres";
-import type { EstadoLive, EventoLive, FalaDaFila, TipoEventoLive } from "@/lib/dados/live";
+import type { EstadoLive, EventoLive, TipoEventoLive } from "@/lib/dados/live";
 import { cn, numero } from "@/lib/utils";
 
 const FUSO = "America/Sao_Paulo";
@@ -107,11 +105,9 @@ function useRolagemColada(gatilho: unknown) {
 export function ConsoleAoVivo({
   sessao: sessaoInicial,
   eventos: eventosIniciais,
-  fila,
 }: {
   sessao: ResumoSessao;
   eventos: EventoLive[];
-  fila: FalaDaFila[];
 }) {
   const sessaoId = sessaoInicial.id;
   const jaEncerrada = sessaoInicial.estado === "encerrada" || sessaoInicial.estado === "caiu";
@@ -331,42 +327,7 @@ export function ConsoleAoVivo({
         </Alerta>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Painel
-          titulo="Fila de falas"
-          descricao="A montagem em laço, na ordem em que a extensão toca."
-          icone={ListOrdered}
-          contagem={fila.length}
-        >
-          {fila.length === 0 ? (
-            <EstadoVazio
-              titulo="Sem montagem"
-              texto="Escolha a montagem ativa na sala de live."
-              className="border-0"
-            />
-          ) : (
-            <ol className="space-y-2">
-              {fila.map((fala) => (
-                <li
-                  key={fala.id}
-                  className="flex items-start gap-3 rounded-md border border-border bg-bg-subtle px-3 py-2"
-                >
-                  <span className="num mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border border-border text-xs font-semibold text-fg-subtle">
-                    {fala.ordem}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium">{fala.titulo}</span>
-                    <span className="num mt-0.5 block text-xs text-fg-subtle">
-                      {formatarDuracao(fala.duracaoMs)} · {numero(fala.caracteres)} caracteres
-                    </span>
-                  </span>
-                  {fala.estado !== "pronto" && <Badge tom="alerta">{fala.estado}</Badge>}
-                </li>
-              ))}
-            </ol>
-          )}
-        </Painel>
-
+      <div className="grid gap-4 lg:grid-cols-2">
         <ListaDeEventos
           titulo="Chat e eventos"
           descricao="Tudo que chega da live: comentários, entradas, seguidores e vendas."
@@ -377,7 +338,7 @@ export function ConsoleAoVivo({
 
         <ListaDeEventos
           titulo="Respostas da IA"
-          descricao="O que a apresentadora escreveu no chat, com o atraso de cada resposta."
+          descricao="O que a Shopia escreveu no chat, com o atraso de cada resposta."
           icone={Bot}
           eventos={daIa}
           vazio="Nenhuma resposta ainda. Com cadência humana, a primeira leva alguns segundos."
@@ -539,7 +500,6 @@ function TempoNoAr({ inicio, fim }: { inicio: string; fim: string | null }) {
 
 export function KillSwitch({
   licenciada,
-  mixerInicial,
   chatInicial,
   chatDesligadoNaBase,
   contatoTexto,
@@ -547,7 +507,6 @@ export function KillSwitch({
   temSessao,
 }: {
   licenciada: boolean;
-  mixerInicial: boolean;
   chatInicial: boolean;
   chatDesligadoNaBase: boolean;
   /** Já formatado no servidor: "há 2 min", "Nunca". */
@@ -556,25 +515,22 @@ export function KillSwitch({
   temSessao: boolean;
 }) {
   const avisos = useAvisos();
-  const [mixer, setMixer] = useState(mixerInicial);
   const [chat, setChat] = useState(chatInicial);
   const [erro, setErro] = useState<string | null>(null);
   const [confirmando, setConfirmando] = useState(false);
   const [pendente, transicao] = useTransition();
 
-  function alternar(modulo: "mixer" | "chat", ligado: boolean) {
-    const anteriorMixer = mixer;
-    const anteriorChat = chat;
+  function alternar(ligado: boolean) {
+    const anterior = chat;
 
     // Otimista: o interruptor responde na hora e volta sozinho se o servidor
     // recusar. Esperar a ida e volta faz o botão parecer travado.
-    if (modulo === "mixer") setMixer(ligado);
-    else setChat(ligado);
+    setChat(ligado);
     setErro(null);
 
     transicao(async () => {
       const dados = new FormData();
-      dados.set("modulo", modulo);
+      dados.set("modulo", "chat");
       dados.set("ligado", ligado ? "1" : "0");
 
       const resultado = await alternarModuloAcao({}, dados);
@@ -583,9 +539,8 @@ export function KillSwitch({
         return;
       }
 
-      setMixer(anteriorMixer);
-      setChat(anteriorChat);
-      setErro(resultado.erro ?? "Não foi possível mudar o módulo.");
+      setChat(anterior);
+      setErro(resultado.erro ?? "Não foi possível mudar a automação do chat.");
     });
   }
 
@@ -594,7 +549,6 @@ export function KillSwitch({
     transicao(async () => {
       const resultado = await pararTudoAcao({});
       if (resultado.ok) {
-        setMixer(false);
         setChat(false);
         avisos.sucesso(resultado.mensagem ?? "Tudo parado.");
         return;
@@ -607,9 +561,9 @@ export function KillSwitch({
     <Card>
       <CardTitulo>Extensão e parada de emergência</CardTitulo>
       <CardDescricao>
-        Mixer de áudio e automação de chat são recursos separados: desligar o chat
-        não derruba a fala da apresentadora. Vale para esta conta, na hora — a
-        extensão obedece no próximo contato.
+        Vale para esta conta, na hora — a extensão obedece no próximo contato.
+        Desligar aqui é mais rápido do que desinstalar, e é o que você usa se a
+        Shopia responder algo que não devia.
       </CardDescricao>
 
       <dl className="mt-4 flex flex-wrap gap-x-8 gap-y-2 text-sm">
@@ -647,20 +601,12 @@ export function KillSwitch({
         </Alerta>
       )}
 
-      <div className="mt-5 space-y-4">
-        <Interruptor
-          ligado={mixer}
-          aoMudar={(ligado) => alternar("mixer", ligado)}
-          rotulo="Mixer de áudio"
-          descricao="Joga o áudio da apresentadora no LIVE Studio. Desligado, a live fica muda."
-          desabilitado={!licenciada || pendente}
-        />
-
+      <div className="mt-5">
         <Interruptor
           ligado={chat}
-          aoMudar={(ligado) => alternar("chat", ligado)}
+          aoMudar={alternar}
           rotulo="Automação de chat"
-          descricao="Lê os comentários e responde com a cadência configurada."
+          descricao="Lê os comentários e responde pelo manual, com a cadência configurada."
           desabilitado={!licenciada || pendente}
         />
       </div>
@@ -676,7 +622,7 @@ export function KillSwitch({
           Parar tudo agora
         </Button>
         <p className="mt-2 text-xs text-fg-subtle">
-          Desliga o mixer, desliga o chat e encerra a sessão da live numa ação só.
+          Desliga a automação do chat e encerra a sessão da live numa ação só.
         </p>
       </div>
 

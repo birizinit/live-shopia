@@ -9,7 +9,6 @@ import {
   ShieldAlert,
 } from "lucide-react";
 import { esquecerInstalacaoAcao } from "./actions";
-import { CaboVirtual } from "./cabo-virtual";
 import { Faq } from "./faq";
 import { Hero } from "./hero";
 import { PainelLicenca } from "./instalacao";
@@ -54,24 +53,9 @@ const INDICADOR: Record<EstadoLicenca, EstadoIndicador> = {
 /** O que o PLANO libera — diferente do que a extensão faz, que está em Recursos. */
 const DO_PLANO: { chave: keyof RecursosExtensao; rotulo: string; resumo: string }[] = [
   {
-    chave: "mixer",
-    rotulo: "Áudio no LIVE Studio",
-    resumo: "Toca a montagem em laço e entrega a voz pelo cabo virtual.",
-  },
-  {
     chave: "chat",
     rotulo: "Respostas no chat",
-    resumo: "Lê os comentários e responde com cadência humana.",
-  },
-  {
-    chave: "camera_virtual",
-    rotulo: "Câmera virtual",
-    resumo: "Entrega a imagem da apresentadora como se fosse uma webcam.",
-  },
-  {
-    chave: "sons_naturais",
-    rotulo: "Sons naturais",
-    resumo: "Ruído de ambiente para a live não soar sintética.",
+    resumo: "Lê os comentários e responde pelo manual, com cadência humana.",
   },
   {
     chave: "analise_live",
@@ -193,7 +177,7 @@ export default async function ExtensaoPage() {
       {estado.chatDesligadoNaBase && (
         <Alerta tom="info" className="mb-4">
           As respostas automáticas no chat estão desligadas para toda a base neste momento.
-          O áudio no LIVE Studio continua funcionando normalmente.
+          Boas-vindas e produto fixado continuam funcionando normalmente.
         </Alerta>
       )}
 
@@ -303,7 +287,7 @@ export default async function ExtensaoPage() {
                   {DO_PLANO.map((recurso) => {
                     const ligadoNoPlano = licenca.recursos[recurso.chave] === true;
                     // O chat morre por conta (`ext_licencas.chat`) ou na base
-                    // inteira (`ext.chat_desligado`) sem derrubar o áudio junto.
+                    // inteira (`ext.chat_desligado`), sem derrubar o resto.
                     const ligado =
                       recurso.chave === "chat"
                         ? ligadoNoPlano && licenca.chat && !estado.chatDesligadoNaBase
@@ -425,10 +409,7 @@ export default async function ExtensaoPage() {
         </Card>
       </Secao>
 
-      {/* 5 — A seção que mais gera dúvida. Fica DEPOIS do "entrar no ar"
-          porque é opcional: quem só quer responder comentário e fixar produto
-          não passa por aqui, e ler sobre cabo antes de operar dava a impressão
-          errada de que era obrigatório. */}
+      {/* 5 — O que acontece a cada live, já com a extensão conectada. */}
       <Secao
         id="no-ar"
         titulo="Entrar no ar, na prática"
@@ -436,16 +417,6 @@ export default async function ExtensaoPage() {
       >
         <Card>
           <NoAr />
-        </Card>
-      </Secao>
-
-      <Secao
-        id="cabo-virtual"
-        titulo="Cabo virtual — só para o modo com áudio"
-        descricao="A peça que leva a voz da Shopia até a transmissão. Se você só quer responder comentários, dar boas-vindas e fixar produtos, pule esta seção inteira."
-      >
-        <Card>
-          <CaboVirtual />
         </Card>
       </Secao>
 
@@ -503,10 +474,10 @@ function AvisoDeRisco({ aceito }: { aceito: boolean }) {
           </p>
 
           <p className="mt-2.5 text-sm text-fg-muted">
-            A gente reduz o que dá para reduzir: cadência variável no chat em vez de rajada,
-            áudio e chat em módulos separados para você desligar um sem perder o outro, e
-            um botão de parar que não depende de nós. Reduzir não é eliminar, e quem decide
-            correr o risco é você, sabendo disto.
+            A gente reduz o que dá para reduzir: cadência variável no chat em vez de
+            rajada, revisão do manual antes de a live começar, e um botão de parar que não
+            depende de nós. Reduzir não é eliminar, e quem decide correr o risco é você,
+            sabendo disto.
           </p>
 
           {!aceito && (

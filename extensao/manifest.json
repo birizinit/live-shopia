@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Shopia — apresentadora de IA para lives",
-  "version": "1.3.0",
-  "description": "Responde os comentários da sua live, dá boas-vindas pelo nome e fixa produtos. O áudio com voz de IA é opcional.",
+  "name": "Shopia — moderação de live no TikTok",
+  "version": "2.0.0",
+  "description": "Modera a sua live no TikTok: responde os comentários pelo manual que você cadastrou, dá boas-vindas pelo nome e fixa produtos.",
 
   "permissions": ["storage", "alarms", "sidePanel", "tabs"],
 

@@ -134,8 +134,6 @@ export async function salvarConfiguracaoAcao(
   try {
     await salvarConfiguracaoLive(usuario.id, {
       contaId: texto(formData, "contaId") || null,
-      vozId: texto(formData, "vozId") || null,
-      montagemId: texto(formData, "montagemId") || null,
       responderChat: marcado(formData, "responderChat"),
       saudarEntrada: marcado(formData, "saudarEntrada"),
       intervaloMinS: inteiro(formData, "intervaloMinS", 12),
@@ -176,10 +174,7 @@ export async function iniciarLiveAcao(
   const usuario = await exigirUsuario("/live");
 
   try {
-    await iniciarLive(usuario.id, {
-      contaId: texto(formData, "contaId") || null,
-      montagemId: texto(formData, "montagemId") || null,
-    });
+    await iniciarLive(usuario.id, { contaId: texto(formData, "contaId") || null });
 
     revalidarLive();
     return { ok: true, mensagem: "Sessão aberta. A extensão assume em seguida." };
@@ -212,21 +207,16 @@ export async function alternarModuloAcao(
   const modulo = texto(formData, "modulo");
   const ligado = texto(formData, "ligado") === "1";
 
-  if (modulo !== "mixer" && modulo !== "chat") {
+  if (modulo !== "chat") {
     return { ok: false, erro: "Módulo desconhecido." };
   }
 
   try {
-    await ajustarModulosExtensao(
-      usuario.id,
-      modulo === "mixer" ? { mixer: ligado } : { chat: ligado },
-    );
+    await ajustarModulosExtensao(usuario.id, { chat: ligado });
     revalidarLive();
     return {
       ok: true,
-      mensagem: `${modulo === "mixer" ? "Mixer de áudio" : "Automação de chat"} ${
-        ligado ? "ligado" : "desligado"
-      }.`,
+      mensagem: `Automação de chat ${ligado ? "ligada" : "desligada"}.`,
     };
   } catch (erro) {
     return falhar(erro);

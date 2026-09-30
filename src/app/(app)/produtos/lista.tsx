@@ -23,6 +23,7 @@ import {
   alternarArquivado,
   alternarFixado,
   carregarMaisProdutos,
+  contarRespostasDoProduto,
   removerProduto,
 } from "./actions";
 import { ModalProduto } from "./formulario";
@@ -78,7 +79,11 @@ export function ListaProdutos({
 
   const [editando, setEditando] = useState<Produto | null>(null);
   const [formAberto, setFormAberto] = useState(false);
-  const [excluindo, setExcluindo] = useState<Produto | null>(null);
+  const [excluindo, setExcluindo] = useState<{
+    produto: Produto;
+    /** `null` quando a contagem falhou: avisa sem numero em vez de nao avisar. */
+    respostas: number | null;
+  } | null>(null);
 
   // O servidor manda uma pagina nova a cada revalidacao. Trocar aqui, no
   // render, e nao num efeito: com efeito a tela mostraria a lista velha por um
@@ -134,6 +139,15 @@ export function ListaProdutos({
   function abrirEdicao(produto: Produto) {
     setEditando(produto);
     setFormAberto(true);
+  }
+
+  // A contagem do manual vem antes de a caixa abrir: aviso que chega depois,
+  // com a pessoa ja decidida, nao e aviso.
+  function pedirExclusao(produto: Produto) {
+    iniciar(async () => {
+      const resultado = await contarRespostasDoProduto(produto.id);
+      setExcluindo({ produto, respostas: resultado.ok ? resultado.dado : null });
+    });
   }
 
   const fixadoForaDaLista =
@@ -233,7 +247,7 @@ export function ListaProdutos({
                 produto={produto}
                 ocupado={emAcao}
                 aoEditar={() => abrirEdicao(produto)}
-                aoExcluir={() => setExcluindo(produto)}
+                aoExcluir={() => pedirExclusao(produto)}
                 aoFixar={() =>
                   executar(() => alternarFixado(produto.id, !produto.fixado), {
                     titulo: produto.fixado ? "Produto desafixado" : "Produto fixado na live",
@@ -247,7 +261,7 @@ export function ListaProdutos({
                     titulo: produto.arquivadoEm ? "Produto restaurado" : "Produto arquivado",
                     texto: produto.arquivadoEm
                       ? undefined
-                      : "Os roteiros e áudios dele continuam salvos.",
+                      : "As respostas do manual presas a ele continuam salvas.",
                   })
                 }
               />
@@ -275,7 +289,7 @@ export function ListaProdutos({
           setFormAberto(false);
           avisos.sucesso(
             novo ? "Produto cadastrado" : "Produto atualizado",
-            novo ? `${nome} já pode virar roteiro.` : undefined,
+            novo ? `Agora diga o que a Shopia responde sobre ${nome}.` : undefined,
           );
           // O produto entrou; so a foto ficou pelo caminho. Aviso separado para
           // a pessoa saber exatamente o que falta refazer.
@@ -287,17 +301,20 @@ export function ListaProdutos({
       <ConfirmarAcao
         aberto={Boolean(excluindo)}
         aoFechar={() => setExcluindo(null)}
-        titulo={`Excluir ${excluindo?.nome ?? "produto"}?`}
-        texto="Produto com roteiro ou áudio não pode ser excluído — nesse caso, arquive."
+        titulo={`Excluir ${excluindo?.produto.nome ?? "produto"}?`}
+        texto="Arquivar tira o produto da lista de ativos e mantém tudo isto salvo."
         perdas={[
           "O cadastro, com preço, cupom e link",
           "A imagem enviada",
-          "Os benefícios e as objeções escritos para a IA",
+          "Os benefícios e as objeções cadastrados",
+          ...(excluindo && excluindo.respostas !== 0
+            ? [perdaDoManual(excluindo.respostas)]
+            : []),
         ]}
         rotuloConfirmar="Excluir de vez"
         aoConfirmar={async () => {
           if (!excluindo) return;
-          const resultado = await removerProduto(excluindo.id);
+          const resultado = await removerProduto(excluindo.produto.id);
           setExcluindo(null);
 
           if (resultado.ok) {
@@ -310,6 +327,19 @@ export function ListaProdutos({
       />
     </>
   );
+}
+
+/**
+ * A perda que ninguem imagina.
+ *
+ * `temas_resposta.produto_id` e `on delete cascade`: a linha do manual que so
+ * responde quando este produto esta fixado vai embora com ele. Sem numero
+ * quando a contagem falhou — avisar sem numero ainda e avisar.
+ */
+function perdaDoManual(respostas: number | null): string {
+  if (respostas === null) return "As respostas do seu manual presas a este produto";
+  if (respostas === 1) return "A resposta do seu manual que só vale para este produto";
+  return `As ${numero(respostas)} respostas do seu manual que só valem para este produto`;
 }
 
 function CartaoProduto({
@@ -407,10 +437,6 @@ function CartaoProduto({
             {produto.cupom}
           </Badge>
         )}
-        <Badge tom={produto.roteiros > 0 ? "info" : "neutro"}>
-          <span className="num">{numero(produto.roteiros)}</span>
-          {produto.roteiros === 1 ? " roteiro" : " roteiros"}
-        </Badge>
         {produto.beneficios.length > 0 && (
           <Badge>
             <span className="num">{numero(produto.beneficios.length)}</span> benefícios
@@ -428,7 +454,7 @@ function CartaoProduto({
             )}
           >
             <Sparkles className="size-4" aria-hidden />
-            Gerar roteiro
+            Preparar a live
           </Link>
         )}
 
@@ -578,7 +604,7 @@ function Vazio({
       <EstadoVazio
         icone={Archive}
         titulo="Nenhum produto arquivado"
-        texto="Produto que já virou roteiro não se exclui: arquiva. Ele sai da lista de ativos e o material gerado continua no lugar."
+        texto="Arquivar é a saída para o produto que saiu de linha: ele deixa a lista de ativos e as respostas do manual continuam no lugar — excluir apagaria as duas coisas."
       />
     );
   }
@@ -590,7 +616,7 @@ function Vazio({
       <EstadoVazio
         icone={Package}
         titulo="Nenhum produto ativo"
-        texto={`Você tem ${totalArquivados} produto${totalArquivados > 1 ? "s" : ""} arquivado${totalArquivados > 1 ? "s" : ""}. Restaure um deles ou cadastre outro para gerar roteiro.`}
+        texto={`Você tem ${totalArquivados} produto${totalArquivados > 1 ? "s" : ""} arquivado${totalArquivados > 1 ? "s" : ""}. Restaure um deles ou cadastre o próximo para a live.`}
         acao={
           <>
             <Button onClick={aoCadastrar}>
@@ -612,9 +638,9 @@ function Vazio({
       icone={PackageOpen}
       titulo="Comece pelo produto"
       texto={
-        "O produto é o ponto de partida da live: é dele que saem o roteiro, o áudio " +
-        "da apresentadora e a oferta que aparece no chat. Cadastre nome, preço, " +
-        "benefícios e objeções — quanto mais concreto, melhor a IA escreve."
+        "O produto é o ponto de partida da live: é ele que a Shopia fixa na tela e " +
+        "é sobre ele que ela responde no chat. Cadastre nome, preço, cupom e link — " +
+        "é o que a audiência mais pergunta e você não vai querer procurar ao vivo."
       }
       acao={
         <>

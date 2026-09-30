@@ -1,11 +1,4 @@
-import {
-  AudioLines,
-  Cable,
-  HandHeart,
-  MessagesSquare,
-  Repeat,
-  TicketPercent,
-} from "lucide-react";
+import { HandHeart, MessagesSquare, MonitorCheck, Pin, ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import type { RecursosExtensao } from "@/lib/dados/extensao";
@@ -44,6 +37,13 @@ type Recurso = {
 
 const RECURSOS: Recurso[] = [
   {
+    icone: MessagesSquare,
+    titulo: "Responde o chat pelo manual",
+    texto:
+      "Casa o comentário com uma linha do manual e devolve a resposta que você escreveu, sem mudar uma palavra. Pergunta que não está no manual ela deixa passar — e anota, para você cadastrar depois.",
+    chave: "chat",
+  },
+  {
     icone: HandHeart,
     titulo: "Dá boas-vindas por nome",
     texto:
@@ -51,38 +51,22 @@ const RECURSOS: Recurso[] = [
     chave: "chat",
   },
   {
-    icone: MessagesSquare,
-    titulo: "Responde o chat sozinha",
-    texto:
-      "Lê os comentários e responde com cadência de gente — sem rajada de mensagens idênticas, que é o padrão que denuncia robô.",
-    chave: "chat",
-  },
-  {
-    icone: Repeat,
-    titulo: "Narra o roteiro em laço",
-    texto:
-      "O roteiro volta ao começo quando termina e a live não fica em silêncio. Gerar a voz cobra crédito uma vez; repetir, nunca.",
-    chave: "mixer",
-  },
-  {
-    icone: Cable,
-    titulo: "Joga a voz no LIVE Studio",
-    texto:
-      "Entrega o áudio ao cabo virtual, que o LIVE Studio enxerga como um microfone comum. É esse desvio que dispensa apontar um celular para a caixa de som.",
-    chave: "mixer",
-  },
-  {
-    icone: AudioLines,
-    titulo: "Toca o áudio da live montado",
-    texto:
-      "A lista que você montou em Áudio da live, na ordem em que você deixou. A extensão toca bloco a bloco, sem baixar um arquivo de três horas.",
-    chave: "mixer",
-  },
-  {
-    icone: TicketPercent,
-    titulo: "Fixa o produto e aciona o cupom",
+    icone: Pin,
+    titulo: "Fixa o produto na tela",
     texto:
       "Fixa o produto que você escolher no LIVE Studio, e pode rodar entre eles sozinha durante a live. Na primeira vez você aponta os botões na sua tela — o painel de produtos muda de conta para conta, e a Shopia prefere perguntar a arriscar clicar no lugar errado.",
+  },
+  {
+    icone: ShieldCheck,
+    titulo: "Revisa o manual antes da live",
+    texto:
+      "Procura no manual as frases que costumam fazer o TikTok restringir a live — mandar para o WhatsApp, pedir Pix por fora, prometer resultado — e aponta qual resposta corrigir. Ela avisa; quem decide é você.",
+  },
+  {
+    icone: MonitorCheck,
+    titulo: "Roda só no navegador",
+    texto:
+      "Nada de driver, cabo de áudio ou programa instalado no sistema. O Chrome aberto com a sua live e o LIVE Studio é tudo de que ela precisa.",
   },
 ];
 
@@ -111,7 +95,7 @@ export function Recursos({ temPacote, recursos, chatDesligadoNaBase }: RecursosP
             Hoje a lista inteira está em breve.
           </strong>{" "}
           Cada um destes recursos mora dentro do pacote da extensão, e o pacote ainda não
-          foi publicado. É o mesmo motivo para os seis — não há um que já funcione.
+          foi publicado. É o mesmo motivo para todos — não há um que já funcione.
         </p>
       )}
 
@@ -121,8 +105,8 @@ export function Recursos({ temPacote, recursos, chatDesligadoNaBase }: RecursosP
           const selo = SELO[estado];
           const Icone = recurso.icone;
 
-          // O chat cai pela base inteira (`ext.chat_desligado`) sem derrubar o
-          // áudio junto; o cartão avisa em vez de mentir que está no ar.
+          // O chat cai pela base inteira por `ext.chat_desligado`; o cartão avisa
+          // em vez de mentir que está no ar.
           const pausadoNaBase =
             recurso.chave === "chat" && estado === "disponivel" && chatDesligadoNaBase;
 

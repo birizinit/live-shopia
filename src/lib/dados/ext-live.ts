@@ -3,7 +3,7 @@ import { bd } from "@/lib/db";
 import { revisarTexto } from "@/lib/termos-restritos";
 import { encerramentoNormal } from "@/lib/telemetria-legado";
 import { ErroDominio } from "./erros";
-import { comoJson, numeroDe } from "./comum";
+import { comoJson } from "./comum";
 
 /**
  * O que a extensão precisa do servidor para operar a live.
@@ -17,171 +17,46 @@ import { comoJson, numeroDe } from "./comum";
  * argumento e entra no `where` de toda consulta (db/README.md).
  */
 
-export type BlocoParaTocar = {
-  /** Id do ARQUIVO, que é o que a extensão vai buscar em /api/ext/bloco. */
-  arquivoId: string;
-  ordem: number;
-  bytes: number;
-  duracaoMs: number | null;
-};
-
-export type FalaParaTocar = {
-  audioId: string;
-  ordem: number;
-  titulo: string;
-  duracaoMs: number;
-  blocos: BlocoParaTocar[];
-};
-
-export type MontagemParaTocar = {
-  id: string;
-  nome: string;
-  intervaloMs: number;
-  embaralhar: boolean;
-  volumeTrilha: number;
-  trilha: { arquivoId: string; nome: string } | null;
-  duracaoMs: number;
-  falas: FalaParaTocar[];
+export type RevisaoDoManual = {
+  alertas: number;
+  itens: { id: string; rotulo: string; exemplos: string[] }[];
 };
 
 /**
- * A montagem ativa, em blocos, pronta para tocar em laço.
+ * Revisão anti-restrição do MANUAL.
  *
- * O arquivo contínuo de três horas não existe: são ~45 blocos de ~2 MB que a
- * extensão toca em ordem. Repetir a lista não gasta crédito nenhum, e é isso
- * que sustenta a margem do produto — por isso a extensão recebe a LISTA, e não
- * um pedido de geração.
+ * A Shopia escreve no chat exatamente o que está no manual, palavra por
+ * palavra — então é ali, e só ali, que pode haver frase que faz o TikTok
+ * restringir a live: mandar para o WhatsApp, pedir Pix por fora, prometer
+ * resultado. Revisar na hora do envio seria tarde; revisar o manual avisa
+ * antes de a live começar.
+ *
+ * Não impede nada: quem decide é o vendedor, avisado. A extensão mostra o
+ * número e aponta qual resposta corrigir.
  */
-export async function montagemAtivaParaExtensao(
-  perfilId: string,
-): Promise<MontagemParaTocar | null> {
-  const sql = bd();
-
-  const montagens = await sql<
-    {
-      id: string;
-      nome: string;
-      intervalo_ms: number;
-      embaralhar: boolean;
-      volume_trilha: number;
-      duracao_ms: number | null;
-      trilha_arquivo: string | null;
-      trilha_nome: string | null;
-    }[]
-  >`
-    select m.id, m.nome, m.intervalo_ms, m.embaralhar, m.volume_trilha, m.duracao_ms,
-           t.arquivo_id as trilha_arquivo, t.nome as trilha_nome
-      from montagens m
-      left join trilhas_ambiente t on t.id = m.trilha_id and t.ativa
-     where m.perfil_id = ${perfilId} and m.ativa
-     limit 1
+export async function revisaoDoManual(perfilId: string): Promise<RevisaoDoManual> {
+  const linhas = await bd()<{ id: string; rotulo: string; resposta: string }[]>`
+    select id, rotulo, resposta
+      from temas_resposta
+     where perfil_id = ${perfilId} and ativo
+     order by ordem
   `;
 
-  const m = montagens[0];
-  if (!m) return null;
+  const itens: RevisaoDoManual["itens"] = [];
+  let alertas = 0;
 
-  // Uma consulta só para todos os blocos de todas as falas: a montagem tem
-  // dezenas de blocos e uma consulta por fala seria N+1 no caminho quente da
-  // extensão, que refaz isso a cada troca de montagem.
-  const linhas = await sql<
-    {
-      audio_id: string;
-      ordem_fala: number;
-      titulo: string;
-      audio_duracao: number | null;
-      arquivo_id: string;
-      ordem_bloco: number;
-      bytes: number;
-      bloco_duracao: number | null;
-    }[]
-  >`
-    select a.id as audio_id, i.ordem as ordem_fala, a.titulo,
-           a.duracao_ms as audio_duracao,
-           b.arquivo_id, b.ordem as ordem_bloco,
-           arq.bytes, b.duracao_ms as bloco_duracao
-      from montagem_itens i
-      join audios a on a.id = i.audio_id and a.perfil_id = ${perfilId}
-      join audio_blocos b on b.audio_id = a.id and b.perfil_id = ${perfilId}
-      join arquivos arq on arq.id = b.arquivo_id and arq.estado = 'pronto'
-     where i.montagem_id = ${m.id} and i.perfil_id = ${perfilId}
-       and b.estado = 'pronto' and b.arquivo_id is not null
-     order by i.ordem, b.ordem
-  `;
-
-  const porFala = new Map<string, FalaParaTocar>();
-  for (const l of linhas) {
-    let fala = porFala.get(l.audio_id);
-    if (!fala) {
-      fala = {
-        audioId: l.audio_id,
-        ordem: numeroDe(l.ordem_fala),
-        titulo: l.titulo,
-        duracaoMs: numeroDe(l.audio_duracao),
-        blocos: [],
-      };
-      porFala.set(l.audio_id, fala);
-    }
-    fala.blocos.push({
-      arquivoId: l.arquivo_id,
-      ordem: numeroDe(l.ordem_bloco),
-      bytes: numeroDe(l.bytes),
-      duracaoMs: l.bloco_duracao === null ? null : numeroDe(l.bloco_duracao),
+  for (const linha of linhas) {
+    const achados = revisarTexto(linha.resposta);
+    if (achados.length === 0) continue;
+    alertas += achados.length;
+    itens.push({
+      id: linha.id,
+      rotulo: linha.rotulo,
+      exemplos: achados.slice(0, 3).map((a) => a.trecho),
     });
   }
 
-  return {
-    id: m.id,
-    nome: m.nome,
-    intervaloMs: numeroDe(m.intervalo_ms),
-    embaralhar: m.embaralhar,
-    volumeTrilha: Number(m.volume_trilha),
-    trilha:
-      m.trilha_arquivo && m.trilha_nome
-        ? { arquivoId: m.trilha_arquivo, nome: m.trilha_nome }
-        : null,
-    duracaoMs: numeroDe(m.duracao_ms),
-    falas: [...porFala.values()].sort((a, b) => a.ordem - b.ordem),
-  };
-}
-
-export type RevisaoDaMontagem = {
-  /** Soma de trechos sinalizados em todas as falas. */
-  alertas: number;
-  falas: { audioId: string; titulo: string; alertas: number; exemplos: string[] }[];
-};
-
-/**
- * Revisão anti-restrição do que a montagem ativa vai falar.
- *
- * Roda no texto que gerou cada áudio, com a mesma lista do assistente de
- * criação (src/lib/termos-restritos.ts). Não impede tocar: quem decide é o
- * vendedor, avisado — a extensão mostra o número e aponta onde corrigir.
- */
-export async function revisaoDaMontagem(
-  perfilId: string,
-  montagemId: string,
-): Promise<RevisaoDaMontagem> {
-  const linhas = await bd()<{ audio_id: string; titulo: string; texto: string }[]>`
-    select a.id as audio_id, a.titulo, a.texto
-      from montagem_itens i
-      join audios a on a.id = i.audio_id and a.perfil_id = ${perfilId}
-     where i.montagem_id = ${montagemId} and i.perfil_id = ${perfilId}
-     order by i.ordem
-  `;
-
-  const falas = linhas
-    .map((l) => {
-      const achados = revisarTexto(l.texto ?? "");
-      return {
-        audioId: l.audio_id,
-        titulo: l.titulo,
-        alertas: achados.length,
-        exemplos: [...new Set(achados.map((a) => a.trecho))].slice(0, 3),
-      };
-    })
-    .filter((f) => f.alertas > 0);
-
-  return { alertas: falas.reduce((t, f) => t + f.alertas, 0), falas };
+  return { alertas, itens };
 }
 
 /**
@@ -202,40 +77,6 @@ export async function riscoAceitoNaVersaoVigente(perfilId: string): Promise<bool
   return linhas[0]?.ok === true;
 }
 
-export type BlocoServivel = {
-  mime: string;
-  bytes: number;
-  conteudo: Buffer;
-};
-
-/**
- * Um bloco de áudio, conferindo o dono.
- *
- * A trilha de ambiente é global (perfil_id nulo) e vale para todo mundo; áudio
- * gerado é do dono e de mais ninguém. O `or` abaixo cobre os dois casos sem
- * abrir a porta: arquivo de OUTRO perfil não casa em nenhum dos dois lados.
- */
-export async function blocoParaExtensao(
-  perfilId: string,
-  arquivoId: string,
-): Promise<BlocoServivel | null> {
-  const linhas = await bd()<
-    { mime: string; bytes: number; conteudo: Buffer | null }[]
-  >`
-    select mime, bytes, conteudo
-      from arquivos
-     where id = ${arquivoId}
-       and estado = 'pronto'
-       and removido_em is null
-       and (perfil_id = ${perfilId} or perfil_id is null)
-  `;
-
-  const a = linhas[0];
-  if (!a?.conteudo) return null;
-
-  return { mime: a.mime, bytes: numeroDe(a.bytes), conteudo: a.conteudo };
-}
-
 /**
  * Abre a sessão de live, ou devolve a que já está aberta.
  *
@@ -245,7 +86,7 @@ export async function blocoParaExtensao(
  */
 export async function abrirSessaoExtensao(
   perfilId: string,
-  dados: { montagemId: string | null; contaTikTokId: string | null },
+  dados: { contaTikTokId: string | null },
 ): Promise<{ sessaoId: string; jaEstavaAberta: boolean }> {
   const sql = bd();
 
@@ -266,14 +107,12 @@ export async function abrirSessaoExtensao(
     return { sessaoId: abertas[0].id, jaEstavaAberta: true };
   }
 
-  // Vínculos vêm por SELECT filtrado pelo dono: id de montagem ou de conta
-  // mandado pela extensão não prova posse, e a FK só confere existência.
+  // O vínculo vem por SELECT filtrado pelo dono: id de conta mandado pela
+  // extensão não prova posse, e a FK só confere existência.
   const criadas = await sql<{ id: string }[]>`
-    insert into live_sessoes (perfil_id, montagem_id, conta_tiktok_id, estado, origem)
+    insert into live_sessoes (perfil_id, conta_tiktok_id, estado, origem)
     values (
       ${perfilId},
-      (select m.id from montagens m
-        where m.id = ${dados.montagemId} and m.perfil_id = ${perfilId}),
       (select c.id from contas_tiktok c
         where c.id = ${dados.contaTikTokId} and c.perfil_id = ${perfilId}),
       'ativa',

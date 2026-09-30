@@ -1,8 +1,9 @@
-// Service worker: coordena, não toca áudio.
+// Service worker: o único que tem o token.
 //
 // Em MV3 este processo MORRE depois de ~30 segundos ocioso e volta quando algo
-// o acorda. Então tudo que precisa durar horas — o áudio — mora no painel
-// lateral, e tudo que precisa sobreviver à morte dele mora no storage.
+// o acorda. Por isso nada de estado vive em memória aqui: o que precisa
+// sobreviver à morte dele mora no storage, e o que precisa acontecer de tempo
+// em tempo mora em `chrome.alarms`, que ressuscita o worker.
 //
 // O que este arquivo faz:
 //   - bate na licença de tempos em tempos (chrome.alarms sobrevive à morte)
@@ -21,7 +22,7 @@ const CHAVE_CHAT = "shopia_chat";
 let estado = {
   licenciada: false,
   motivo: null,
-  recursos: { mixer: false, chat: false },
+  recursos: { chat: false },
   versaoPublicada: null,
   atualizacaoObrigatoria: false,
   pararAgora: false,
@@ -81,10 +82,12 @@ async function baterLicenca() {
       licenciada: true,
       motivo: null,
       recursos: {
-        mixer: Boolean(r.recursos?.mixer),
         chat: Boolean(r.recursos?.chat),
         chatDesligadoNaBase: Boolean(r.recursos?.chatDesligadoNaBase),
       },
+      // A revisão do manual vem no mesmo batimento: é aviso, não consulta que
+      // alguém faz de propósito.
+      protecao: r.protecao ?? null,
       versaoPublicada: r.versao?.publicada ?? null,
       atualizacaoObrigatoria: Boolean(r.versao?.obrigatoria),
       notas: r.versao?.notas ?? null,
@@ -173,7 +176,7 @@ async function despejarFila() {
  *
  * No modo só chat nada precisa do painel: quem lê o chat é o content script e
  * quem guarda o token é este worker. Mas o batimento da sessão morava no
- * painel, junto do motor de áudio — então fechar o painel derrubava a sessão
+ * painel — então fechar o painel derrubava a sessão
  * pela faxina do servidor, e o chat parava de responder sem ninguém entender
  * por quê. Aqui ele sobrevive: `chrome.alarms` acorda o worker morto.
  */
@@ -275,16 +278,6 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
 
         try {
           const decisao = await api.decidirResposta({ sessaoId, ...mensagem.evento });
-
-          // Falar é com o painel: é lá que o motor de áudio vive. O content
-          // script não tem como tocar nada.
-          if (decisao.acao === "falar") {
-            chrome.runtime
-              .sendMessage({ tipo: "falar", decisao, sessaoId })
-              .catch(() => {});
-            responder({ ok: true, acao: "falando" });
-            break;
-          }
 
           responder({ ok: true, ...decisao });
         } catch (erro) {

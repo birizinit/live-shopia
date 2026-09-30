@@ -11,10 +11,12 @@ import { ErroDominio, comTraducao, exigirAchado } from "./erros";
 import type { Consulta, Pagina } from "./tipos";
 
 /**
- * Produtos — a raiz do pipeline.
+ * Produtos — o que a live vende.
  *
- * Sem produto nao existe roteiro, nem audio, nem live: e daqui que saem o nome,
- * a oferta, os beneficios e as objecoes que a IA usa para escrever.
+ * Sem produto a Shopia nao tem do que falar: e daqui que saem o nome, o preco e
+ * o cupom que a audiencia pergunta no chat. O produto fixado e mais que
+ * destaque: e ele que decide quais linhas do manual valem na live em curso
+ * (`casar_tema` so aceita tema de produto quando aquele produto esta em cena).
  *
  * Nao ha RLS neste banco. Toda funcao recebe `perfilId` como PRIMEIRO argumento
  * e o usa no `where` — inclusive quando o id do produto veio da URL, que e
@@ -36,8 +38,6 @@ export type Produto = {
   arquivadoEm: string | null;
   criadoEm: string;
   atualizadoEm: string;
-  /** Roteiros vivos apontando para este produto. E o que separa arquivar de excluir. */
-  roteiros: number;
 };
 
 export type EntradaProduto = {
@@ -53,8 +53,15 @@ export type EntradaProduto = {
 
 export type ConsultaProdutos = Consulta & { arquivados?: boolean };
 
-/** O que esta pendurado no produto. Zero em tudo e a unica licenca para excluir. */
-export type Vinculos = { roteiros: number; audios: number };
+/**
+ * O que a exclusao leva junto.
+ *
+ * `temas_resposta.produto_id` e `on delete cascade`: as respostas do manual
+ * presas a este produto desaparecem com ele, sem aviso do banco. Nao e motivo
+ * para recusar a exclusao — e motivo para a tela dizer o numero antes de a
+ * pessoa confirmar, porque arquivar existe justamente para nao perder isso.
+ */
+export type Vinculos = { respostasManual: number };
 
 export const MAX_ITENS_LISTA = 12;
 
@@ -119,7 +126,6 @@ type LinhaProduto = {
   arquivado_em: Date | null;
   criado_em: Date;
   atualizado_em: Date;
-  roteiros: string;
   total: string;
 };
 
@@ -148,7 +154,6 @@ function comoProduto(l: LinhaProduto): Produto {
     arquivadoEm: l.arquivado_em ? l.arquivado_em.toISOString() : null,
     criadoEm: l.criado_em.toISOString(),
     atualizadoEm: l.atualizado_em.toISOString(),
-    roteiros: numeroDe(l.roteiros),
   };
 }
 
@@ -181,9 +186,6 @@ export async function listarProdutos(
         select p.id, p.nome, p.descricao, p.preco_centavos, p.preco_de_centavos,
                p.cupom, p.link, p.imagem_id, p.beneficios, p.objecoes,
                p.fixado, p.arquivado_em, p.criado_em, p.atualizado_em,
-               (select count(*) from roteiros r
-                 where r.produto_id = p.id and r.perfil_id = p.perfil_id
-                   and r.arquivado_em is null) as roteiros,
                -- A janela e calculada antes do LIMIT, entao na primeira pagina
                -- (sem cursor) isto ja e o total e evita uma segunda consulta.
                -- Nas paginas seguintes o valor e descartado.
@@ -220,9 +222,6 @@ export async function obterProduto(
         select p.id, p.nome, p.descricao, p.preco_centavos, p.preco_de_centavos,
                p.cupom, p.link, p.imagem_id, p.beneficios, p.objecoes,
                p.fixado, p.arquivado_em, p.criado_em, p.atualizado_em,
-               (select count(*) from roteiros r
-                 where r.produto_id = p.id and r.perfil_id = p.perfil_id
-                   and r.arquivado_em is null) as roteiros,
                0 as total
           from produtos p
          where p.id = ${produtoId} and p.perfil_id = ${perfilId}
@@ -242,9 +241,6 @@ export async function produtoFixado(perfilId: string): Promise<Produto | null> {
         select p.id, p.nome, p.descricao, p.preco_centavos, p.preco_de_centavos,
                p.cupom, p.link, p.imagem_id, p.beneficios, p.objecoes,
                p.fixado, p.arquivado_em, p.criado_em, p.atualizado_em,
-               (select count(*) from roteiros r
-                 where r.produto_id = p.id and r.perfil_id = p.perfil_id
-                   and r.arquivado_em is null) as roteiros,
                0 as total
           from produtos p
          where p.perfil_id = ${perfilId} and p.fixado and p.arquivado_em is null
@@ -277,25 +273,20 @@ export async function vinculosDoProduto(
   perfilId: string,
   produtoId: string,
 ): Promise<Vinculos> {
-  if (!ehUuid(produtoId)) return { roteiros: 0, audios: 0 };
+  if (!ehUuid(produtoId)) return { respostasManual: 0 };
 
   return comDemo(
-    () => ({
-      roteiros: EXEMPLOS.find((p) => p.id === produtoId)?.roteiros ?? 0,
-      audios: 0,
-    }),
+    // A sessao demo nao tem manual no banco e a exclusao dela nem chega a rodar:
+    // zero aqui e o numero honesto, nao um placeholder.
+    () => ({ respostasManual: 0 }),
     async () => {
-      const linhas = await bd()<{ roteiros: string; audios: string }[]>`
-        select
-          (select count(*) from roteiros r
-            where r.produto_id = ${produtoId} and r.perfil_id = ${perfilId}) as roteiros,
-          (select count(*) from audios a
-            where a.produto_id = ${produtoId} and a.perfil_id = ${perfilId}) as audios
+      // Sem filtro por `ativo`: o cascade nao olha se a resposta esta ligada, e
+      // avisar de menos e pior que avisar de uma resposta que estava desligada.
+      const linhas = await bd()<{ respostas: string }[]>`
+        select count(*) as respostas from temas_resposta t
+         where t.produto_id = ${produtoId} and t.perfil_id = ${perfilId}
       `;
-      return {
-        roteiros: numeroDe(linhas[0]?.roteiros),
-        audios: numeroDe(linhas[0]?.audios),
-      };
+      return { respostasManual: numeroDe(linhas[0]?.respostas) };
     },
   );
 }
@@ -401,9 +392,9 @@ export async function fixarProduto(
 }
 
 /**
- * Arquivar tira o produto de circulacao sem cortar o vinculo com os roteiros e
- * audios ja gerados. Arquivado nunca continua fixado: a live estaria
- * destacando algo que saiu de linha.
+ * Arquivar tira o produto de circulacao sem apagar nada — nem as respostas do
+ * manual presas a ele, que a exclusao levaria junto. Arquivado nunca continua
+ * fixado: a live estaria destacando algo que saiu de linha.
  */
 export async function arquivarProduto(
   perfilId: string,
@@ -430,12 +421,13 @@ export async function arquivarProduto(
 }
 
 /**
- * Excluir de vez, e so quando nao ha nada pendurado.
+ * Excluir de vez.
  *
- * As FKs de roteiros e audios sao `on delete set null`: o banco DEIXARIA
- * excluir e o roteiro sobreviveria orfao, sem nome de produto, sem preco e sem
- * como saber do que falava. A regra do produto e mais estrita que a do banco de
- * proposito — quem ja produziu material se arquiva.
+ * O `on delete cascade` de `temas_resposta` leva as respostas do manual presas
+ * a este produto na mesma transacao. Nao se recusa por isso: o dono pode querer
+ * exatamente isso, e quem quer o produto fora da lista sem perder o manual
+ * arquiva. O que nao pode e a perda ser surpresa — `vinculosDoProduto` existe
+ * para a tela dizer o numero antes de a pessoa confirmar.
  *
  * Devolve o id da imagem para quem chamou apagar o binario.
  */
@@ -444,15 +436,6 @@ export async function excluirProduto(
   produtoId: string,
 ): Promise<{ imagemId: string | null }> {
   if (!ehUuid(produtoId)) throw new ErroDominio("nao_encontrado", "Produto não encontrado.");
-
-  const vinculos = await vinculosDoProduto(perfilId, produtoId);
-  if (vinculos.roteiros > 0 || vinculos.audios > 0) {
-    throw new ErroDominio(
-      "conflito",
-      "Este produto já tem roteiro ou áudio gerado. Arquive em vez de excluir: " +
-        "excluir deixaria esse material sem o produto que o originou.",
-    );
-  }
 
   return comTraducao(async () => {
     const linhas = await bd()<{ imagem_id: string | null }[]>`
@@ -531,7 +514,6 @@ const EXEMPLOS: Produto[] = [
     arquivadoEm: null,
     criadoEm: emDias(2),
     atualizadoEm: emDias(1),
-    roteiros: 2,
   },
   {
     id: "00000000-0000-4000-9000-000000000002",
@@ -548,7 +530,6 @@ const EXEMPLOS: Produto[] = [
     arquivadoEm: null,
     criadoEm: emDias(9),
     atualizadoEm: emDias(9),
-    roteiros: 1,
   },
   {
     id: "00000000-0000-4000-9000-000000000003",
@@ -565,12 +546,11 @@ const EXEMPLOS: Produto[] = [
     arquivadoEm: null,
     criadoEm: emDias(21),
     atualizadoEm: emDias(20),
-    roteiros: 0,
   },
   {
     id: "00000000-0000-4000-9000-000000000004",
     nome: "Caneca Térmica 500ml — coleção de inverno",
-    descricao: "Saiu de linha depois da campanha de julho, mas o roteiro dela continua salvo.",
+    descricao: "Saiu de linha depois da campanha de julho, mas o manual dela continua salvo.",
     precoCentavos: 6900,
     precoDeCentavos: null,
     cupom: null,
@@ -582,7 +562,6 @@ const EXEMPLOS: Produto[] = [
     arquivadoEm: emDias(30),
     criadoEm: emDias(120),
     atualizadoEm: emDias(30),
-    roteiros: 1,
   },
 ];
 

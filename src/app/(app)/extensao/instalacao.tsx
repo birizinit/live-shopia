@@ -15,9 +15,8 @@ import type { EstadoLicenca } from "@/lib/dados/extensao";
  * A parte interativa da licença: emitir, rotacionar e revogar o token.
  *
  * É o único pedaço desta tela que precisa de estado no cliente. Os passos de
- * instalação e o cabo virtual saíram daqui para arquivos próprios: só o cabo
- * guarda estado (a aba do sistema), e o resto virou Server Component — texto
- * que não muda não precisa atravessar o bundle.
+ * instalação saíram daqui para um arquivo próprio e viraram Server Component —
+ * texto que não muda não precisa atravessar o bundle.
  */
 
 const INICIAL: EstadoTokenForm = {};
@@ -93,7 +92,7 @@ export function PainelLicenca({ estado, demo }: PainelLicencaProps) {
         <EstadoVazio
           icone={KeyRound}
           titulo="Nenhum token emitido"
-          texto="A extensão prova quem é apresentando um token. É ele que libera o áudio no LIVE Studio e, conforme o plano, as respostas no chat."
+          texto="A extensão prova quem é apresentando um token. É ele que libera a operação da live e, conforme o plano, as respostas no chat."
           acao={
             <form action={acao}>
               <input type="hidden" name="jaTinha" value="0" />
@@ -142,7 +141,7 @@ export function PainelLicenca({ estado, demo }: PainelLicencaProps) {
         texto="Use isto quando a máquina onde a extensão está instalada não for mais sua."
         perdas={[
           "A extensão para de operar no próximo contato com o servidor",
-          "O áudio no LIVE Studio e as respostas no chat saem do ar em todas as máquinas",
+          "As respostas no chat e o produto fixado saem do ar em todas as máquinas",
           "O token atual deixa de valer e precisa ser gerado de novo",
         ]}
         rotuloConfirmar="Revogar"

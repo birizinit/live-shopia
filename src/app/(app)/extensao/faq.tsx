@@ -39,9 +39,8 @@ export function Faq() {
       <Pergunta pergunta="Preciso deixar o computador ligado durante a live?">
         <p>
           Precisa. A live roda na sua máquina, com o Chrome e o TikTok LIVE Studio abertos
-          o tempo todo. Não existe servidor nosso transmitindo no seu lugar: a extensão é
-          quem toca o áudio e responde o chat, e ela só existe enquanto o navegador está
-          aberto.
+          o tempo todo. Não existe servidor nosso operando no seu lugar: quem lê o chat e
+          responde é a extensão, e ela só existe enquanto o navegador está aberto.
         </p>
         <p>
           Na prática: desligue a suspensão automática e o desligamento de tela por
@@ -50,23 +49,23 @@ export function Faq() {
         </p>
       </Pergunta>
 
-      <Pergunta pergunta="Funciona em Mac e em Windows?">
+      <Pergunta pergunta="Preciso instalar algum programa ou driver no computador?">
         <p>
-          Nos dois. O Chrome é o mesmo, a extensão é a mesma e o LIVE Studio existe para
-          os dois sistemas. O que muda é o cabo virtual: VB-Cable no Windows, BlackHole no
-          macOS — cada um com o seu passo a passo{" "}
-          <a
-            href="#cabo-virtual"
-            className="font-medium text-primary underline-offset-4 hover:underline"
-          >
-            na seção acima
-          </a>
-          .
+          Não. A extensão vive dentro do Chrome e trabalha em cima das páginas que você já
+          abriria de qualquer jeito — a sua live no tiktok.com e o LIVE Studio. Não há cabo
+          de áudio virtual, driver nem programa de fundo para instalar.
         </p>
         <p>
-          Há uma diferença que vale saber antes de escolher a máquina: no Windows dá para
-          mandar só o som do Chrome para o cabo; no Mac, o roteamento é do sistema inteiro
-          e todo som do computador entra na live.
+          O único arquivo que sai daqui é o pacote da extensão, e ele fica numa pasta que
+          você escolhe. Desinstalar é remover a extensão do Chrome e apagar a pasta.
+        </p>
+      </Pergunta>
+
+      <Pergunta pergunta="Funciona em Mac e em Windows?">
+        <p>
+          Nos dois, sem diferença de passo a passo. O Chrome é o mesmo, a extensão é a
+          mesma e o LIVE Studio existe para os dois sistemas — e como nada é instalado
+          fora do navegador, não há nada que se comporte diferente entre eles.
         </p>
         <p>
           Em celular e tablet não roda. O LIVE Studio é programa de computador e o Chrome
@@ -98,33 +97,39 @@ export function Faq() {
         </p>
       </Pergunta>
 
-      <Pergunta pergunta="A IA responde qualquer coisa no chat?">
+      <Pergunta pergunta="A Shopia responde qualquer coisa no chat?">
         <p>
-          Não. Ela responde sobre os temas que você cadastrou — os seus produtos, o
-          roteiro daquela live, o cupom, prazo e frete que você preencheu. Fora desse
-          cerco, ela desconversa e devolve a pessoa para a oferta, em vez de improvisar.
-        </p>
-        <p>
-          A regra é essa porque inventar preço ou prazo custa caro: vira reclamação, e o
-          prejuízo é seu. Se a resposta não estiver no que você cadastrou em{" "}
+          Não, e ela não escreve resposta nenhuma por conta própria. Cada linha do{" "}
           <Link
-            href="/produtos"
+            href="/manual"
             className="font-medium text-primary underline-offset-4 hover:underline"
           >
-            Produtos
+            manual
           </Link>{" "}
-          e em{" "}
-          <Link
-            href="/roteiro"
-            className="font-medium text-primary underline-offset-4 hover:underline"
-          >
-            Roteiro
-          </Link>
-          , ela não inventa uma.
+          é uma pergunta, as palavras que a disparam e a resposta que você escreveu. O que
+          ela faz é escolher qual linha cabe no comentário e devolver aquele texto.
         </p>
         <p>
-          Quanto mais completo o cadastro, menos ela desconversa. É o ajuste que mais muda
-          a qualidade do chat.
+          Quando nenhuma linha casa, ela cala. Não improvisa preço, prazo nem promessa —
+          inventar isso vira reclamação, e o prejuízo é seu. O comentário sem resposta vai
+          para uma lista no manual, para você cadastrar antes da próxima live.
+        </p>
+        <p>
+          Quanto mais completo o manual, menos gente fica sem resposta. É o ajuste que
+          mais muda a qualidade do chat — bem mais do que qualquer coisa que a gente possa
+          fazer do nosso lado.
+        </p>
+      </Pergunta>
+
+      <Pergunta pergunta="Ela demora para responder. Isso é problema?">
+        <p>
+          É de propósito. Cada resposta sai depois de uma espera sorteada, e há um teto de
+          respostas por minuto. Rajada de mensagem idêntica no mesmo segundo é a assinatura
+          mais óbvia de automação, e é justamente o que faz o TikTok olhar para a sua live.
+        </p>
+        <p>
+          O efeito colateral é que, em live movimentada, algum comentário passa sem
+          resposta. A gente prefere isso a responder todos e atrair atenção.
         </p>
       </Pergunta>
     </div>

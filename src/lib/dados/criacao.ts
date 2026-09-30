@@ -1,133 +1,38 @@
 import "server-only";
 import { bd } from "@/lib/db";
-import { audioDoPerfil } from "./audios";
 import { comDemo, numeroDe } from "./comum";
 import { ErroDominio } from "./erros";
-import { enfileirar } from "./fila";
-import { salvarConfiguracaoLive } from "./live";
-import {
-  TETO_ITENS,
-  ativarMontagem,
-  criarMontagem,
-  listarMontagens,
-  montagemDoPerfil,
-  salvarMontagem,
-} from "./montagens";
 import { criarProduto, type EntradaProduto } from "./produtos";
-import { criarRoteiro, roteiroDaChave } from "./roteiros";
 
 /**
- * O caminho curto até a live: produto → roteiro → voz → áudio → no ar.
+ * O caminho curto até a live: produto → manual → extensão → no ar.
  *
  * Antes, cada passo era uma tela e a pessoa precisava saber a ordem — as
- * primeiras clientes instalaram a extensão sem nunca ter gerado um áudio, e a
- * extensão não tinha o que tocar. Este módulo junta os passos que não pedem
- * decisão, e deixa para a tela só o que pede: o texto, a voz e o custo.
+ * primeiras clientes instalaram a extensão sem nada cadastrado, e a Shopia
+ * ficava muda na live inteira sem dizer por quê. Este módulo junta os passos
+ * que não pedem decisão e deixa para a tela só o que pede.
  *
- * Nada aqui cobra por conta própria. Quem cobra continua sendo
- * `debitarEEnfileirar`, via `gerarAudioPago`, depois de a pessoa ver o custo.
+ * Era aqui que morava a criação de roteiro, voz e montagem de áudio. Saiu tudo
+ * na 0026: a Shopia não fala mais, ela modera.
  */
-
-export const NOME_MONTAGEM_PADRAO = "Minha live";
 
 export type PedidoDeLive = {
   /** Produto já cadastrado… */
   produtoId: string | null;
   /** …ou o que acabou de ser digitado no assistente. */
   produto: EntradaProduto | null;
-  minutos: number;
-  tom: string | null;
-  /** chaveIdempotente("roteiro"), gerada no render do formulário. */
-  referencia: string;
 };
 
 /**
- * Cadastra o produto (se for novo), cria o roteiro e põe a IA para escrever.
- *
- * O duplo clique reencontra o roteiro da primeira submissão pela chave, antes
- * de criar qualquer coisa — sem isso, sairiam dois produtos iguais.
+ * Garante que existe o produto e devolve o id, para o assistente seguir para o
+ * manual. Cadastrar o mesmo produto duas vezes por duplo clique é problema do
+ * formulário (que manda `produtoId` na segunda vez), não daqui.
  */
 export async function comecarCriacao(perfilId: string, pedido: PedidoDeLive): Promise<string> {
-  const existente = await roteiroDaChave(perfilId, pedido.referencia);
-  if (existente) return existente;
-
   const produtoId =
     pedido.produtoId ?? (pedido.produto ? await criarProduto(perfilId, pedido.produto) : null);
   if (!produtoId) throw new ErroDominio("dado_invalido", "Diga o que você vai vender.");
-
-  const { id } = await criarRoteiro(perfilId, { produtoId });
-
-  await enfileirar(perfilId, "roteiro", {
-    referencia: pedido.referencia,
-    entrada: {
-      roteiro_id: id,
-      minutos_alvo: pedido.minutos,
-      ...(pedido.tom ? { tom: pedido.tom } : {}),
-    },
-  });
-
-  return id;
-}
-
-export type ModoNaLive = "juntar" | "sozinho";
-
-/**
- * Põe um áudio pronto no que a extensão toca, e deixa tudo apontando para ele.
- *
- * "juntar" acrescenta à montagem que já está no ar (a live alterna os
- * produtos); "sozinho" usa a montagem "Minha live" só com este áudio — a
- * montagem anterior fica guardada, só sai do ar.
- */
-export async function colocarNaLive(
-  perfilId: string,
-  audioId: string,
-  modo: ModoNaLive,
-): Promise<{ montagemId: string; itens: number }> {
-  const audio = await audioDoPerfil(perfilId, audioId);
-  if (!audio) throw new ErroDominio("nao_encontrado", "Áudio não encontrado.");
-  if (audio.estado !== "pronto") {
-    throw new ErroDominio("dado_invalido", "O áudio ainda não ficou pronto.");
-  }
-
-  const montagens = await listarMontagens(perfilId);
-  const ativa = montagens.find((m) => m.ativa) ?? null;
-
-  let alvoId: string;
-  let lista: string[];
-  if (modo === "juntar" && ativa) {
-    alvoId = ativa.id;
-    const atual = await montagemDoPerfil(perfilId, alvoId);
-    lista = [...(atual?.audios ?? []).filter((id) => id !== audioId), audioId].slice(-TETO_ITENS);
-  } else {
-    const padrao = montagens.find((m) => m.nome === NOME_MONTAGEM_PADRAO);
-    alvoId = padrao?.id ?? (await criarMontagem(perfilId, NOME_MONTAGEM_PADRAO));
-    lista = [audioId];
-  }
-
-  const base = await montagemDoPerfil(perfilId, alvoId);
-  const resultado = await salvarMontagem(perfilId, alvoId, {
-    nome: base?.nome ?? NOME_MONTAGEM_PADRAO,
-    trilhaId: base?.trilhaId ?? null,
-    volumeTrilha: base?.volumeTrilha ?? 15,
-    intervaloMs: base?.intervaloMs ?? 800,
-    // Com dois ou mais áudios, a ordem varia a cada volta: quem fica meia hora
-    // na live não ouve a mesma sequência se repetindo igual.
-    embaralhar: lista.length >= 2 ? true : (base?.embaralhar ?? false),
-    audios: lista,
-  });
-
-  // `salvarMontagem` descarta em silêncio áudio que não está pronto. Se o
-  // nosso não entrou, dizer "pronto" seria mentir sobre a live.
-  if (resultado.itens === 0) {
-    throw new ErroDominio("dado_invalido", "O áudio não entrou na live. Recarregue e tente de novo.");
-  }
-
-  await ativarMontagem(perfilId, alvoId);
-  // A voz deste áudio vira a voz da live: é a que o checklist de /live confere
-  // e a que o estúdio sugere da próxima vez.
-  await salvarConfiguracaoLive(perfilId, { vozId: audio.vozId });
-
-  return { montagemId: alvoId, itens: resultado.itens };
+  return produtoId;
 }
 
 // -----------------------------------------------------------------------------
@@ -135,14 +40,21 @@ export async function colocarNaLive(
 // -----------------------------------------------------------------------------
 
 export type JornadaDaLive = {
-  audio: {
-    /** A montagem ativa tem ao menos um áudio pronto: a extensão tem o que tocar. */
+  produto: {
+    /** Tem ao menos um produto cadastrado e não arquivado. */
     pronto: boolean;
-    montagemNome: string | null;
-    falas: number;
-    duracaoMs: number;
-    /** Áudios na fila ou gerando agora. */
-    gerando: number;
+    nome: string | null;
+    quantos: number;
+  };
+  manual: {
+    /**
+     * Tem manual utilizável. O corte é em respostas ATIVAS: manual com tudo
+     * desligado é manual vazio na hora da live, e dizer "pronto" aqui faria a
+     * pessoa descobrir isso ao vivo.
+     */
+    pronto: boolean;
+    perguntas: number;
+    semResposta: number;
   };
   extensao: {
     instalada: boolean;
@@ -158,7 +70,8 @@ export type JornadaDaLive = {
 };
 
 const JORNADA_DEMO: JornadaDaLive = {
-  audio: { pronto: true, montagemNome: NOME_MONTAGEM_PADRAO, falas: 2, duracaoMs: 360_000, gerando: 0 },
+  produto: { pronto: true, nome: "Kit 3 camisetas", quantos: 3 },
+  manual: { pronto: true, perguntas: 6, semResposta: 2 },
   extensao: { instalada: false, vistaEm: null },
   live: { noAr: false, desde: null, lives: 0 },
   riscoAceito: true,
@@ -171,10 +84,10 @@ export async function jornadaDaLive(perfilId: string): Promise<JornadaDaLive> {
       const linha = (
         await bd()<
           {
-            montagem_nome: string | null;
-            falas: number;
-            duracao_ms: string | null;
-            gerando: number;
+            produto_nome: string | null;
+            produtos: number;
+            perguntas: number;
+            sem_resposta: number;
             extensao_vista_em: Date | null;
             instalacoes: number;
             ao_vivo_desde: Date | null;
@@ -183,19 +96,20 @@ export async function jornadaDaLive(perfilId: string): Promise<JornadaDaLive> {
           }[]
         >`
           select
-            (select m.nome from montagens m where m.perfil_id = ${perfilId} and m.ativa) as montagem_nome,
-            (select count(*)::int
-               from montagem_itens i
-               join montagens m on m.id = i.montagem_id and m.ativa and m.perfil_id = ${perfilId}
-               join audios a on a.id = i.audio_id and a.estado = 'pronto' and a.perfil_id = ${perfilId}
-              where i.perfil_id = ${perfilId}) as falas,
-            (select sum(a.duracao_ms)
-               from montagem_itens i
-               join montagens m on m.id = i.montagem_id and m.ativa and m.perfil_id = ${perfilId}
-               join audios a on a.id = i.audio_id and a.estado = 'pronto' and a.perfil_id = ${perfilId}
-              where i.perfil_id = ${perfilId}) as duracao_ms,
-            (select count(*)::int from audios a
-              where a.perfil_id = ${perfilId} and a.estado in ('na_fila', 'gerando')) as gerando,
+            (select p.nome from produtos p
+              where p.perfil_id = ${perfilId} and p.arquivado_em is null
+              order by p.fixado desc, p.criado_em desc limit 1) as produto_nome,
+            (select count(*)::int from produtos p
+              where p.perfil_id = ${perfilId} and p.arquivado_em is null) as produtos,
+            (select count(*)::int from temas_resposta t
+              where t.perfil_id = ${perfilId} and t.ativo) as perguntas,
+            (select count(distinct lower(btrim(e.texto)))::int
+               from live_eventos e
+              where e.perfil_id = ${perfilId}
+                and e.tipo = 'comentario'
+                and e.texto is not null
+                and length(btrim(e.texto)) between 4 and 200
+                and (select id from casar_tema(${perfilId}, e.texto)) is null) as sem_resposta,
             (select max(e.ultimo_contato) from ext_instalacoes e
               where e.perfil_id = ${perfilId}) as extensao_vista_em,
             (select count(*)::int from ext_instalacoes e
@@ -208,14 +122,19 @@ export async function jornadaDaLive(perfilId: string): Promise<JornadaDaLive> {
         `
       )[0]!;
 
-      const falas = numeroDe(linha.falas);
+      const produtos = numeroDe(linha.produtos);
+      const perguntas = numeroDe(linha.perguntas);
+
       return {
-        audio: {
-          pronto: falas > 0,
-          montagemNome: linha.montagem_nome,
-          falas,
-          duracaoMs: numeroDe(linha.duracao_ms),
-          gerando: numeroDe(linha.gerando),
+        produto: {
+          pronto: produtos > 0,
+          nome: linha.produto_nome,
+          quantos: produtos,
+        },
+        manual: {
+          pronto: perguntas > 0,
+          perguntas,
+          semResposta: numeroDe(linha.sem_resposta),
         },
         extensao: {
           instalada: numeroDe(linha.instalacoes) > 0,

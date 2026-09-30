@@ -50,92 +50,10 @@
         <div id="aviso-parar" class="aviso perigo" role="alert" hidden></div>
         <div id="aviso-versao" class="aviso alerta" hidden></div>
 
-        <!-- Modo de operação -->
-        <div class="bloco">
-          <h2>O que a Shopia faz nesta live</h2>
-          <div class="modos" role="radiogroup" aria-label="Modo de operação">
-            <label class="modo">
-              <input type="radio" name="modo" value="chat" checked />
-              <span>
-                <strong>Só chat</strong>
-                <small>
-                  Responde comentários, dá boas-vindas pelo nome e fixa
-                  produtos. Funciona só com o navegador — não precisa instalar
-                  nada no computador.
-                </small>
-              </span>
-            </label>
-            <label class="modo">
-              <input type="radio" name="modo" value="chat_audio" />
-              <span>
-                <strong>Chat + áudio</strong>
-                <small>
-                  Tudo do modo acima e mais a apresentadora falando na live.
-                  Exige um cabo de áudio virtual instalado no computador.
-                </small>
-              </span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Para entrar no ar: cada item diz o que falta e resolve ali mesmo -->
         <div class="bloco">
           <h2>Para entrar no ar</h2>
 
-          <!-- 1. Áudio -->
-          <div class="pendencia" id="bloco-audio">
-            <div class="linha-estado">
-              <span class="ponto" id="ponto-audio"></span>
-              <strong>Áudio da live</strong>
-              <button id="btn-recarregar" class="botao pequeno empurra">Atualizar</button>
-            </div>
-            <p id="montagem-nome" class="destaque">—</p>
-            <p id="montagem-resumo" class="ajuda"></p>
-            <div id="falta-audio" class="aviso alerta" hidden>
-              <p id="falta-audio-texto">Você ainda não tem o áudio da live.</p>
-              <button id="btn-criar-audio" class="botao primario pequeno">Criar o áudio agora</button>
-            </div>
-          </div>
-
-          <!-- 2. Cabo -->
-          <div class="pendencia" id="bloco-cabo">
-            <div class="linha-estado">
-              <span class="ponto" id="ponto-cabo"></span>
-              <strong>Cabo de áudio</strong>
-              <button id="btn-procurar" class="botao pequeno empurra">Procurar</button>
-            </div>
-            <p id="cabo-escolhido" class="ajuda">Procurando…</p>
-
-            <div id="cabo-sem-rotulo" class="aviso alerta" hidden>
-              <p>
-                O Chrome está escondendo o nome das saídas de áudio, então não dá
-                para achar o cabo. Libere uma vez — abre uma aba, você clica em
-                <strong>Permitir</strong> e volta aqui.
-              </p>
-              <button id="btn-liberar" class="botao primario pequeno">Liberar acesso</button>
-            </div>
-
-            <div id="cabo-nao-achado" class="aviso alerta" hidden>
-              <p>
-                Nenhum cabo virtual encontrado. Instale o
-                <a href="https://vb-audio.com/Cable/" target="_blank" rel="noopener">VB-Cable</a>
-                no Windows ou o
-                <a href="https://existential.audio/blackhole/" target="_blank" rel="noopener">BlackHole</a>
-                no macOS, reinicie o computador e clique em Procurar.
-              </p>
-              <button id="btn-guia-cabo" class="botao pequeno">Ver o passo a passo</button>
-            </div>
-
-            <details id="outra-saida">
-              <summary class="ajuda">Escolher outra saída</summary>
-              <label class="campo">
-                <span>Saída de áudio</span>
-                <select id="saidas"></select>
-              </label>
-            </details>
-          </div>
-
-          <!-- 3. Chat -->
+          <!-- O chat é o produto: sem a aba da live, não há o que ler. -->
           <div class="pendencia">
             <div class="linha-estado">
               <span class="ponto" id="ponto-chat"></span>
@@ -246,11 +164,9 @@
             </select>
           </label>
 
-          <dl class="medidas medidas-4">
-            <div><dt>Tocando</dt><dd id="m-fala">—</dd></div>
-            <div><dt>Voltas</dt><dd id="m-voltas" class="num">0</dd></div>
-            <div><dt>Chat lido</dt><dd id="m-chat" class="num">0</dd></div>
-            <div><dt>Respostas</dt><dd id="m-resposta" class="num">0</dd></div>
+          <dl class="medidas">
+            <div><dt>Comentários lidos</dt><dd id="m-chat" class="num">0</dd></div>
+            <div><dt>Respostas enviadas</dt><dd id="m-resposta" class="num">0</dd></div>
           </dl>
         </div>
 
@@ -262,15 +178,15 @@
           <ul id="protecao" class="protecao">
             <li>Carregando…</li>
           </ul>
-          <button id="btn-revisar" class="botao pequeno" hidden>Revisar o texto no painel</button>
+          <button id="btn-revisar" class="botao pequeno" hidden>Revisar o manual no painel</button>
         </div>
 
         <details class="riscos">
           <summary>Aviso sobre automação</summary>
           <p>
-            Automatizar o LIVE Studio tende a violar os Termos do TikTok, e um
-            eventual bloqueio recai sobre a sua conta. A proteção acima reduz o
-            risco de restrição por conteúdo; ela não esconde a automação.
+            Automatizar o chat do TikTok tende a violar os Termos, e um eventual
+            bloqueio recai sobre a sua conta. A proteção acima reduz o risco de
+            restrição por conteúdo; ela não esconde a automação.
           </p>
         </details>
 

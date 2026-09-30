@@ -1,18 +1,12 @@
 import {
-  AudioLines,
   Bell,
+  BookOpenCheck,
   ChartColumn,
-  CreditCard,
-  Dna,
-  FileText,
   GraduationCap,
   HandCoins,
-  Headphones,
   House,
   LayoutGrid,
-  Library,
   type LucideIcon,
-  Mic,
   Package,
   Puzzle,
   Radio,
@@ -23,7 +17,6 @@ import {
   Trophy,
   User,
   UserCog,
-  Zap,
 } from "lucide-react";
 import type { Papel } from "./roles";
 
@@ -47,42 +40,28 @@ export type GrupoNav = {
 };
 
 /**
- * Ferramentas de ajuste fino. Continuam todas existindo, mas saíram do menu
- * principal: quem quer só pôr a live no ar não precisa saber que elas
- * existem — o assistente "Criar live" faz produto, roteiro, voz, áudio e
- * montagem por ele. Moram em /ferramentas, com uma linha dizendo para que
- * serve cada uma.
+ * Ferramentas de ajuste fino. Saíram do menu principal: quem quer só pôr a
+ * Shopia na live não precisa saber que elas existem — o assistente cuida do
+ * caminho. Moram em /ferramentas, com uma linha dizendo para que serve cada uma.
+ *
+ * Crédito e plano NÃO estão aqui de propósito. Enquanto a cobrança está
+ * desligada, um item "Planos" no menu é uma porta que leva a uma decisão que
+ * ninguém precisa tomar — e crédito medido em caractere de fala deixou de
+ * medir qualquer coisa quando a voz saiu.
  */
 export const FERRAMENTAS: readonly GrupoNav[] = [
   {
-    titulo: "Conteúdo",
+    titulo: "A sua live",
     itens: [
       { href: "/produtos", rotulo: "Produtos", icone: Package, descricao: "Cadastrar, editar e fixar o que é vendido na live" },
-      { href: "/roteiro", rotulo: "Roteiros", icone: FileText, descricao: "Editar o texto, seção por seção, e ver versões antigas" },
-      { href: "/estudio", rotulo: "Estúdio de voz", icone: Headphones, descricao: "Transformar qualquer texto em áudio" },
-      { href: "/biblioteca", rotulo: "Biblioteca", icone: Library, descricao: "Todos os áudios e roteiros já feitos" },
-    ],
-  },
-  {
-    titulo: "Voz",
-    itens: [
-      { href: "/vozes", rotulo: "Vozes", icone: Mic, descricao: "Ouvir e escolher a voz da apresentadora" },
-      { href: "/clonar", rotulo: "Clonar a sua voz", icone: Dna, descricao: "Criar uma voz a partir de uma gravação sua" },
-    ],
-  },
-  {
-    titulo: "Live",
-    itens: [
-      { href: "/audio", rotulo: "Áudio da live", icone: AudioLines, descricao: "Ordem dos áudios, som ambiente e pausa entre falas" },
-      { href: "/painel", rotulo: "Painel ao vivo", icone: SlidersHorizontal, descricao: "Chat e respostas da IA enquanto a live roda" },
+      { href: "/manual", rotulo: "Manual", icone: BookOpenCheck, descricao: "As perguntas que a Shopia sabe responder no chat" },
+      { href: "/painel", rotulo: "Painel ao vivo", icone: SlidersHorizontal, descricao: "Chat e respostas enquanto a live roda" },
       { href: "/ranking", rotulo: "Ranking", icone: Trophy, descricao: "Placar de vendedores por período" },
     ],
   },
   {
     titulo: "Conta",
     itens: [
-      { href: "/creditos", rotulo: "Créditos", icone: Zap, descricao: "Saldo, extrato e pacotes avulsos" },
-      { href: "/planos", rotulo: "Planos", icone: CreditCard, descricao: "Assinatura e o que cada plano libera" },
       { href: "/notificacoes", rotulo: "Notificações", icone: Bell, descricao: "Aviso de venda no celular" },
     ],
   },
@@ -96,7 +75,7 @@ const ROTAS_DE_FERRAMENTA = FERRAMENTAS.flatMap((g) => g.itens.map((i) => i.href
 );
 
 /**
- * O menu. Sete itens na ordem em que a pessoa usa: começar, criar, instalar,
+ * O menu, na ordem em que a pessoa usa: começar, preparar, ensinar, instalar,
  * acompanhar, vender, aprender — e as ferramentas no fim para quem quiser.
  *
  * Antes eram 20 itens copiados um a um do concorrente, e a ordem não seguia o
@@ -107,7 +86,8 @@ export const NAVEGACAO: readonly GrupoNav[] = [
     titulo: "",
     itens: [
       { href: "/inicio", rotulo: "Início", icone: House, descricao: "Onde você está no caminho até a live" },
-      { href: "/criar", rotulo: "Criar live", icone: Sparkles, destaque: true, descricao: "Do produto ao áudio da live, em 3 passos" },
+      { href: "/criar", rotulo: "Preparar live", icone: Sparkles, destaque: true, descricao: "Do produto ao manual, em 3 passos" },
+      { href: "/manual", rotulo: "Manual", icone: BookOpenCheck, descricao: "O que a Shopia responde no chat" },
       { href: "/extensao", rotulo: "Extensão", icone: Puzzle, descricao: "Instalar, conectar e atualizar" },
       { href: "/live", rotulo: "Ao vivo", icone: Radio, inclui: ["/painel"], descricao: "Se a live está no ar e o que ela está fazendo" },
       { href: "/dashboard", rotulo: "Vendas", icone: ChartColumn, inclui: ["/ranking"], descricao: "Faturamento e vendas das lives" },
@@ -117,14 +97,14 @@ export const NAVEGACAO: readonly GrupoNav[] = [
         rotulo: "Ferramentas",
         icone: LayoutGrid,
         inclui: ROTAS_DE_FERRAMENTA,
-        descricao: "Ajustes finos de produto, roteiro, voz e áudio",
+        descricao: "Ajustes finos de produto, manual e painel ao vivo",
       },
     ],
   },
   {
     titulo: "Conta",
     itens: [
-      { href: "/perfil", rotulo: "Minha conta", icone: User, inclui: ROTAS_DA_CONTA, descricao: "Dados, plano, créditos e notificações" },
+      { href: "/perfil", rotulo: "Minha conta", icone: User, inclui: ROTAS_DA_CONTA, descricao: "Dados da conta e notificações" },
       { href: "/indique", rotulo: "Indique e ganhe", icone: HandCoins, descricao: "Indicação em 3 níveis" },
       { href: "/afiliado", rotulo: "Afiliado PRO", icone: Star, papeis: ["affiliate", "manager"], descricao: "Indicados, ganhos e saques" },
       { href: "/gerente", rotulo: "Gerente", icone: UserCog, papeis: ["manager"], descricao: "Equipe, comissões e saques" },
@@ -134,14 +114,14 @@ export const NAVEGACAO: readonly GrupoNav[] = [
 ];
 
 /**
- * Barra inferior do mobile: quatro destinos e o "Mais". Criar fica no centro,
- * em destaque, porque é o começo de tudo.
+ * Barra inferior do mobile: quatro destinos e o "Mais". Preparar fica no
+ * centro, em destaque, porque é o começo de tudo.
  */
 export const ABAS_MOBILE: readonly ItemNav[] = [
   { href: "/inicio", rotulo: "Início", icone: House },
   { href: "/live", rotulo: "Ao vivo", icone: Radio, inclui: ["/painel"] },
-  { href: "/criar", rotulo: "Criar", icone: Sparkles, destaque: true },
-  { href: "/dashboard", rotulo: "Vendas", icone: ChartColumn, inclui: ["/ranking"] },
+  { href: "/criar", rotulo: "Preparar", icone: Sparkles, destaque: true },
+  { href: "/manual", rotulo: "Manual", icone: BookOpenCheck },
 ];
 
 /** Tudo que tem nome — o tour usa para escrever "Ver em Produtos" e afins. */

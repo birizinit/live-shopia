@@ -31,11 +31,8 @@ import { Selecao, type OpcaoSelecao } from "@/components/ui/selecao";
 import type {
   ConfigLive,
   ContaTikTok,
-  MontagemOpcao,
   SessaoLive,
-  VozOpcao,
 } from "@/lib/dados/live";
-import { formatarDuracao } from "@/lib/caracteres";
 
 const INICIAL: EstadoAcao = {};
 
@@ -354,19 +351,15 @@ function LinhaConta({ conta, emUso }: { conta: ContaTikTok; emUso: boolean }) {
 }
 
 // -----------------------------------------------------------------------------
-// Voz, montagem e cadência
+// Conta e cadência
 // -----------------------------------------------------------------------------
 
 export function ConfiguracaoDaLive({
   config,
   contas,
-  vozes,
-  montagens,
 }: {
   config: ConfigLive;
   contas: ContaTikTok[];
-  vozes: VozOpcao[];
-  montagens: MontagemOpcao[];
 }) {
   const [estado, acao, enviando] = useActionState(salvarConfiguracaoAcao, INICIAL);
   useRetorno(estado);
@@ -382,22 +375,6 @@ export function ConfiguracaoDaLive({
     ...contas.map((conta) => ({ valor: conta.id, rotulo: `@${conta.usuario}` })),
   ];
 
-  const opcoesVoz: OpcaoSelecao[] = [
-    { valor: "", rotulo: "— escolher a voz —" },
-    ...vozes.map((voz) => ({
-      valor: voz.id,
-      rotulo: `${voz.nome}${voz.propria ? " (sua voz)" : ""}${voz.premium ? " · premium" : ""}`,
-    })),
-  ];
-
-  const opcoesMontagem: OpcaoSelecao[] = [
-    { valor: "", rotulo: "— escolher a montagem —" },
-    ...montagens.map((montagem) => ({
-      valor: montagem.id,
-      rotulo: `${montagem.nome} · ${montagem.itens} bloco(s) · ${formatarDuracao(montagem.duracaoMs)}`,
-    })),
-  ];
-
   const minimo = Number(minS) || LIMITES.intervaloMinimoS;
   const maximo = Number(maxS) || minimo;
   const porMinuto = Number(teto) || 1;
@@ -405,7 +382,7 @@ export function ConfiguracaoDaLive({
 
   return (
     <Card>
-      <CardTitulo>Voz, montagem e cadência</CardTitulo>
+      <CardTitulo>Conta e cadência</CardTitulo>
       <CardDescricao>
         Tudo aqui vale para a próxima live. Mudança no meio da transmissão só
         chega no próximo contato da extensão.
@@ -418,34 +395,14 @@ export function ConfiguracaoDaLive({
       )}
 
       <form action={acao} className="mt-5 space-y-6">
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Campo rotulo="Conta que transmite" htmlFor="contaId">
-            <Selecao
-              id="contaId"
-              name="contaId"
-              opcoes={opcoesConta}
-              defaultValue={config.contaId ?? ""}
-            />
-          </Campo>
-
-          <Campo rotulo="Voz ativa" htmlFor="vozId">
-            <Selecao
-              id="vozId"
-              name="vozId"
-              opcoes={opcoesVoz}
-              defaultValue={config.vozId ?? ""}
-            />
-          </Campo>
-
-          <Campo rotulo="Montagem ativa" htmlFor="montagemId">
-            <Selecao
-              id="montagemId"
-              name="montagemId"
-              opcoes={opcoesMontagem}
-              defaultValue={config.montagemId ?? ""}
-            />
-          </Campo>
-        </div>
+        <Campo rotulo="Conta que transmite" htmlFor="contaId">
+          <Selecao
+            id="contaId"
+            name="contaId"
+            opcoes={opcoesConta}
+            defaultValue={config.contaId ?? ""}
+          />
+        </Campo>
 
         <div className="rounded-lg border border-border bg-bg-subtle p-4">
           <h3 className="text-sm font-semibold">Por que existe limite de resposta</h3>
@@ -454,8 +411,8 @@ export function ConfiguracaoDaLive({
             automação — nenhuma vendedora humana lê e responde em dois segundos
             durante três horas seguidas. O intervalo é sorteado dentro da faixa
             abaixo e o teto por minuto corta a rajada quando o chat esquenta. É o
-            que faz a apresentadora parecer gente, e é a única defesa que está na
-            sua mão.
+            que faz a Shopia parecer gente, e é a única defesa que está na sua
+            mão.
           </p>
 
           <div className="mt-4 space-y-4">
@@ -463,7 +420,7 @@ export function ConfiguracaoDaLive({
               ligado={responderChat}
               aoMudar={setResponderChat}
               rotulo="Responder o chat"
-              descricao="Desligado, a apresentadora só narra a montagem e ignora os comentários."
+              descricao="Desligado, a Shopia lê o chat mas não responde nada."
             />
             {responderChat && <input type="hidden" name="responderChat" value="1" />}
 
@@ -471,7 +428,7 @@ export function ConfiguracaoDaLive({
               ligado={saudarEntrada}
               aoMudar={setSaudarEntrada}
               rotulo="Saudar quem entra"
-              descricao="Cumprimenta pelo @ na entrada. Em live cheia, é o que mais gasta a cota de fala."
+              descricao="Cumprimenta pelo @ na entrada. Em live cheia, é o que mais consome o teto por minuto."
             />
             {saudarEntrada && <input type="hidden" name="saudarEntrada" value="1" />}
           </div>
@@ -562,12 +519,10 @@ export function ConfiguracaoDaLive({
 export function Transmissao({
   sessao,
   contaId,
-  montagemId,
   bloqueios,
 }: {
   sessao: SessaoLive | null;
   contaId: string | null;
-  montagemId: string | null;
   /** O que impede de subir. Vazio = pode. */
   bloqueios: string[];
 }) {
@@ -612,8 +567,8 @@ export function Transmissao({
             rotuloConfirmar="Encerrar agora"
             texto="A sessão é fechada na hora e entra no histórico."
             perdas={[
-              "A apresentadora para de narrar imediatamente",
-              "A extensão deixa de responder o chat desta live",
+              "A extensão para de responder o chat desta live",
+              "Ninguém mais recebe boas-vindas",
               "O painel ao vivo fecha o fluxo de eventos",
             ]}
             aoConfirmar={() => {
@@ -627,7 +582,6 @@ export function Transmissao({
       ) : (
         <form action={iniciar}>
           <input type="hidden" name="contaId" value={contaId ?? ""} />
-          <input type="hidden" name="montagemId" value={montagemId ?? ""} />
           <Button
             type="submit"
             tamanho="lg"

@@ -2,12 +2,11 @@ import { Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 /**
- * Onde a pessoa está no caminho. Três passos e não seis: produto, texto e voz,
- * áudio. O resto (montagem, voz ativa, checklist) é consequência — acontece
- * sozinho no fim, sem pedir decisão.
+ * Onde a pessoa está no caminho. Três passos: o que vender, o que a Shopia
+ * sabe responder sobre isso, e ligar na live. O resto é consequência.
  */
 
-const PASSOS = ["O que vender", "Roteiro e voz", "Áudio da live"] as const;
+const PASSOS = ["O que vender", "O manual", "Ligar na live"] as const;
 
 export function Passos({ atual }: { atual: 1 | 2 | 3 }) {
   return (

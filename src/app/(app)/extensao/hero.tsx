@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { ArrowRight, Cable, Download, Hourglass, PackageOpen } from "lucide-react";
+import { Download, Hourglass, PackageOpen } from "lucide-react";
 import { Alerta } from "@/components/ui/alerta";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -11,8 +10,8 @@ import type { VersaoExtensao } from "@/lib/dados/extensao";
  *
  * Selo, título e área de download moram juntos porque respondem à mesma
  * pergunta — “existe isto para eu instalar hoje?” — e a resposta muda os três
- * ao mesmo tempo. Nenhum ramo daqui inventa um botão: onde não há pacote no ar,
- * o espaço do download passa a ser ocupado pelo que dá para fazer sem ele.
+ * ao mesmo tempo. Nenhum ramo daqui inventa um botão: sem pacote no ar, o
+ * espaço do download diz isso com todas as letras.
  *
  * Quando uma linha for publicada em `ext_versoes` com o arquivo servível, o
  * primeiro ramo assume sozinho. Não há nada para trocar no código.
@@ -63,10 +62,10 @@ export function Hero({ versao, temPacote, ticket }: HeroProps) {
         </h1>
 
         <p className="mt-3 max-w-2xl text-base text-fg-muted sm:text-lg">
-          Ela mora no Chrome: responde os comentários da sua live, dá boas-vindas pelo
-          nome e fixa os produtos enquanto você cuida de outra coisa. Só com o
-          navegador — não precisa instalar nada no computador. Se quiser, ela também
-          narra a live com a voz da apresentadora.
+          Ela mora no Chrome: responde os comentários da sua live com o que você
+          escreveu no manual, dá boas-vindas pelo nome e fixa os produtos enquanto você
+          cuida de outra coisa. Só com o navegador — não precisa instalar nada no
+          computador.
         </p>
       </div>
 
@@ -79,7 +78,7 @@ export function Hero({ versao, temPacote, ticket }: HeroProps) {
 
 function AreaDeDownload({ versao, temPacote, ticket }: HeroProps) {
   // Sem linha publicada em `ext_versoes` não existe pacote nenhum. É o estado
-  // de hoje, e é o único ramo que precisa oferecer um caminho alternativo.
+  // de hoje.
   if (!versao) {
     return (
       <>
@@ -93,8 +92,6 @@ function AreaDeDownload({ versao, temPacote, ticket }: HeroProps) {
           botão que não faz nada. Quando a primeira versão sair, ela aparece aqui — nesta
           mesma tela, sem você precisar procurar.
         </Alerta>
-
-        <EnquantoIsso />
       </>
     );
   }
@@ -167,79 +164,5 @@ function AreaDeDownload({ versao, temPacote, ticket }: HeroProps) {
         )}
       </div>
     </>
-  );
-}
-
-/**
- * O caminho manual.
- *
- * Não é consolo: o cabo virtual é a MESMA peça que a extensão usa por baixo, e
- * quem instalar agora não vai refazer nada depois. O que este caminho não faz
- * está dito na última linha, com todas as letras.
- */
-function EnquantoIsso() {
-  return (
-    <div className="mt-4 rounded-lg border border-primary-border bg-primary-soft p-4">
-      <p className="flex items-center gap-2 text-sm font-semibold text-primary-soft-fg">
-        <Cable className="size-4 shrink-0" aria-hidden />
-        O que dá para fazer enquanto isso
-      </p>
-
-      <p className="mt-2 text-sm text-fg-muted">
-        Levar a voz da Shopia para o LIVE Studio na mão, com o cabo virtual. São três
-        passos e nenhum deles depende da extensão existir.
-      </p>
-
-      <ol className="mt-3 space-y-2.5">
-        <li className="flex gap-3">
-          <span className="num mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border border-primary-border bg-surface text-xs font-semibold text-primary-soft-fg">
-            1
-          </span>
-          <span className="min-w-0 text-sm text-fg-muted">
-            Monte a lista em{" "}
-            <Link
-              href="/audio"
-              className="font-medium text-primary underline-offset-4 hover:underline"
-            >
-              Áudio da live
-            </Link>{" "}
-            e deixe o player tocando em laço numa aba do Chrome.
-          </span>
-        </li>
-        <li className="flex gap-3">
-          <span className="num mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border border-primary-border bg-surface text-xs font-semibold text-primary-soft-fg">
-            2
-          </span>
-          <span className="min-w-0 text-sm text-fg-muted">
-            Instale o cabo virtual e mande o som do Chrome para dentro dele — o passo a
-            passo está{" "}
-            <a
-              href="#cabo-virtual"
-              className="font-medium text-primary underline-offset-4 hover:underline"
-            >
-              mais abaixo nesta página
-            </a>
-            .
-          </span>
-        </li>
-        <li className="flex gap-3">
-          <span className="num mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border border-primary-border bg-surface text-xs font-semibold text-primary-soft-fg">
-            3
-          </span>
-          <span className="min-w-0 text-sm text-fg-muted">
-            No LIVE Studio, escolha o cabo como microfone. A apresentadora entra no ar.
-          </span>
-        </li>
-      </ol>
-
-      <p className="mt-3 flex gap-2 text-sm text-fg-muted">
-        <ArrowRight className="mt-0.5 size-4 shrink-0 text-fg-subtle" aria-hidden />
-        <span>
-          O que falta neste caminho é justamente o que só a extensão faz: responder o
-          chat, chamar a pessoa pelo nome, acionar o cupom na hora. Áudio no ar você já
-          consegue hoje.
-        </span>
-      </p>
-    </div>
   );
 }

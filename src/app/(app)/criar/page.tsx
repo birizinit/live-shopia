@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/layout/page-header";
 import { exigirUsuario } from "@/lib/sessao";
-import { EtapaAudio, EtapaProduto, EtapaRoteiro } from "./etapas";
+import { EtapaLive, EtapaManual, EtapaProduto } from "./etapas";
 
 export const metadata: Metadata = { title: "Criar live" };
 
@@ -12,34 +12,31 @@ function id(valor: string | string[] | undefined): string | null {
 }
 
 /**
- * O caminho curto: do nome do produto ao áudio tocando na extensão.
+ * O caminho curto: do nome do produto até a Shopia respondendo na live.
  *
- * A URL guarda onde a pessoa está (?roteiro=, ?audio=). Recarregar, voltar,
- * ou chegar pelo botão "Criar o áudio agora" da extensão cai no passo certo.
+ * A URL guarda onde a pessoa está (?produto=, &passo=live). Recarregar, voltar,
+ * ou chegar por link da extensão cai no passo certo.
  */
 export default async function CriarPage(props: PageProps<"/criar">) {
   const usuario = await exigirUsuario("/criar");
   const busca = await props.searchParams;
 
-  const audioId = id(busca.audio);
-  const roteiroId = id(busca.roteiro);
   const produtoId = id(busca.produto);
+  const naLive = busca.passo === "live";
 
   return (
     <>
       <PageHeader
-        titulo="Criar a live"
-        descricao="Três passos: o que vender, o roteiro com a voz, e o áudio que a extensão toca em laço."
+        titulo="Preparar a live"
+        descricao="Três passos: o que vender, o que a Shopia responde sobre isso, e ligar na sua transmissão."
       />
 
-      {audioId ? (
-        <EtapaAudio perfilId={usuario.id} audioId={audioId} />
-      ) : roteiroId ? (
-        <EtapaRoteiro perfilId={usuario.id} roteiroId={roteiroId} saldo={usuario.creditos}
-          aviso={busca.aviso === "andamento" || busca.aviso === "falhou" ? busca.aviso : null}
-        />
+      {produtoId && naLive ? (
+        <EtapaLive perfilId={usuario.id} />
+      ) : produtoId ? (
+        <EtapaManual perfilId={usuario.id} produtoId={produtoId} />
       ) : (
-        <EtapaProduto perfilId={usuario.id} produtoId={produtoId} />
+        <EtapaProduto perfilId={usuario.id} produtoId={null} />
       )}
     </>
   );

@@ -3,7 +3,6 @@ import { bd } from "@/lib/db";
 import { modoDemo } from "@/lib/env";
 import { comDemo, configuracao, numeroDe } from "./comum";
 import { comTraducao, ErroDominio } from "./erros";
-import type { EstadoAudio } from "./tipos";
 
 /**
  * Id vindo da URL chega como texto qualquer. Sem esta peneira, "abc" vira
@@ -47,23 +46,6 @@ export type ContaTikTok = {
   criadoEm: string;
 };
 
-export type VozOpcao = {
-  id: string;
-  nome: string;
-  premium: boolean;
-  /** Clonada pelo proprio usuario, por oposicao a voz de catalogo. */
-  propria: boolean;
-  idioma: string;
-};
-
-export type MontagemOpcao = {
-  id: string;
-  nome: string;
-  ativa: boolean;
-  itens: number;
-  duracaoMs: number;
-};
-
 export type CadenciaChat = {
   responderChat: boolean;
   saudarEntrada: boolean;
@@ -73,8 +55,6 @@ export type CadenciaChat = {
 };
 
 export type ConfigLive = CadenciaChat & {
-  vozId: string | null;
-  montagemId: string | null;
   contaId: string | null;
   riscoAceitoEm: string | null;
   riscoAceitoVersao: number | null;
@@ -84,7 +64,6 @@ export type SessaoLive = {
   id: string;
   estado: EstadoLive;
   contaId: string | null;
-  montagemId: string | null;
   inicio: string;
   fim: string | null;
   /** Ultimo batimento da extensao. Separa "no ar" de "a aba foi fechada". */
@@ -115,8 +94,6 @@ export type ItemChecklist = {
 
 export type EstadoExtensao = {
   licenciada: boolean;
-  /** Mixer de audio ligado NESTA conta. */
-  mixer: boolean;
   /** Automacao de chat ligada NESTA conta. */
   chat: boolean;
   /** Chat desligado na base inteira por configuracao (`ext.chat_desligado`). */
@@ -127,21 +104,10 @@ export type EstadoExtensao = {
   instalacoes: number;
 };
 
-export type FalaDaFila = {
-  id: string;
-  ordem: number;
-  titulo: string;
-  duracaoMs: number;
-  caracteres: number;
-  estado: EstadoAudio;
-};
-
 export type SalaLive = {
   config: ConfigLive;
   contas: ContaTikTok[];
   limiteContas: number;
-  vozes: VozOpcao[];
-  montagens: MontagemOpcao[];
   sessao: SessaoLive | null;
   historico: SessaoLive[];
   checklist: ItemChecklist[];
@@ -155,7 +121,6 @@ export type ConsoleLive = {
   sessao: SessaoLive | null;
   conta: ContaTikTok | null;
   cadencia: CadenciaChat;
-  fila: FalaDaFila[];
   eventos: EventoLive[];
   extensao: EstadoExtensao;
 };
@@ -181,8 +146,6 @@ const ROTULO_EVENTO: Record<TipoEventoLive, string> = {
 };
 
 const CONFIG_PADRAO: ConfigLive = {
-  vozId: null,
-  montagemId: null,
   contaId: null,
   responderChat: true,
   saudarEntrada: true,
@@ -247,45 +210,10 @@ const CONTAS_EXEMPLO: ContaTikTok[] = [
   },
 ];
 
-const VOZES_EXEMPLO: VozOpcao[] = [
-  {
-    id: "22222222-2222-4222-8222-000000000001",
-    nome: "Amanda — vendedora",
-    premium: true,
-    propria: false,
-    idioma: "pt-BR",
-  },
-  {
-    id: "22222222-2222-4222-8222-000000000002",
-    nome: "Rafa — descontraída",
-    premium: false,
-    propria: false,
-    idioma: "pt-BR",
-  },
-  {
-    id: "22222222-2222-4222-8222-000000000003",
-    nome: "Minha voz clonada",
-    premium: false,
-    propria: true,
-    idioma: "pt-BR",
-  },
-];
-
-const MONTAGENS_EXEMPLO: MontagemOpcao[] = [
-  {
-    id: "33333333-3333-4333-8333-000000000001",
-    nome: "Live de terça — kit verão",
-    ativa: true,
-    itens: 5,
-    duracaoMs: 2 * 60 * 60_000 + 41 * 60_000,
-  },
-];
-
 const SESSAO_EXEMPLO: SessaoLive = {
   id: "44444444-4444-4444-8444-000000000001",
   estado: "ativa",
   contaId: CONTAS_EXEMPLO[0]!.id,
-  montagemId: MONTAGENS_EXEMPLO[0]!.id,
   inicio: HA(73),
   fim: null,
   vistoEm: HA(0),
@@ -295,8 +223,6 @@ const SESSAO_EXEMPLO: SessaoLive = {
 
 const CONFIG_EXEMPLO: ConfigLive = {
   ...CONFIG_PADRAO,
-  vozId: VOZES_EXEMPLO[0]!.id,
-  montagemId: MONTAGENS_EXEMPLO[0]!.id,
   contaId: CONTAS_EXEMPLO[0]!.id,
   riscoAceitoEm: HA(60 * 24 * 12),
   riscoAceitoVersao: 1,
@@ -304,7 +230,6 @@ const CONFIG_EXEMPLO: ConfigLive = {
 
 const EXTENSAO_EXEMPLO: EstadoExtensao = {
   licenciada: true,
-  mixer: true,
   chat: true,
   chatDesligadoNaBase: false,
   revogadaEm: null,
@@ -312,49 +237,6 @@ const EXTENSAO_EXEMPLO: EstadoExtensao = {
   versao: "1.4.2",
   instalacoes: 2,
 };
-
-const FILA_EXEMPLO: FalaDaFila[] = [
-  {
-    id: "55555555-5555-4555-8555-000000000001",
-    ordem: 1,
-    titulo: "Gancho — abre a live",
-    duracaoMs: 96_000,
-    caracteres: 960,
-    estado: "pronto",
-  },
-  {
-    id: "55555555-5555-4555-8555-000000000002",
-    ordem: 2,
-    titulo: "Oferta — kit verão 3 peças",
-    duracaoMs: 184_000,
-    caracteres: 1_840,
-    estado: "pronto",
-  },
-  {
-    id: "55555555-5555-4555-8555-000000000003",
-    ordem: 3,
-    titulo: "Prova — depoimentos",
-    duracaoMs: 142_000,
-    caracteres: 1_420,
-    estado: "pronto",
-  },
-  {
-    id: "55555555-5555-4555-8555-000000000004",
-    ordem: 4,
-    titulo: "Objeções — frete e troca",
-    duracaoMs: 158_000,
-    caracteres: 1_580,
-    estado: "pronto",
-  },
-  {
-    id: "55555555-5555-4555-8555-000000000005",
-    ordem: 5,
-    titulo: "CTA — cupom LIVE10",
-    duracaoMs: 74_000,
-    caracteres: 740,
-    estado: "pronto",
-  },
-];
 
 function eventosExemplo(): EventoLive[] {
   const base: Array<Omit<EventoLive, "id" | "rotulo" | "criadoEm"> & { minutos: number }> = [
@@ -442,8 +324,6 @@ export async function configuracaoLive(perfilId: string): Promise<ConfigLive> {
     async () => {
       const linhas = await bd()<
         {
-          voz_id: string | null;
-          montagem_id: string | null;
           conta_tiktok_id: string | null;
           responder_chat: boolean;
           saudar_entrada: boolean;
@@ -454,7 +334,7 @@ export async function configuracaoLive(perfilId: string): Promise<ConfigLive> {
           risco_aceito_versao: number | null;
         }[]
       >`
-        select voz_id, montagem_id, conta_tiktok_id, responder_chat, saudar_entrada,
+        select conta_tiktok_id, responder_chat, saudar_entrada,
                chat_intervalo_min_s, chat_intervalo_max_s, chat_teto_por_minuto,
                risco_aceito_em, risco_aceito_versao
           from live_config
@@ -468,8 +348,6 @@ export async function configuracaoLive(perfilId: string): Promise<ConfigLive> {
       if (!l) return CONFIG_PADRAO;
 
       return {
-        vozId: l.voz_id,
-        montagemId: l.montagem_id,
         contaId: l.conta_tiktok_id,
         responderChat: l.responder_chat,
         saudarEntrada: l.saudar_entrada,
@@ -483,62 +361,10 @@ export async function configuracaoLive(perfilId: string): Promise<ConfigLive> {
   );
 }
 
-export async function vozesDisponiveis(perfilId: string): Promise<VozOpcao[]> {
-  return comDemo(
-    () => VOZES_EXEMPLO,
-    async () => {
-      const linhas = await bd()<
-        { id: string; nome: string; premium: boolean; perfil_id: string | null; idioma: string }[]
-      >`
-        select id, nome, premium, perfil_id, idioma
-          from vozes
-         where ativa
-           and estado = 'pronta'
-           and (perfil_id is null or perfil_id = ${perfilId})
-         order by (perfil_id is null), ordem, nome
-      `;
-
-      return linhas.map((l) => ({
-        id: l.id,
-        nome: l.nome,
-        premium: l.premium,
-        propria: l.perfil_id !== null,
-        idioma: l.idioma,
-      }));
-    },
-  );
-}
-
-export async function montagensDisponiveis(perfilId: string): Promise<MontagemOpcao[]> {
-  return comDemo(
-    () => MONTAGENS_EXEMPLO,
-    async () => {
-      const linhas = await bd()<
-        { id: string; nome: string; ativa: boolean; duracao_ms: number; itens: string }[]
-      >`
-        select m.id, m.nome, m.ativa, m.duracao_ms,
-               (select count(*) from montagem_itens i where i.montagem_id = m.id) as itens
-          from montagens m
-         where m.perfil_id = ${perfilId}
-         order by m.ativa desc, m.atualizado_em desc
-      `;
-
-      return linhas.map((l) => ({
-        id: l.id,
-        nome: l.nome,
-        ativa: l.ativa,
-        itens: numeroDe(l.itens),
-        duracaoMs: numeroDe(l.duracao_ms),
-      }));
-    },
-  );
-}
-
 type LinhaSessao = {
   id: string;
   estado: EstadoLive;
   conta_tiktok_id: string | null;
-  montagem_id: string | null;
   inicio: Date;
   fim: Date | null;
   visto_em: Date;
@@ -551,7 +377,6 @@ function montarSessao(l: LinhaSessao): SessaoLive {
     id: l.id,
     estado: l.estado,
     contaId: l.conta_tiktok_id,
-    montagemId: l.montagem_id,
     inicio: iso(l.inicio)!,
     fim: iso(l.fim),
     vistoEm: iso(l.visto_em)!,
@@ -565,7 +390,7 @@ export async function sessaoAtiva(perfilId: string): Promise<SessaoLive | null> 
     () => SESSAO_EXEMPLO,
     async () => {
       const linhas = await bd()<LinhaSessao[]>`
-        select id, estado, conta_tiktok_id, montagem_id, inicio, fim, visto_em,
+        select id, estado, conta_tiktok_id, inicio, fim, visto_em,
                espectadores_pico, erro
           from live_sessoes
          where perfil_id = ${perfilId} and estado in ('iniciando', 'ativa')
@@ -588,7 +413,7 @@ export async function sessaoDoPerfil(
       if (!UUID.test(sessaoId)) return null;
 
       const linhas = await bd()<LinhaSessao[]>`
-        select id, estado, conta_tiktok_id, montagem_id, inicio, fim, visto_em,
+        select id, estado, conta_tiktok_id, inicio, fim, visto_em,
                espectadores_pico, erro
           from live_sessoes
          where id = ${sessaoId} and perfil_id = ${perfilId}
@@ -620,7 +445,7 @@ export async function ultimasSessoes(perfilId: string, limite = 5): Promise<Sess
     ],
     async () => {
       const linhas = await bd()<LinhaSessao[]>`
-        select id, estado, conta_tiktok_id, montagem_id, inicio, fim, visto_em,
+        select id, estado, conta_tiktok_id, inicio, fim, visto_em,
                espectadores_pico, erro
           from live_sessoes
          where perfil_id = ${perfilId} and estado in ('encerrada', 'caiu')
@@ -639,7 +464,6 @@ export async function estadoExtensao(perfilId: string): Promise<EstadoExtensao> 
       const [licencas, globais] = await Promise.all([
         bd()<
           {
-            mixer: boolean;
             chat: boolean;
             revogada_em: Date | null;
             expirada: boolean;
@@ -648,7 +472,7 @@ export async function estadoExtensao(perfilId: string): Promise<EstadoExtensao> 
             instalacoes: string;
           }[]
         >`
-          select l.mixer, l.chat, l.revogada_em,
+          select l.chat, l.revogada_em,
                  (l.expira_em <= now()) as expirada,
                  (select max(i.ultimo_contato) from ext_instalacoes i
                    where i.licenca_id = l.id) as ultimo_contato,
@@ -673,7 +497,6 @@ export async function estadoExtensao(perfilId: string): Promise<EstadoExtensao> 
       if (!l) {
         return {
           licenciada: false,
-          mixer: false,
           chat: false,
           chatDesligadoNaBase,
           revogadaEm: null,
@@ -688,7 +511,6 @@ export async function estadoExtensao(perfilId: string): Promise<EstadoExtensao> 
         // rotas de /api/ext tratam. Olhar só `revogada_em` fazia esta tela
         // dizer "Ativa" para a licença que o servidor já estava recusando.
         licenciada: l.revogada_em === null && !l.expirada,
-        mixer: l.mixer,
         chat: l.chat,
         chatDesligadoNaBase,
         revogadaEm: iso(l.revogada_em),
@@ -696,50 +518,6 @@ export async function estadoExtensao(perfilId: string): Promise<EstadoExtensao> 
         versao: l.versao,
         instalacoes: numeroDe(l.instalacoes),
       };
-    },
-  );
-}
-
-/**
- * A fila de falas: os audios da montagem, na ordem em que a extensao toca.
- *
- * Nao existe arquivo continuo — a live e esta lista repetida em laco, e e isso
- * que faz o loop sair de graca (nenhuma escrita na razao de credito).
- */
-export async function filaDeFalas(
-  perfilId: string,
-  montagemId: string | null,
-): Promise<FalaDaFila[]> {
-  return comDemo(
-    () => FILA_EXEMPLO,
-    async () => {
-      if (!montagemId) return [];
-
-      const linhas = await bd()<
-        {
-          id: string;
-          ordem: number;
-          titulo: string;
-          duracao_ms: number | null;
-          caracteres: number;
-          estado: EstadoAudio;
-        }[]
-      >`
-        select a.id, i.ordem, a.titulo, a.duracao_ms, a.caracteres, a.estado
-          from montagem_itens i
-          join audios a on a.id = i.audio_id
-         where i.montagem_id = ${montagemId} and i.perfil_id = ${perfilId}
-         order by i.ordem
-      `;
-
-      return linhas.map((l) => ({
-        id: l.id,
-        ordem: numeroDe(l.ordem),
-        titulo: l.titulo,
-        duracaoMs: numeroDe(l.duracao_ms),
-        caracteres: numeroDe(l.caracteres),
-        estado: l.estado,
-      }));
     },
   );
 }
@@ -825,35 +603,26 @@ export async function eventosDaLive(
 
 type Contagens = {
   produtos: number;
-  roteiros: number;
-  audios: number;
-  itensMontagem: number;
+  /** Linhas ATIVAS do manual: tema desligado nao responde nada no chat. */
+  perguntas: number;
 };
 
-async function contagensDoEstudio(perfilId: string): Promise<Contagens> {
+async function contagensDoChecklist(perfilId: string): Promise<Contagens> {
   return comDemo(
-    () => ({ produtos: 3, roteiros: 2, audios: 5, itensMontagem: 5 }),
+    () => ({ produtos: 3, perguntas: 12 }),
     async () => {
-      const linhas = await bd()<
-        { produtos: string; roteiros: string; audios: string; itens: string }[]
-      >`
+      const linhas = await bd()<{ produtos: string; perguntas: string }[]>`
         select
           (select count(*) from produtos
             where perfil_id = ${perfilId} and arquivado_em is null) as produtos,
-          (select count(*) from roteiro_versoes
-            where perfil_id = ${perfilId}) as roteiros,
-          (select count(*) from audios
-            where perfil_id = ${perfilId} and estado = 'pronto') as audios,
-          (select count(*) from montagem_itens
-            where perfil_id = ${perfilId}) as itens
+          (select count(*) from temas_resposta
+            where perfil_id = ${perfilId} and ativo) as perguntas
       `;
 
       const l = linhas[0];
       return {
         produtos: numeroDe(l?.produtos),
-        roteiros: numeroDe(l?.roteiros),
-        audios: numeroDe(l?.audios),
-        itensMontagem: numeroDe(l?.itens),
+        perguntas: numeroDe(l?.perguntas),
       };
     },
   );
@@ -869,12 +638,9 @@ export function minutosDesde(instante: string | null): number | null {
 function montarChecklist(
   contagens: Contagens,
   config: ConfigLive,
-  contas: ContaTikTok[],
-  montagens: MontagemOpcao[],
   extensao: EstadoExtensao,
   riscoPendente: boolean,
 ): ItemChecklist[] {
-  const montagemEscolhida = montagens.find((m) => m.id === config.montagemId);
   const contatoMinutos = minutosDesde(extensao.ultimoContato);
 
   return [
@@ -890,60 +656,15 @@ function montarChecklist(
       rotuloHref: "Produtos",
     },
     {
-      chave: "roteiro",
-      rotulo: "Roteiro escrito",
+      chave: "manual",
+      rotulo: "Manual do produto montado",
       detalhe:
-        contagens.roteiros > 0
-          ? `${contagens.roteiros} versão(ões) de roteiro salva(s).`
-          : "Sem roteiro não há o que a apresentadora fale.",
-      ok: contagens.roteiros > 0,
-      href: "/roteiro",
-      rotuloHref: "Roteiro",
-    },
-    {
-      chave: "voz",
-      rotulo: "Voz ativa escolhida",
-      detalhe: config.vozId
-        ? "A voz da apresentadora está definida."
-        : "Escolha a voz antes de gerar o áudio da live.",
-      ok: Boolean(config.vozId),
-      href: "/vozes",
-      rotuloHref: "Vozes",
-    },
-    {
-      chave: "audio",
-      rotulo: "Áudio gerado",
-      detalhe:
-        contagens.audios > 0
-          ? `${contagens.audios} áudio(s) pronto(s) no estúdio.`
-          : "Nenhum áudio pronto — o estúdio gera em blocos.",
-      ok: contagens.audios > 0,
-      href: "/estudio",
-      rotuloHref: "Estúdio",
-    },
-    {
-      chave: "montagem",
-      rotulo: "Montagem ativa",
-      detalhe: montagemEscolhida
-        ? `${montagemEscolhida.nome} · ${montagemEscolhida.itens} bloco(s) em laço.`
-        : contagens.itensMontagem > 0
-          ? "Existe montagem, mas nenhuma foi escolhida para a live."
-          : "A live toca a montagem em laço — sem ela não há fala contínua.",
-      ok: Boolean(montagemEscolhida && montagemEscolhida.itens > 0),
-      href: "/audio",
-      rotuloHref: "Áudio da live",
-    },
-    {
-      chave: "conta",
-      rotulo: "Conta do TikTok escolhida",
-      detalhe: config.contaId
-        ? `Transmitindo por @${contas.find((c) => c.id === config.contaId)?.usuario ?? "—"}.`
-        : contas.length > 0
-          ? "Existe conta vinculada, mas nenhuma foi escolhida."
-          : "Vincule o @ da conta que vai transmitir.",
-      ok: Boolean(config.contaId),
-      href: "/live",
-      rotuloHref: "Aqui mesmo",
+        contagens.perguntas > 0
+          ? `${contagens.perguntas} pergunta(s) com resposta pronta.`
+          : "Sem manual a Shopia cala em toda pergunta do chat.",
+      ok: contagens.perguntas > 0,
+      href: "/manual",
+      rotuloHref: "Manual",
     },
     {
       chave: "extensao",
@@ -980,29 +701,17 @@ export async function versaoDoRisco(): Promise<number> {
 }
 
 export async function salaLive(perfilId: string): Promise<SalaLive> {
-  const [
-    config,
-    contas,
-    limiteContas,
-    vozes,
-    montagens,
-    sessao,
-    historico,
-    extensao,
-    versaoRisco,
-    contagens,
-  ] = await Promise.all([
-    configuracaoLive(perfilId),
-    contasTikTok(perfilId),
-    limiteDeContas(perfilId),
-    vozesDisponiveis(perfilId),
-    montagensDisponiveis(perfilId),
-    sessaoAtiva(perfilId),
-    ultimasSessoes(perfilId),
-    estadoExtensao(perfilId),
-    versaoDoRisco(),
-    contagensDoEstudio(perfilId),
-  ]);
+  const [config, contas, limiteContas, sessao, historico, extensao, versaoRisco, contagens] =
+    await Promise.all([
+      configuracaoLive(perfilId),
+      contasTikTok(perfilId),
+      limiteDeContas(perfilId),
+      sessaoAtiva(perfilId),
+      ultimasSessoes(perfilId),
+      estadoExtensao(perfilId),
+      versaoDoRisco(),
+      contagensDoChecklist(perfilId),
+    ]);
 
   // Aceite vencido conta como pendente: subir a versao do aviso em
   // `configuracoes` reabre o passo para todo mundo, que e como um texto
@@ -1014,11 +723,9 @@ export async function salaLive(perfilId: string): Promise<SalaLive> {
     config,
     contas,
     limiteContas,
-    vozes,
-    montagens,
     sessao,
     historico,
-    checklist: montarChecklist(contagens, config, contas, montagens, extensao, riscoPendente),
+    checklist: montarChecklist(contagens, config, extensao, riscoPendente),
     extensao,
     versaoRisco,
     riscoPendente,
@@ -1033,13 +740,8 @@ export async function consoleLive(perfilId: string): Promise<ConsoleLive> {
     estadoExtensao(perfilId),
   ]);
 
-  const montagemId = sessao?.montagemId ?? config.montagemId;
   const contaId = sessao?.contaId ?? config.contaId;
-
-  const [fila, eventos] = await Promise.all([
-    filaDeFalas(perfilId, montagemId),
-    sessao ? eventosDaLive(perfilId, sessao.id) : Promise.resolve<EventoLive[]>([]),
-  ]);
+  const eventos = sessao ? await eventosDaLive(perfilId, sessao.id) : [];
 
   return {
     sessao,
@@ -1051,7 +753,6 @@ export async function consoleLive(perfilId: string): Promise<ConsoleLive> {
       intervaloMaxS: config.intervaloMaxS,
       tetoPorMinuto: config.tetoPorMinuto,
     },
-    fila,
     eventos,
     extensao,
   };
@@ -1135,48 +836,22 @@ export async function desvincularConta(perfilId: string, contaId: string): Promi
 }
 
 /**
- * `live_config` nao tem gatilho de dono (a 0004 so protege `audios` e a 0006
- * `live_sessoes`). Sem esta conferencia, um id de voz, montagem ou conta colado
- * na requisicao apontaria para o registro de outra pessoa — e o unico lugar
- * onde isso apareceria seria em producao.
+ * `live_config` nao tem gatilho de dono (a 0006 so protege `live_sessoes`). Sem
+ * esta conferencia, um id de conta colado na requisicao apontaria para a conta
+ * de outra pessoa — e o unico lugar onde isso apareceria seria em producao.
  */
-async function conferirPropriedade(
-  perfilId: string,
-  alvos: { vozId?: string | null; montagemId?: string | null; contaId?: string | null },
-): Promise<void> {
-  const sql = bd();
+async function conferirConta(perfilId: string, contaId: string | null): Promise<void> {
+  if (!contaId) return;
 
-  if (alvos.vozId) {
-    const linhas = await sql<{ ok: boolean }[]>`
-      select voz_acessivel(${alvos.vozId}, ${perfilId}) as ok
-    `;
-    if (!linhas[0]?.ok) {
-      throw new ErroDominio("nao_encontrado", "Essa voz não é sua nem é do catálogo.");
-    }
-  }
-
-  if (alvos.montagemId) {
-    const linhas = await sql<{ id: string }[]>`
-      select id from montagens where id = ${alvos.montagemId} and perfil_id = ${perfilId}
-    `;
-    if (linhas.length === 0) {
-      throw new ErroDominio("nao_encontrado", "Essa montagem não é sua.");
-    }
-  }
-
-  if (alvos.contaId) {
-    const linhas = await sql<{ id: string }[]>`
-      select id from contas_tiktok where id = ${alvos.contaId} and perfil_id = ${perfilId}
-    `;
-    if (linhas.length === 0) {
-      throw new ErroDominio("nao_encontrado", "Essa conta do TikTok não é sua.");
-    }
+  const linhas = await bd()<{ id: string }[]>`
+    select id from contas_tiktok where id = ${contaId} and perfil_id = ${perfilId}
+  `;
+  if (linhas.length === 0) {
+    throw new ErroDominio("nao_encontrado", "Essa conta do TikTok não é sua.");
   }
 }
 
 export type PatchConfigLive = {
-  vozId?: string | null;
-  montagemId?: string | null;
   contaId?: string | null;
   responderChat?: boolean;
   saudarEntrada?: boolean;
@@ -1192,8 +867,6 @@ export async function salvarConfiguracaoLive(
   exigirBanco();
 
   const atual = await configuracaoLive(perfilId);
-  const vozId = patch.vozId === undefined ? atual.vozId : patch.vozId || null;
-  const montagemId = patch.montagemId === undefined ? atual.montagemId : patch.montagemId || null;
   const contaId = patch.contaId === undefined ? atual.contaId : patch.contaId || null;
 
   const minS = prender(
@@ -1218,22 +891,20 @@ export async function salvarConfiguracaoLive(
     CADENCIA_LIMITES.tetoMaximo,
   );
 
-  await conferirPropriedade(perfilId, { vozId, montagemId, contaId });
+  await conferirConta(perfilId, contaId);
 
   return comTraducao(async () => {
     await bd()`
       insert into live_config
-        (perfil_id, voz_id, montagem_id, conta_tiktok_id, responder_chat, saudar_entrada,
+        (perfil_id, conta_tiktok_id, responder_chat, saudar_entrada,
          chat_intervalo_min_s, chat_intervalo_max_s, chat_teto_por_minuto)
       values
-        (${perfilId}, ${vozId}, ${montagemId}, ${contaId},
+        (${perfilId}, ${contaId},
          ${patch.responderChat ?? atual.responderChat},
          ${patch.saudarEntrada ?? atual.saudarEntrada},
          ${minS}, ${maxS}, ${teto})
       on conflict (perfil_id) do update
-         set voz_id               = excluded.voz_id,
-             montagem_id          = excluded.montagem_id,
-             conta_tiktok_id      = excluded.conta_tiktok_id,
+         set conta_tiktok_id      = excluded.conta_tiktok_id,
              responder_chat       = excluded.responder_chat,
              saudar_entrada       = excluded.saudar_entrada,
              chat_intervalo_min_s = excluded.chat_intervalo_min_s,
@@ -1266,7 +937,7 @@ export async function aceitarRisco(
 
 export async function iniciarLive(
   perfilId: string,
-  opcoes: { contaId?: string | null; montagemId?: string | null } = {},
+  opcoes: { contaId?: string | null } = {},
 ): Promise<SessaoLive> {
   exigirBanco();
 
@@ -1289,15 +960,7 @@ export async function iniciarLive(
     throw new ErroDominio("dado_invalido", "Escolha a conta do TikTok que vai transmitir.");
   }
 
-  const montagemId = opcoes.montagemId ?? config.montagemId;
-  if (!montagemId) {
-    throw new ErroDominio(
-      "dado_invalido",
-      "Escolha a montagem que a apresentadora vai narrar em laço.",
-    );
-  }
-
-  await conferirPropriedade(perfilId, { montagemId, contaId });
+  await conferirConta(perfilId, contaId);
 
   return comTraducao(async () => {
     const sql = bd();
@@ -1305,7 +968,7 @@ export async function iniciarLive(
     // Duplo clique e retry de rede caem aqui: a sessao que ja existe e
     // devolvida em vez de estourar no indice unico da conta ativa.
     const abertas = await sql<LinhaSessao[]>`
-      select id, estado, conta_tiktok_id, montagem_id, inicio, fim, visto_em,
+      select id, estado, conta_tiktok_id, inicio, fim, visto_em,
              espectadores_pico, erro
         from live_sessoes
        where perfil_id = ${perfilId}
@@ -1317,9 +980,9 @@ export async function iniciarLive(
     if (abertas[0]) return montarSessao(abertas[0]);
 
     const linhas = await sql<LinhaSessao[]>`
-      insert into live_sessoes (perfil_id, conta_tiktok_id, montagem_id, estado)
-      values (${perfilId}, ${contaId}, ${montagemId}, 'iniciando')
-      returning id, estado, conta_tiktok_id, montagem_id, inicio, fim, visto_em,
+      insert into live_sessoes (perfil_id, conta_tiktok_id, estado)
+      values (${perfilId}, ${contaId}, 'iniciando')
+      returning id, estado, conta_tiktok_id, inicio, fim, visto_em,
                 espectadores_pico, erro
     `;
 
@@ -1347,7 +1010,7 @@ export async function pararLive(perfilId: string, sessaoId: string): Promise<Ses
        where id = ${sessaoId}
          and perfil_id = ${perfilId}
          and estado in ('iniciando', 'ativa')
-      returning id, estado, conta_tiktok_id, montagem_id, inicio, fim, visto_em,
+      returning id, estado, conta_tiktok_id, inicio, fim, visto_em,
                 espectadores_pico, erro
     `;
 
@@ -1367,23 +1030,20 @@ export async function pararLive(perfilId: string, sessaoId: string): Promise<Ses
 /**
  * Kill switch por cliente.
  *
- * Mexe nos DOIS modulos da licenca separadamente, como o schema os separou: o
- * chat pode morrer sem levar o mixer junto, e e isso que mantem o produto de pe
- * no dia em que a automacao de chat precisar parar. Nao revoga a licenca —
- * revogar exigiria emitir token novo, e botao de emergencia que cobra
- * reinstalacao nao e apertado na hora em que precisa.
+ * Desliga a automacao de chat sem revogar a licenca: revogar exigiria emitir
+ * token novo, e botao de emergencia que cobra reinstalacao nao e apertado na
+ * hora em que precisa.
  */
 export async function ajustarModulosExtensao(
   perfilId: string,
-  modulos: { mixer?: boolean; chat?: boolean },
+  modulos: { chat?: boolean },
 ): Promise<EstadoExtensao> {
   exigirBanco();
 
   await comTraducao(async () => {
     const linhas = await bd()<{ perfil_id: string }[]>`
       update ext_licencas
-         set mixer = coalesce(${modulos.mixer ?? null}, mixer),
-             chat  = coalesce(${modulos.chat ?? null}, chat)
+         set chat = coalesce(${modulos.chat ?? null}, chat)
        where perfil_id = ${perfilId}
       returning perfil_id
     `;
@@ -1399,9 +1059,9 @@ export async function ajustarModulosExtensao(
 }
 
 /**
- * Parada de emergencia: desliga os dois modulos e fecha a sessao aberta.
+ * Parada de emergencia: cala o chat e fecha a sessao aberta.
  *
- * Uma acao so, porque no minuto em que isto e usado ninguem vai clicar em tres
+ * Uma acao so, porque no minuto em que isto e usado ninguem vai clicar em dois
  * botoes na ordem certa.
  */
 export async function pararTudo(perfilId: string): Promise<EstadoExtensao> {
@@ -1410,5 +1070,5 @@ export async function pararTudo(perfilId: string): Promise<EstadoExtensao> {
   const sessao = await sessaoAtiva(perfilId);
   if (sessao) await pararLive(perfilId, sessao.id);
 
-  return ajustarModulosExtensao(perfilId, { mixer: false, chat: false });
+  return ajustarModulosExtensao(perfilId, { chat: false });
 }
