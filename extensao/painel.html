@@ -179,6 +179,84 @@
           </div>
         </div>
 
+        <!-- Automações: o que se aperta NO MEIO da live.
+             O texto de cada aviso se escreve no painel do site, onde dá para
+             ler inteiro e onde a revisão anti-restrição aponta o problema.
+             Aqui ficam só os interruptores e o ritmo — porque é aqui que a mão
+             da pessoa está quando a live está no ar. -->
+        <div class="bloco">
+          <div class="linha-estado">
+            <h2 class="sem-margem">Automações</h2>
+            <button id="btn-recarregar-auto" class="botao pequeno empurra">Atualizar</button>
+          </div>
+
+          <p id="auto-vazio" class="ajuda" hidden>
+            Nada configurado ainda. Os textos se escrevem no painel da Shopia;
+            aqui você liga, desliga e dispara.
+          </p>
+
+          <!-- Produto fixado -->
+          <div class="pendencia" id="auto-refixar" hidden>
+            <label class="interruptor">
+              <input type="checkbox" id="sw-refixar" />
+              <span>
+                <strong>Refixar o produto</strong>
+                <small>O TikTok desafixa quando você mexe na vitrine.</small>
+              </span>
+            </label>
+            <div class="bloco-topo">
+              <label class="campo">
+                <span>A cada (segundos)</span>
+                <input id="auto-refixar-s" type="number" min="30" max="3600" step="10" />
+              </label>
+              <label class="campo">
+                <span>Produto nº</span>
+                <input id="auto-refixar-pos" type="number" min="1" max="99" />
+              </label>
+            </div>
+          </div>
+
+          <!-- Oferta relâmpago -->
+          <div class="pendencia" id="auto-relampago" hidden>
+            <strong>Oferta relâmpago</strong>
+            <ul id="lista-relampago" class="lista-auto"></ul>
+          </div>
+
+          <!-- Comentário automático -->
+          <div class="pendencia" id="auto-aviso" hidden>
+            <strong>Comentário automático</strong>
+            <ul id="lista-aviso" class="lista-auto"></ul>
+          </div>
+
+          <!-- Reações da loja -->
+          <div class="pendencia" id="auto-loja" hidden>
+            <label class="interruptor">
+              <input type="checkbox" id="sw-carrinho" />
+              <span>
+                <strong>Reagir a carrinho</strong>
+                <small id="txt-carrinho"></small>
+              </span>
+            </label>
+            <label class="interruptor">
+              <input type="checkbox" id="sw-venda" />
+              <span>
+                <strong>Reagir a venda</strong>
+                <small id="txt-venda"></small>
+              </span>
+            </label>
+            <label class="interruptor">
+              <input type="checkbox" id="sw-sino" />
+              <span>
+                <strong>Sininho de venda</strong>
+                <small>Som aqui no painel quando vender. Só toca com o painel aberto.</small>
+              </span>
+            </label>
+          </div>
+
+          <p id="auto-recado" class="ajuda" role="status"></p>
+          <button id="btn-editar-textos" class="botao texto">Escrever os textos no painel</button>
+        </div>
+
         <!-- Controle -->
         <div class="bloco">
           <button id="btn-tocar" class="botao primario grande">Entrar no ar</button>

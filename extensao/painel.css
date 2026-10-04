@@ -212,3 +212,54 @@ input:focus-visible, select:focus-visible, button:focus-visible, summary:focus-v
 .passos-ensinar li { display: flex; align-items: center; gap: 8px; }
 .passos-ensinar .botao { flex: 1; justify-content: flex-start; }
 .marca-ok { color: var(--success); font-weight: 700; }
+
+/* --- automações: interruptor e lista ------------------------------------- */
+
+/* Checkbox nativo, não botão repintado: no painel lateral o espaço é estreito
+   e o controle do sistema já vem com o tamanho de toque certo e o estado
+   anunciado pelo leitor de tela. */
+.interruptor {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 0;
+  cursor: pointer;
+}
+
+.interruptor input {
+  margin-top: 2px;
+  width: 18px;
+  height: 18px;
+  accent-color: var(--primary);
+  flex-shrink: 0;
+}
+
+.interruptor strong { display: block; font-size: 13px; }
+.interruptor small {
+  display: block;
+  color: var(--text-muted);
+  font-size: 12px;
+  line-height: 1.4;
+  margin-top: 1px;
+}
+
+.lista-auto { list-style: none; padding: 0; margin: 8px 0 0; display: grid; gap: 8px; }
+
+.lista-auto li {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px 10px;
+  background: var(--surface);
+}
+
+.lista-auto .texto-aviso {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 4px 0 6px;
+  overflow-wrap: anywhere;
+}
+
+.lista-auto .controles { display: flex; align-items: center; gap: 8px; }
+.lista-auto .controles input[type="number"] { width: 72px; }
+.sem-margem { margin: 0; }

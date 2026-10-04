@@ -255,6 +255,18 @@ export async function confirmarRefixada(sessaoId) {
 }
 
 /**
+ * Os interruptores das automações.
+ *
+ * Ler e alternar passa pelo servidor sempre, nunca por cópia local: a mesma
+ * conta pode ter o painel do site aberto noutra janela, e dois lugares
+ * guardando o mesmo interruptor é a receita de um desligar o que o outro
+ * acabou de ligar. Aqui a extensão é tela, não fonte.
+ */
+export async function automacoes(corpo) {
+  return chamar("/api/ext/automacoes", { metodo: "POST", corpo });
+}
+
+/**
  * Telemetria de quebra.
  *
  * Não lança: se a telemetria falhar, a live continua. Ela existe para nós

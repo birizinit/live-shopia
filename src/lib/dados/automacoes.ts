@@ -527,3 +527,96 @@ export async function tetoDaConta(perfilId: string): Promise<number> {
   `;
   return numeroDe(l?.teto, 3);
 }
+
+// -----------------------------------------------------------------------------
+// O que a extensão pode mexer no meio da live
+//
+// Texto não entra aqui. O texto passa pela revisão anti-restrição e se escreve
+// com calma, no site. O que se aperta ao vivo é interruptor e ritmo — e para
+// isso a mão da pessoa já está na extensão.
+// -----------------------------------------------------------------------------
+
+export async function alternarAviso(
+  perfilId: string,
+  id: string,
+  ativo: boolean,
+): Promise<void> {
+  const linhas = await bd()<{ id: string }[]>`
+    update avisos_programados set ativo = ${ativo}
+     where id = ${id} and perfil_id = ${perfilId}
+    returning id
+  `;
+  if (linhas.length === 0) throw new ErroDominio("nao_encontrado", "Aviso não encontrado.");
+}
+
+/**
+ * Muda o ritmo de um aviso, com o piso aplicado AQUI.
+ *
+ * O limite é do servidor e não do formulário: a extensão roda na máquina do
+ * cliente, e intervalo de 5 segundos é a diferença entre "parece gente" e
+ * "conta restringida". Pedido abaixo do piso é elevado em silêncio em vez de
+ * recusado — quem arrastou um controle para o fim da escala quis o mais rápido
+ * possível, e o mais rápido possível é o piso.
+ */
+export async function ajustarIntervaloAviso(
+  perfilId: string,
+  id: string,
+  segundos: number,
+): Promise<number> {
+  const limitado = Math.min(
+    Math.max(numeroDe(segundos, 300), LIMITES_AVISO.intervaloMinS),
+    LIMITES_AVISO.intervaloMaxS,
+  );
+
+  const linhas = await bd()<{ id: string }[]>`
+    update avisos_programados set intervalo_s = ${limitado}
+     where id = ${id} and perfil_id = ${perfilId}
+    returning id
+  `;
+  if (linhas.length === 0) throw new ErroDominio("nao_encontrado", "Aviso não encontrado.");
+  return limitado;
+}
+
+export type Disparo =
+  | { enviar: true; texto: string; tema: string; avisoId: string }
+  | { enviar: false; motivo: "sem_aviso" | "desligado" | "teto_por_minuto" };
+
+/**
+ * Dispara um aviso agora, pulando o intervalo.
+ *
+ * Pular o intervalo é o ponto: oferta relâmpago existe para sair no momento em
+ * que a pessoa decide. O que NÃO se pula é o teto por minuto — ele vale até
+ * para o que o vendedor pediu de propósito, porque não protege contra a
+ * vontade dele, protege a conta dele.
+ */
+export async function dispararAviso(
+  perfilId: string,
+  sessaoId: string,
+  avisoId: string,
+): Promise<Disparo> {
+  const linhas = await bd()<LinhaAviso[]>`
+    select id, tipo, texto, intervalo_s, ativo, ordem
+      from avisos_programados
+     where id = ${avisoId} and perfil_id = ${perfilId}
+  `;
+  const aviso = linhas[0];
+  if (!aviso) return { enviar: false, motivo: "sem_aviso" };
+  if (!aviso.ativo) return { enviar: false, motivo: "desligado" };
+
+  const [ritmo] = await bd()<{ no_minuto: number }[]>`
+    select count(*) filter (where criado_em > now() - interval '1 minute')::int as no_minuto
+      from live_eventos
+     where perfil_id = ${perfilId} and live_sessao_id = ${sessaoId}
+       and tipo in ('resposta_ia', 'aviso')
+  `;
+  if (numeroDe(ritmo?.no_minuto) >= (await tetoDaConta(perfilId))) {
+    return { enviar: false, motivo: "teto_por_minuto" };
+  }
+
+  return {
+    enviar: true,
+    texto: aviso.texto,
+    tema: aviso.tipo === "relampago" ? "relampago" : "aviso",
+    avisoId: aviso.id,
+  };
+}

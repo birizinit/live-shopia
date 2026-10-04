@@ -23,6 +23,9 @@ let respostasDadas = 0;
 let carrinhos = 0;
 let vendas = 0;
 
+/** O que o servidor diz das automações. A extensão não guarda cópia. */
+let auto = null;
+
 /** Âncoras de produto que esta instalação já aprendeu. */
 let ancorasLocais = {};
 let rodizioMinutos = 0;
@@ -204,6 +207,194 @@ async function conferirChat() {
 function usuarioTikTokValido(bruto) {
   const usuario = String(bruto ?? "").trim().replace(/^@/, "");
   return /^[A-Za-z0-9._]{2,24}$/.test(usuario) ? usuario : null;
+}
+
+// ---------------------------------------------------------------- automações
+//
+// O texto de cada aviso se escreve no painel do site: lá dá para ler a frase
+// inteira e lá a revisão anti-restrição aponta o trecho que costuma restringir
+// a live. Aqui ficam o interruptor, o ritmo e o "disparar agora" — porque é
+// aqui que a mão da pessoa está com a live no ar.
+//
+// Nada é guardado localmente. A mesma conta pode ter o painel do site aberto
+// noutra janela, e dois lugares guardando o mesmo interruptor é a receita de um
+// desligar o que o outro acabou de ligar.
+
+function recadoAuto(texto) {
+  $("auto-recado").textContent = texto ?? "";
+}
+
+async function carregarAutomacoes() {
+  try {
+    const r = await api.automacoes({ acao: "ler" });
+    auto = r;
+    pintarAutomacoes();
+    recadoAuto("");
+  } catch (erro) {
+    auto = null;
+    recadoAuto(`Não deu para ler as automações: ${erro.message}`);
+  }
+}
+
+/** Aplica no servidor e repinta com o que ELE devolveu, não com o que eu pedi. */
+async function mandarAuto(corpo, aviso = "Salvo.") {
+  recadoAuto("Salvando…");
+  try {
+    const r = await api.automacoes(corpo);
+    if (r.config) auto = { ...auto, config: r.config };
+    if (r.avisos) auto = { ...auto, avisos: r.avisos };
+    pintarAutomacoes();
+    recadoAuto(aviso);
+  } catch (erro) {
+    // Repinta a partir do servidor: o interruptor tem de voltar sozinho ao
+    // estado real, senão a tela mente sobre o que está ligado.
+    recadoAuto(erro.detalhe || erro.message || "Não deu para salvar.");
+    void carregarAutomacoes();
+  }
+}
+
+function pintarAutomacoes() {
+  const temAlgo = Boolean(auto?.config);
+  $("auto-vazio").hidden = temAlgo;
+  $("auto-refixar").hidden = !temAlgo;
+  $("auto-loja").hidden = !temAlgo;
+  if (!temAlgo) {
+    $("auto-relampago").hidden = true;
+    $("auto-aviso").hidden = true;
+    return;
+  }
+
+  const c = auto.config;
+  $("sw-refixar").checked = c.refixarAtivo;
+  $("auto-refixar-s").value = String(c.refixarIntervaloS);
+  $("auto-refixar-pos").value = String(c.refixarPosicao);
+  $("auto-refixar-s").min = String(auto.limites?.intervaloMinS ?? 30);
+  $("auto-refixar-s").max = String(auto.limites?.intervaloMaxS ?? 3600);
+
+  $("sw-carrinho").checked = c.carrinhoAtivo;
+  $("sw-venda").checked = c.vendaAtivo;
+  $("sw-sino").checked = c.sinoAtivo;
+
+  // Mostrar o texto configurado ao lado do interruptor é o que evita a pessoa
+  // ligar sem lembrar o que ela escreveu — e descobrir ao vivo.
+  $("txt-carrinho").textContent = c.carrinhoTexto
+    ? `“${c.carrinhoTexto}”`
+    : "Sem texto escrito. Ligue no painel do site, onde dá para escrever.";
+  $("txt-venda").textContent = c.vendaTexto
+    ? `“${c.vendaTexto}”`
+    : "Sem texto escrito. Ligue no painel do site, onde dá para escrever.";
+
+  // Um interruptor que não tem o que dizer fica desabilitado em vez de
+  // enganar: ligado sem texto, a Shopia detectaria a venda e ficaria calada.
+  $("sw-carrinho").disabled = !c.carrinhoTexto;
+  $("sw-venda").disabled = !c.vendaTexto;
+
+  pintarListaDeAvisos("relampago", $("lista-relampago"), $("auto-relampago"));
+  pintarListaDeAvisos("aviso", $("lista-aviso"), $("auto-aviso"));
+}
+
+function pintarListaDeAvisos(tipo, lista, caixa) {
+  const itens = (auto?.avisos ?? []).filter((a) => a.tipo === tipo);
+  caixa.hidden = itens.length === 0;
+  lista.innerHTML = "";
+
+  for (const aviso of itens) {
+    const li = document.createElement("li");
+
+    const linha = document.createElement("label");
+    linha.className = "interruptor";
+    const marca = document.createElement("input");
+    marca.type = "checkbox";
+    marca.checked = aviso.ativo;
+    marca.addEventListener("change", () =>
+      void mandarAuto(
+        { acao: "aviso", avisoId: aviso.id, ativo: marca.checked },
+        marca.checked ? "Ligado." : "Desligado.",
+      ),
+    );
+    const rotulo = document.createElement("span");
+    const forte = document.createElement("strong");
+    forte.textContent = tipo === "relampago" ? "Oferta relâmpago" : "Aviso";
+    rotulo.append(forte);
+    linha.append(marca, rotulo);
+
+    const texto = document.createElement("span");
+    texto.className = "texto-aviso";
+    texto.textContent = `“${aviso.texto}”`;
+
+    const controles = document.createElement("div");
+    controles.className = "controles";
+
+    const campo = document.createElement("input");
+    campo.type = "number";
+    campo.min = String(auto.limites?.intervaloMinS ?? 30);
+    campo.max = String(auto.limites?.intervaloMaxS ?? 3600);
+    campo.step = "10";
+    campo.value = String(aviso.intervaloS);
+    campo.setAttribute("aria-label", "Intervalo em segundos");
+    campo.addEventListener("change", () =>
+      void mandarAuto(
+        { acao: "aviso_intervalo", avisoId: aviso.id, segundos: Number(campo.value) || 300 },
+        "Ritmo salvo.",
+      ),
+    );
+
+    const seg = document.createElement("span");
+    seg.className = "ajuda";
+    seg.textContent = "segundos";
+
+    const disparar = document.createElement("button");
+    disparar.className = "botao pequeno empurra";
+    disparar.textContent = "Disparar agora";
+    disparar.addEventListener("click", () => void dispararAgora(aviso));
+
+    controles.append(campo, seg, disparar);
+    li.append(linha, texto, controles);
+    lista.append(li);
+  }
+}
+
+const MOTIVO_DISPARO = {
+  sem_aviso: "Esse aviso não existe mais.",
+  desligado: "Ligue o aviso antes de disparar.",
+  teto_por_minuto:
+    "O chat já recebeu o máximo de mensagens deste minuto. Espere um pouco — esse limite é o que protege a sua conta.",
+};
+
+/**
+ * Dispara pulando o intervalo, que é o ponto da oferta relâmpago.
+ *
+ * O que não se pula é o teto por minuto: ele vale até para o que o vendedor
+ * pediu de propósito, porque não protege contra a vontade dele — protege a
+ * conta dele.
+ */
+async function dispararAgora(aviso) {
+  if (!sessaoId) {
+    recadoAuto("Entre no ar primeiro: sem live aberta não há chat para escrever.");
+    return;
+  }
+
+  recadoAuto("Disparando…");
+  let r;
+  try {
+    r = await api.automacoes({ acao: "disparar", avisoId: aviso.id, sessaoId });
+  } catch (erro) {
+    recadoAuto(erro.detalhe || erro.message || "Não deu para disparar.");
+    return;
+  }
+
+  if (!r.enviar) {
+    recadoAuto(MOTIVO_DISPARO[r.motivo] ?? "Não deu para disparar agora.");
+    return;
+  }
+
+  const chegou = await falarComALive({
+    tipo: "programado_escrever",
+    texto: r.texto,
+    tema: r.tema,
+    avisoId: r.avisoId,
+  });
+  recadoAuto(chegou ? "Mandado para a live." : "A página da sua live não está aberta.");
 }
 
 // ---------------------------------------------------------------- sininho
@@ -643,7 +834,7 @@ async function abrirOperacao() {
   await carregarPreferencias();
   await retomarSessao();
   await atualizarEstado();
-  await conferirChat();
+  await Promise.all([conferirChat(), carregarAutomacoes()]);
 }
 
 /**
@@ -730,6 +921,33 @@ $("limite").addEventListener("change", async (evento) => {
   await api.gravarLocal({ [api.CHAVES.limiteMinutos]: limiteMinutos });
   pintarFimProgramado();
 });
+
+// --- automações ---
+
+$("btn-recarregar-auto").addEventListener("click", () => void carregarAutomacoes());
+$("btn-editar-textos").addEventListener("click", () => void api.abrirNoSite("/automacoes"));
+
+for (const [id, chave] of [
+  ["sw-refixar", "refixarAtivo"],
+  ["sw-carrinho", "carrinhoAtivo"],
+  ["sw-venda", "vendaAtivo"],
+  ["sw-sino", "sinoAtivo"],
+]) {
+  $(id).addEventListener("change", (evento) =>
+    void mandarAuto(
+      { acao: "alternar", chave, valor: evento.target.checked },
+      evento.target.checked ? "Ligado." : "Desligado.",
+    ),
+  );
+}
+
+$("auto-refixar-s").addEventListener("change", (evento) =>
+  void mandarAuto({ acao: "intervalo", segundos: Number(evento.target.value) || 180 }, "Ritmo salvo."),
+);
+
+$("auto-refixar-pos").addEventListener("change", (evento) =>
+  void mandarAuto({ acao: "posicao", posicao: Number(evento.target.value) || 1 }, "Produto salvo."),
+);
 
 // --- diagnóstico do chat ---
 
