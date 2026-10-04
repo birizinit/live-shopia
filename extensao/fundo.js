@@ -16,6 +16,7 @@ import * as api from "./api.js";
 const ALARME_LICENCA = "shopia:licenca";
 const ALARME_EVENTOS = "shopia:eventos";
 const ALARME_SESSAO = "shopia:sessao";
+const ALARME_PROGRAMADO = "shopia:programado";
 const CHAVE_CHAT = "shopia_chat";
 
 /** Estado vivo. Reconstruído do storage quando o worker renasce. */
@@ -88,6 +89,7 @@ async function baterLicenca() {
       // A revisão do manual vem no mesmo batimento: é aviso, não consulta que
       // alguém faz de propósito.
       protecao: r.protecao ?? null,
+      sinoAtivo: r.automacoes?.sinoAtivo !== false,
       versaoPublicada: r.versao?.publicada ?? null,
       atualizacaoObrigatoria: Boolean(r.versao?.obrigatoria),
       notas: r.versao?.notas ?? null,
@@ -195,10 +197,69 @@ async function baterSessaoAberta() {
   }
 }
 
+/**
+ * Pergunta ao servidor se há automação para agora, e manda a aba da live fazer.
+ *
+ * Mora no service worker, e não no painel, porque no modo de moderação o painel
+ * fica fechado a maior parte da live — e automação que só roda com a janela
+ * aberta não é automação. `chrome.alarms` ressuscita este worker depois dos ~30
+ * segundos de ociosidade em que o MV3 o mata.
+ *
+ * Quem conta os segundos é o servidor. Aqui só se pergunta.
+ */
+async function rodarProgramado() {
+  const sessaoId = await api.lerLocal(api.CHAVES.sessao);
+  if (!sessaoId) return;
+
+  let tarefa;
+  try {
+    tarefa = await api.proximaTarefa(sessaoId);
+  } catch (erro) {
+    if (erro?.codigo === "sessao_encerrada") {
+      await chrome.storage.local.remove(api.CHAVES.sessao);
+    }
+    return;
+  }
+  if (!tarefa?.ok || tarefa.acao === "nada") return;
+
+  const abas = await chrome.tabs.query({ url: "*://*.tiktok.com/*" }).catch(() => []);
+  const daLive = abas.filter((a) => {
+    try {
+      return /\/(live|studio|live_studio)(\/|$)/i.test(new URL(a.url ?? "", "https://x").pathname);
+    } catch {
+      return false;
+    }
+  });
+  if (daLive.length === 0) return;
+
+  // Só a PRIMEIRA aba da live recebe. Mandar para todas publicaria a mesma
+  // mensagem tantas vezes quantas abas estiverem abertas.
+  const aba = daLive[0].id;
+
+  if (tarefa.acao === "escrever") {
+    chrome.tabs
+      .sendMessage(aba, {
+        tipo: "programado_escrever",
+        texto: tarefa.texto,
+        tema: tarefa.tema,
+        avisoId: tarefa.avisoId,
+      })
+      .catch(() => {});
+    return;
+  }
+
+  if (tarefa.acao === "fixar") {
+    chrome.tabs
+      .sendMessage(aba, { tipo: "programado_fixar", posicao: tarefa.posicao })
+      .catch(() => {});
+  }
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   chrome.alarms.create(ALARME_LICENCA, { periodInMinutes: 2 });
   chrome.alarms.create(ALARME_EVENTOS, { periodInMinutes: 0.5 });
   chrome.alarms.create(ALARME_SESSAO, { periodInMinutes: 1 });
+  chrome.alarms.create(ALARME_PROGRAMADO, { periodInMinutes: 0.5 });
   chrome.sidePanel?.setPanelBehavior?.({ openPanelOnActionClick: true }).catch(() => {});
 });
 
@@ -206,12 +267,14 @@ chrome.runtime.onStartup.addListener(() => {
   chrome.alarms.create(ALARME_LICENCA, { periodInMinutes: 2 });
   chrome.alarms.create(ALARME_EVENTOS, { periodInMinutes: 0.5 });
   chrome.alarms.create(ALARME_SESSAO, { periodInMinutes: 1 });
+  chrome.alarms.create(ALARME_PROGRAMADO, { periodInMinutes: 0.5 });
 });
 
 chrome.alarms.onAlarm.addListener((alarme) => {
   if (alarme.name === ALARME_LICENCA) void baterLicenca();
   if (alarme.name === ALARME_EVENTOS) void despejarFila();
   if (alarme.name === ALARME_SESSAO) void baterSessaoAberta();
+  if (alarme.name === ALARME_PROGRAMADO) void rodarProgramado();
 });
 
 chrome.action.onClicked.addListener((aba) => {
@@ -283,6 +346,40 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
         } catch (erro) {
           responder({ ok: false, acao: "ignorar", motivo: erro.codigo ?? "falhou" });
         }
+        break;
+      }
+
+      case "programado_feito": {
+        // Confirmar só quando SAIU. Confirmar na tentativa faria o intervalo
+        // reiniciar por uma mensagem que ninguém leu, e o aviso sumiria da
+        // live sem nunca ter aparecido.
+        const sessaoId = await api.lerLocal(api.CHAVES.sessao);
+        if (sessaoId && mensagem.ok) {
+          try {
+            await api.confirmarResposta(
+              sessaoId,
+              mensagem.texto,
+              mensagem.tema ?? "aviso",
+              mensagem.avisoId ?? null,
+            );
+          } catch {
+            /* a próxima volta tenta de novo */
+          }
+        }
+        responder({ ok: true });
+        break;
+      }
+
+      case "programado_fixou": {
+        const sessaoId = await api.lerLocal(api.CHAVES.sessao);
+        if (sessaoId && mensagem.ok) {
+          try {
+            await api.confirmarRefixada(sessaoId);
+          } catch {
+            /* idem */
+          }
+        }
+        responder({ ok: true });
         break;
       }
 

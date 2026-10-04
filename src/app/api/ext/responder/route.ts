@@ -7,6 +7,8 @@ import {
   tokenDoCabecalho,
 } from "@/lib/dados/extensao";
 import { decidirResposta, registrarResposta } from "@/lib/dados/respostas";
+import { proximaTarefa, registrarRefixada } from "@/lib/dados/automacoes";
+import { tetoDaConta } from "@/lib/dados/automacoes";
 import { modoDemo } from "@/lib/env";
 
 /**
@@ -76,17 +78,46 @@ export async function POST(request: NextRequest) {
       if (!enviado) {
         return NextResponse.json({ ok: false, erro: "texto_vazio" }, { status: 400 });
       }
-      await registrarResposta(licenca.perfilId, sessaoId, enviado, texto(corpo?.tema, 30));
+      const avisoId =
+        typeof corpo?.avisoId === "string" && UUID.test(corpo.avisoId) ? corpo.avisoId : null;
+
+      await registrarResposta(licenca.perfilId, sessaoId, enviado, texto(corpo?.tema, 30), {
+        // Aviso programado é gravado como `aviso` para o agendador saber quando
+        // cada um saiu pela última vez. A cadência conta os dois tipos.
+        tipo: avisoId ? "aviso" : "resposta_ia",
+        avisoId,
+      });
       return NextResponse.json({ ok: true });
     }
 
-    const tipo = corpo?.tipo === "entrada" ? "entrada" : "comentario";
+    if (corpo?.acao === "refixou") {
+      await registrarRefixada(licenca.perfilId, sessaoId);
+      return NextResponse.json({ ok: true });
+    }
 
     // Os dois freios da automação de chat, checados aqui: o da licença (por
-    // conta) e o global (base inteira). O do mixer não entra — áudio e chat
-    // são recursos independentes de propósito.
+    // conta) e o global (base inteira).
     const chatLiberado =
       licenca.chat && licenca.recursos.chat && !(await chatDesligadoNaBase());
+
+    /**
+     * "Tem algo programado para agora?"
+     *
+     * A extensão pergunta; o servidor decide. O relógio de cada automação mora
+     * aqui porque a extensão roda na máquina do cliente — duas abas abertas na
+     * mesma conta contariam o intervalo em dobro e postariam em dobro.
+     */
+    if (corpo?.acao === "programado") {
+      if (!chatLiberado) {
+        return NextResponse.json({ ok: true, acao: "nada", motivo: "chat_desligado" });
+      }
+      const tarefa = await proximaTarefa(licenca.perfilId, sessaoId, {
+        tetoPorMinuto: await tetoDaConta(licenca.perfilId),
+      });
+      return NextResponse.json({ ok: true, ...tarefa });
+    }
+
+    const tipo = corpo?.tipo === "entrada" ? "entrada" : "comentario";
 
     const decisao = await decidirResposta(licenca.perfilId, {
       sessaoId,

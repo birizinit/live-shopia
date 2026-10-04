@@ -224,10 +224,33 @@ export async function decidirResposta({ sessaoId, tipo, apelido, texto, produtoI
 }
 
 /** Confirma que a resposta saiu. É o que faz a cadência contar. */
-export async function confirmarResposta(sessaoId, texto, tema) {
+export async function confirmarResposta(sessaoId, texto, tema, avisoId = null) {
   return chamar("/api/ext/responder", {
     metodo: "POST",
-    corpo: { acao: "registrar", sessaoId, texto, tema },
+    corpo: { acao: "registrar", sessaoId, texto, tema, avisoId },
+  });
+}
+
+/**
+ * "Tem algo programado para agora?"
+ *
+ * O relógio de cada automação mora no SERVIDOR, não aqui. Esta extensão roda na
+ * máquina do cliente: duas abas abertas na mesma conta contariam o intervalo em
+ * dobro e postariam em dobro, e mensagem duplicada é o sinal de automação mais
+ * visível que existe. Então a extensão só pergunta e obedece.
+ */
+export async function proximaTarefa(sessaoId) {
+  return chamar("/api/ext/responder", {
+    metodo: "POST",
+    corpo: { acao: "programado", sessaoId },
+  });
+}
+
+/** Confirma que o produto foi refixado, para o intervalo contar de agora. */
+export async function confirmarRefixada(sessaoId) {
+  return chamar("/api/ext/responder", {
+    metodo: "POST",
+    corpo: { acao: "refixou", sessaoId },
   });
 }
 

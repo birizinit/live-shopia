@@ -20,6 +20,8 @@ let protecao = null;
 let sessaoId = null;
 let comentariosLidos = 0;
 let respostasDadas = 0;
+let carrinhos = 0;
+let vendas = 0;
 
 /** Âncoras de produto que esta instalação já aprendeu. */
 let ancorasLocais = {};
@@ -202,6 +204,47 @@ async function conferirChat() {
 function usuarioTikTokValido(bruto) {
   const usuario = String(bruto ?? "").trim().replace(/^@/, "");
   return /^[A-Za-z0-9._]{2,24}$/.test(usuario) ? usuario : null;
+}
+
+// ---------------------------------------------------------------- sininho
+//
+// Som gerado, e não arquivo: um .mp3 de sino no pacote seria mais um binário
+// para baixar, mais um caminho para o Chrome recusar por CSP, e mais uma coisa
+// para versionar. Dois tons curtos de oscilador fazem o mesmo trabalho em vinte
+// linhas e sem nenhum arquivo.
+//
+// Toca AQUI e não no service worker porque o worker não tem contexto de áudio —
+// ele nem é uma página. Com o painel fechado o sino não toca, e isso é honesto:
+// quem fechou a janela não está olhando para ela.
+
+let audio = null;
+
+function tocarSino() {
+  try {
+    audio ??= new AudioContext();
+    if (audio.state === "suspended") void audio.resume();
+
+    const agora = audio.currentTime;
+    // Duas notas, a segunda uma quinta acima: é o que faz soar "caixa
+    // registradora" em vez de "alerta de erro".
+    for (const [atraso, hz] of [
+      [0, 880],
+      [0.12, 1320],
+    ]) {
+      const osc = audio.createOscillator();
+      const ganho = audio.createGain();
+      osc.type = "sine";
+      osc.frequency.value = hz;
+      ganho.gain.setValueAtTime(0, agora + atraso);
+      ganho.gain.linearRampToValueAtTime(0.18, agora + atraso + 0.01);
+      ganho.gain.exponentialRampToValueAtTime(0.0001, agora + atraso + 0.35);
+      osc.connect(ganho).connect(audio.destination);
+      osc.start(agora + atraso);
+      osc.stop(agora + atraso + 0.4);
+    }
+  } catch {
+    // Sem áudio o contador continua subindo. Sino é enfeite; contador não.
+  }
 }
 
 // ------------------------------------------------------- diagnóstico do chat
@@ -777,6 +820,17 @@ chrome.runtime.onMessage.addListener((mensagem) => {
     totalProdutos = mensagem.total ?? 0;
     pintarProdutos();
   }
+  if (mensagem?.tipo === "loja") {
+    if (mensagem.qual === "venda") {
+      vendas += 1;
+      $("m-venda").textContent = String(vendas);
+      if (estadoLicenca?.sinoAtivo !== false) tocarSino();
+    } else if (mensagem.qual === "carrinho") {
+      carrinhos += 1;
+      $("m-carrinho").textContent = String(carrinhos);
+    }
+  }
+
   if (mensagem?.tipo === "ensaio") pintarEnsaio(mensagem);
 
   if (mensagem?.tipo === "teste_enviado") {

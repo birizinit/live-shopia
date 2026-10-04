@@ -109,6 +109,7 @@ export async function jornadaDaLive(perfilId: string): Promise<JornadaDaLive> {
                 and e.tipo = 'comentario'
                 and e.texto is not null
                 and length(btrim(e.texto)) between 4 and 200
+                and classificar_mensagem(e.texto) is null
                 and (select id from casar_tema(${perfilId}, e.texto)) is null) as sem_resposta,
             (select max(e.ultimo_contato) from ext_instalacoes e
               where e.perfil_id = ${perfilId}) as extensao_vista_em,

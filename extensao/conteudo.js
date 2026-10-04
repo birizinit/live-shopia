@@ -512,7 +512,14 @@
   /** Pergunta ao servidor e cumpre o que ele mandar. */
   async function consultarEResponder(evento) {
     const r = await pedir({ tipo: "decidir", evento });
-    if (!r?.ok || r.acao === "ignorar" || r.acao === "falando") return;
+    if (!r?.ok) return;
+
+    // O evento da loja sobe antes de qualquer decisão sobre responder: o
+    // contador e o sininho existem para o vendedor VER que vendeu, e isso vale
+    // mesmo com a reação no chat desligada.
+    if (r.loja) void pedir({ tipo: "loja", qual: r.loja, apelido: evento.apelido ?? null });
+
+    if (r.acao === "ignorar") return;
 
     if (r.acao === "escrever" && r.texto) {
       // A espera vem do servidor, sorteada dentro da janela do cliente. É ela
@@ -685,6 +692,30 @@
     }
     if (mensagem?.tipo === "contar_produtos") {
       void pedir({ tipo: "produtos", total: produtos.quantosProdutos(mapa) });
+    }
+
+    // --- automações programadas ---
+    //
+    // O texto e o momento vêm do servidor. O content script não decide nada
+    // aqui: ele só escreve e conta o que aconteceu.
+    if (mensagem?.tipo === "programado_escrever" && mensagem.texto) {
+      void escreverNoChat(String(mensagem.texto).slice(0, 150)).then((r) =>
+        pedir({
+          tipo: "programado_feito",
+          ok: r.ok,
+          motivo: r.motivo ?? null,
+          texto: mensagem.texto,
+          tema: mensagem.tema ?? "aviso",
+          avisoId: mensagem.avisoId ?? null,
+        }),
+      );
+      return;
+    }
+
+    if (mensagem?.tipo === "programado_fixar") {
+      const r = produtos.fixarProduto(mapa, mensagem.posicao ?? 1);
+      void pedir({ tipo: "programado_fixou", ...r });
+      return;
     }
 
     // --- diagnóstico do chat ---

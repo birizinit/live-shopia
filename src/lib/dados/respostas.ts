@@ -23,8 +23,28 @@ import { ehCumprimento } from "@/lib/cumprimento";
 const TETO_CHAT = 150;
 
 export type Decisao =
-  | { acao: "ignorar"; motivo: string }
-  | { acao: "escrever"; texto: string; esperarMs: number; tema: string | null };
+  | {
+      acao: "ignorar";
+      motivo: string;
+      /**
+       * Vai preenchido mesmo quando a gente NÃO responde: o evento aconteceu, e
+       * o contador e o sininho da extensão não dependem de a reação no chat
+       * estar ligada. Quem desligou o texto ainda quer ver o número subir.
+       */
+      loja?: "carrinho" | "venda";
+    }
+  | {
+      acao: "escrever";
+      texto: string;
+      esperarMs: number;
+      tema: string | null;
+      /**
+       * Quando a mensagem é reação a um evento da loja. A extensão usa para
+       * tocar o sino e para contar — e `tipo` vira o tipo do evento gravado,
+       * para o contador da live saber o que foi carrinho e o que foi venda.
+       */
+      loja?: "carrinho" | "venda";
+    };
 
 type LinhaConfig = {
   responder_chat: boolean;
@@ -33,6 +53,10 @@ type LinhaConfig = {
   chat_intervalo_min_s: number;
   chat_intervalo_max_s: number;
   chat_teto_por_minuto: number;
+  carrinho_ativo: boolean;
+  carrinho_texto: string | null;
+  venda_ativo: boolean;
+  venda_texto: string | null;
 };
 
 /**
@@ -48,10 +72,25 @@ function esperaComJitter(minS: number, maxS: number) {
   return Math.round(min + Math.random() * (max - min));
 }
 
+/**
+ * Mensagem de sistema do TikTok, ou pergunta de gente?
+ *
+ * Os padrões moram no banco (`padroes_sistema`, 0029) pelo mesmo motivo do mapa
+ * de seletores: a frase é escrita pelo TikTok, muda sem avisar e sem versão, e
+ * o conserto precisa ser um INSERT em vez de um deploy.
+ */
+async function classificarSistema(texto: string): Promise<"carrinho" | "venda" | "ignorar" | null> {
+  const linhas = await bd()<{ tipo: "carrinho" | "venda" | "ignorar" | null }[]>`
+    select classificar_mensagem(${texto}) as tipo
+  `;
+  return linhas[0]?.tipo ?? null;
+}
+
 async function configDaLive(perfilId: string): Promise<LinhaConfig | null> {
   const linhas = await bd()<LinhaConfig[]>`
     select responder_chat, dar_boas_vindas, boas_vindas_texto,
-           chat_intervalo_min_s, chat_intervalo_max_s, chat_teto_por_minuto
+           chat_intervalo_min_s, chat_intervalo_max_s, chat_teto_por_minuto,
+           carrinho_ativo, carrinho_texto, venda_ativo, venda_texto
       from live_config
      where perfil_id = ${perfilId}
   `;
@@ -59,6 +98,18 @@ async function configDaLive(perfilId: string): Promise<LinhaConfig | null> {
 }
 
 /** Quantas respostas saíram no último minuto, e quando foi a última. */
+/**
+ * Tudo que a Shopia ESCREVEU no chat conta para a cadência.
+ *
+ * Os tipos são dois porque servem a leituras diferentes — `aviso` existe para o
+ * agendador saber quando cada aviso saiu pela última vez — mas para a cadência
+ * eles são a mesma coisa: mensagem nossa aparecendo no chat. Contar só
+ * `resposta_ia` deixaria os avisos programados fora da conta, e aí o teto por
+ * minuto seria furado justamente pela automação que roda sozinha e que ninguém
+ * está olhando.
+ */
+export const TIPOS_QUE_ESCREVEM = ["resposta_ia", "aviso"] as const;
+
 async function ritmoRecente(perfilId: string, sessaoId: string) {
   const linhas = await bd()<{ no_minuto: number; segundos_desde: number | null }[]>`
     select
@@ -67,7 +118,7 @@ async function ritmoRecente(perfilId: string, sessaoId: string) {
       from live_eventos
      where perfil_id = ${perfilId}
        and live_sessao_id = ${sessaoId}
-       and tipo = 'resposta_ia'
+       and tipo = any(${[...TIPOS_QUE_ESCREVEM]})
   `;
   return {
     noMinuto: numeroDe(linhas[0]?.no_minuto),
@@ -122,10 +173,57 @@ export async function decidirResposta(
   }
 
   // --------------------------------------------------------------- comentário
-  if (!config.responder_chat) return { acao: "ignorar", motivo: "desligado" };
-
   const texto = pedido.texto?.trim();
   if (!texto || texto.length < 2) return { acao: "ignorar", motivo: "vazio" };
+
+  // ------------------------------------------------- mensagem de sistema
+  //
+  // Vem ANTES de `responder_chat` e antes do manual, porque não é pergunta de
+  // ninguém: é o TikTok anunciando no chat que alguém adicionou ao carrinho,
+  // comprou, ou só compartilhou. Tratar isso como comentário tem dois custos
+  // reais que a gente já pagou: "compartilhou a LIVE" foi para a lista de
+  // "perguntas que ninguém soube responder" como se alguém tivesse perguntado
+  // algo, e um gatilho de manual com a palavra "comprar" responderia à
+  // mensagem de sistema em vez de ao cliente.
+  const sistema = await classificarSistema(texto);
+
+  if (sistema === "ignorar") return { acao: "ignorar", motivo: "mensagem_de_sistema" };
+
+  if (sistema === "carrinho" || sistema === "venda") {
+    // Grava primeiro, decide depois: o contador não depende de a gente reagir.
+    await registrarEventoDaLoja(perfilId, pedido.sessaoId, sistema, pedido.apelido ?? null);
+
+    const ligado = sistema === "carrinho" ? config.carrinho_ativo : config.venda_ativo;
+    const modelo = (sistema === "carrinho" ? config.carrinho_texto : config.venda_texto)?.trim();
+
+    // Mesmo desligado, o evento é devolvido para a extensão contar e tocar o
+    // sino. Quem não quer reagir no chat ainda quer ver o número subir.
+    if (!ligado || !modelo) {
+      return { acao: "ignorar", motivo: `loja_${sistema}_desligado`, loja: sistema };
+    }
+
+    const ritmoLoja = await ritmoRecente(perfilId, pedido.sessaoId);
+    if (ritmoLoja.noMinuto >= config.chat_teto_por_minuto) {
+      return { acao: "ignorar", motivo: "teto_por_minuto", loja: sistema };
+    }
+
+    // O nome vem de quem "falou": é assim que o TikTok monta a mensagem de
+    // sistema — apelido de quem agiu, ação no texto.
+    const quem = pedido.apelido?.trim() || "alguém";
+
+    return {
+      acao: "escrever",
+      texto: modelo.replaceAll("{nome}", quem).slice(0, TETO_CHAT),
+      // Reação a venda é a única que não espera: o valor dela é ser imediata,
+      // e ela acontece raramente — não é ela que cria rajada.
+      esperarMs: esperaComJitter(1, Math.max(1, config.chat_intervalo_min_s)),
+      tema: `loja_${sistema}`,
+      loja: sistema,
+    };
+  }
+
+  // ------------------------------------------------------- pergunta de cliente
+  if (!config.responder_chat) return { acao: "ignorar", motivo: "desligado" };
 
   const ritmo = await ritmoRecente(perfilId, pedido.sessaoId);
 
@@ -189,14 +287,47 @@ export async function registrarResposta(
   sessaoId: string,
   texto: string,
   tema: string | null,
+  /** `aviso` quando foi texto programado; o id dele vai no `dados`. */
+  opcoes: { tipo?: "resposta_ia" | "aviso"; avisoId?: string | null } = {},
 ): Promise<void> {
+  const tipo = opcoes.tipo ?? "resposta_ia";
+
   // comoJson e não JSON.stringify: com `${JSON.stringify(obj)}::jsonb` o
   // postgres.js codifica a string de novo e o que fica gravado é um jsonb do
   // tipo STRING — `dados->>'tema'` devolve null e o histórico perde o tema.
   await bd()`
     insert into live_eventos (live_sessao_id, perfil_id, tipo, texto, dados)
-    select ${sessaoId}, ${perfilId}, 'resposta_ia', ${texto.slice(0, 500)},
-           ${comoJson({ tema })}
+    select ${sessaoId}, ${perfilId}, ${tipo}, ${texto.slice(0, 500)},
+           ${comoJson({ tema, aviso_id: opcoes.avisoId ?? null })}
+     where exists (
+       select 1 from live_sessoes
+        where id = ${sessaoId} and perfil_id = ${perfilId} and fim is null
+     )
+  `;
+}
+
+/**
+ * Grava que o TikTok anunciou carrinho ou venda.
+ *
+ * Separado do registro da RESPOSTA de propósito: o evento aconteceu, e precisa
+ * entrar no contador, mesmo que a pessoa tenha desligado a reação no chat.
+ * Juntar os dois faria o contador parar de subir quando alguém desliga o texto.
+ *
+ * Não escreve em `vendas`, que é o que alimenta dashboard e ranking. Venda
+ * DETECTADA numa mensagem de chat não é venda MEDIDA — e aceitar número vindo
+ * de uma extensão que o próprio cliente controla seria deixar o ranking ser
+ * escrito por quem o disputa.
+ */
+async function registrarEventoDaLoja(
+  perfilId: string,
+  sessaoId: string,
+  tipo: "carrinho" | "venda",
+  apelido: string | null,
+): Promise<void> {
+  await bd()`
+    insert into live_eventos (live_sessao_id, perfil_id, tipo, apelido, dados)
+    select ${sessaoId}, ${perfilId}, ${tipo}, ${apelido?.slice(0, 80) ?? null},
+           ${comoJson({ origem: "mensagem_do_chat" })}
      where exists (
        select 1 from live_sessoes
         where id = ${sessaoId} and perfil_id = ${perfilId} and fim is null

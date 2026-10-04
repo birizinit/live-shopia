@@ -1,7 +1,8 @@
 import "server-only";
 import { bd } from "@/lib/db";
+import { modoDemo } from "@/lib/env";
 import { ErroDominio } from "./erros";
-import { numeroDe } from "./comum";
+import { comDemo, numeroDe } from "./comum";
 
 /**
  * O manual do produto: o que a Shopia sabe responder.
@@ -86,7 +87,43 @@ const daLinha = (l: Linha): ItemManual => ({
   vezesUsado: numeroDe(l.vezes_usado),
 });
 
+/**
+ * Exemplos do modo demo. Sem `DATABASE_URL` a aplicação roda em demo
+ * (src/lib/env.ts) e esta tela é a mais importante do produto: ela precisa
+ * poder ser vista. A interface rotula como exemplo.
+ */
+const MANUAL_DEMO: ItemManual[] = [
+  {
+    id: "00000000-0000-4000-8000-0000000c1001",
+    chave: "preco",
+    rotulo: "Preço",
+    gatilhos: ["quanto", "preco", "valor", "quanto custa"],
+    resposta: "O valor está na tela e o cupom já está ativo — aproveita que é por tempo limitado!",
+    produtoId: null,
+    produtoNome: null,
+    ativo: true,
+    ordem: 10,
+    vezesUsado: 23,
+  },
+  {
+    id: "00000000-0000-4000-8000-0000000c1002",
+    chave: "frete",
+    rotulo: "Frete",
+    gatilhos: ["frete", "entrega", "envio", "prazo"],
+    resposta: "O frete aparece no carrinho conforme o seu CEP, e sai rapidinho!",
+    produtoId: null,
+    produtoNome: null,
+    ativo: true,
+    ordem: 20,
+    vezesUsado: 11,
+  },
+];
+
 export async function listarManual(perfilId: string): Promise<ItemManual[]> {
+  return comDemo(() => MANUAL_DEMO, () => lerManual(perfilId));
+}
+
+async function lerManual(perfilId: string): Promise<ItemManual[]> {
   const linhas = await bd()<Linha[]>`
     select t.id, t.chave, t.rotulo, t.gatilhos, t.resposta, t.produto_id,
            p.nome as produto_nome, t.ativo, t.ordem, t.vezes_usado
@@ -110,6 +147,10 @@ export async function listarManual(perfilId: string): Promise<ItemManual[]> {
  * que não responde nada e não diz por quê.
  */
 export async function garantirManualBasico(perfilId: string): Promise<number> {
+  // Em demo não há banco onde semear, e devolver 0 faz a tela não mostrar o
+  // aviso de "começamos o seu manual" — que seria mentira sobre dados falsos.
+  if (modoDemo) return 0;
+
   const [linha] = await bd()<{ n: number }[]>`
     select count(*)::int n from temas_resposta where perfil_id = ${perfilId}
   `;
@@ -243,6 +284,13 @@ export async function perguntasSemResposta(
   perfilId: string,
   limite = 30,
 ): Promise<{ texto: string; vezes: number; ultimaEm: string }[]> {
+  if (modoDemo) {
+    return [
+      { texto: "serve pra pele oleosa?", vezes: 3, ultimaEm: new Date().toISOString() },
+      { texto: "tem em azul?", vezes: 2, ultimaEm: new Date().toISOString() },
+    ];
+  }
+
   const linhas = await bd()<{ texto: string; vezes: number; ultima: Date }[]>`
     select lower(btrim(e.texto)) as texto,
            count(*)::int as vezes,
@@ -252,6 +300,11 @@ export async function perguntasSemResposta(
        and e.tipo = 'comentario'
        and e.texto is not null
        and length(btrim(e.texto)) between 4 and 200
+       -- Mensagem de sistema do TikTok não é pergunta de ninguém. Sem este
+       -- filtro, "compartilhou a LIVE" aparecia aqui como se alguém tivesse
+       -- perguntado algo — e a lista existe para a pessoa cadastrar resposta,
+       -- não para ela ficar procurando o que responder a um aviso de sistema.
+       and classificar_mensagem(e.texto) is null
        -- Não soube responder: não existe tema que case com este comentário.
        and (select id from casar_tema(${perfilId}, e.texto)) is null
      group by lower(btrim(e.texto))

@@ -17,6 +17,7 @@ import {
   Trophy,
   User,
   UserCog,
+  Zap,
 } from "lucide-react";
 import type { Papel } from "./roles";
 
@@ -88,6 +89,12 @@ export const NAVEGACAO: readonly GrupoNav[] = [
       { href: "/inicio", rotulo: "Início", icone: House, descricao: "Onde você está no caminho até a live" },
       { href: "/criar", rotulo: "Preparar live", icone: Sparkles, destaque: true, descricao: "Do produto ao manual, em 3 passos" },
       { href: "/manual", rotulo: "Manual", icone: BookOpenCheck, descricao: "O que a Shopia responde no chat" },
+      {
+        href: "/automacoes",
+        rotulo: "Automações",
+        icone: Zap,
+        descricao: "O que a Shopia faz sozinha: refixar o produto, avisos e reação a venda",
+      },
       { href: "/extensao", rotulo: "Extensão", icone: Puzzle, descricao: "Instalar, conectar e atualizar" },
       { href: "/live", rotulo: "Ao vivo", icone: Radio, inclui: ["/painel"], descricao: "Se a live está no ar e o que ela está fazendo" },
       { href: "/dashboard", rotulo: "Vendas", icone: ChartColumn, inclui: ["/ranking"], descricao: "Faturamento e vendas das lives" },

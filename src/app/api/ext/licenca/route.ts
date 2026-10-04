@@ -13,6 +13,7 @@ import {
 } from "@/lib/dados/extensao";
 import { configuracao } from "@/lib/dados/comum";
 import { revisaoDoManual } from "@/lib/dados/ext-live";
+import { configAutomacoes } from "@/lib/dados/automacoes";
 import { ErroDominio } from "@/lib/dados/erros";
 import { modoDemo } from "@/lib/env";
 
@@ -138,7 +139,10 @@ export async function GET(request: NextRequest) {
           })
         : null;
 
-    const protecao = await revisaoDoManual(licenca.perfilId);
+    const [protecao, automacoes] = await Promise.all([
+      revisaoDoManual(licenca.perfilId),
+      configAutomacoes(licenca.perfilId),
+    ]);
 
     return NextResponse.json(
       {
@@ -162,6 +166,9 @@ export async function GET(request: NextRequest) {
         // a cada dois minutos, e a revisão é um aviso, não uma consulta que
         // alguém faz de propósito.
         protecao,
+        // O sino toca no painel lateral, que é quem tem contexto de áudio. A
+        // extensão precisa saber se está ligado sem perguntar de novo.
+        automacoes: { sinoAtivo: automacoes.sinoAtivo },
         versao: versao
           ? {
               publicada: versao.versao,
