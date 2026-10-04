@@ -7,7 +7,7 @@ import {
   ShoppingBag,
   ShoppingCart,
 } from "lucide-react";
-import { AvisosProgramados, GatilhoDaLoja, ProdutoFixado } from "./controles";
+import { AvisosProgramados, GatilhoDaLoja } from "./controles";
 import { PageHeader } from "@/components/layout/page-header";
 import { Alerta } from "@/components/ui/alerta";
 import { Badge } from "@/components/ui/badge";
@@ -21,6 +21,7 @@ import {
   LIMITES_AVISO,
   LIMITES_GATILHO,
   SUGESTAO,
+  garantirAutomacoesBasicas,
 } from "@/lib/dados/automacoes";
 import { sessaoAtiva } from "@/lib/dados/live";
 import { exigirUsuario } from "@/lib/sessao";
@@ -76,6 +77,11 @@ export default async function AutomacoesPage() {
 
   // `sessaoAtiva` e não `salaLive`: a sala monta oito consultas para a tela de
   // live inteira, e aqui só interessa saber se há transmissão aberta.
+  // Semeia antes de ler: conta nova abre a tela já com texto pronto, do mesmo
+  // jeito que o manual. Configuração vazia é indistinguível de recurso
+  // quebrado para quem está vendo pela primeira vez.
+  await garantirAutomacoesBasicas(usuario.id);
+
   const [avisos, config, sessao] = await Promise.all([
     listarAvisos(usuario.id),
     configAutomacoes(usuario.id),
@@ -103,13 +109,6 @@ export default async function AutomacoesPage() {
       />
 
       <div className="space-y-4">
-        <ProdutoFixado
-          config={config}
-          limites={{
-            intervaloMinS: LIMITES.intervaloMinS,
-            intervaloMaxS: LIMITES.intervaloMaxS,
-          }}
-        />
 
         <AvisosProgramados
           tipo="relampago"

@@ -1,5 +1,6 @@
 import "server-only";
 import { bd } from "@/lib/db";
+import { modoDemo } from "@/lib/env";
 import { comDemo, numeroDe } from "./comum";
 import { ErroDominio } from "./erros";
 
@@ -619,4 +620,74 @@ export async function dispararAviso(
     tema: aviso.tipo === "relampago" ? "relampago" : "aviso",
     avisoId: aviso.id,
   };
+}
+
+// -----------------------------------------------------------------------------
+// Nascer funcionando
+// -----------------------------------------------------------------------------
+
+/**
+ * Garante que a conta tem automação utilizável.
+ *
+ * Mesmo padrão do manual básico (`garantirManualBasico`): conta nova nasce com
+ * texto pronto em vez de nascer vazia. Configuração vazia é a mesma coisa que
+ * recurso desligado, e quem abre a tela pela primeira vez não tem como saber se
+ * está vendo "não configurado" ou "não funciona".
+ *
+ * Idempotente de duas formas diferentes, de propósito:
+ *
+ *   os avisos só nascem se NÃO houver nenhum — quem apagou todos de propósito
+ *   os vê voltar, e isso é o preço de não conseguir distinguir "apaguei" de
+ *   "nunca tive";
+ *
+ *   os textos de carrinho e venda só são escritos quando estão nulos, então
+ *   texto que a pessoa editou nunca é sobrescrito.
+ *
+ * As reações nascem LIGADAS, e isso é seguro: nada é publicado fora de uma
+ * sessão de live aberta. A pessoa precisa clicar em "Entrar no ar" para
+ * qualquer coisa daqui chegar ao chat.
+ */
+export async function garantirAutomacoesBasicas(perfilId: string): Promise<boolean> {
+  if (modoDemo) return false;
+
+  let criou = false;
+
+  const [contagem] = await bd()<{ n: number }[]>`
+    select count(*)::int n from avisos_programados where perfil_id = ${perfilId}
+  `;
+
+  if (numeroDe(contagem?.n) === 0) {
+    await bd()`
+      insert into avisos_programados (perfil_id, tipo, texto, intervalo_s, ativo, ordem)
+      values
+        (${perfilId}, 'aviso',     ${SUGESTAO.aviso},     300, true,  10),
+        (${perfilId}, 'relampago', ${SUGESTAO.relampago}, 900, false, 10)
+    `;
+    criou = true;
+  }
+
+  // A relâmpago nasce DESLIGADA: "relâmpago" é algo que se dispara no momento
+  // em que a pessoa decide, e um relâmpago que sai sozinho a cada 15 minutos
+  // deixa de ser relâmpago e vira ruído. O botão "Disparar agora" é o uso
+  // normal dela; o intervalo é só o teto para quem quiser automatizar.
+
+  // INSERT com conflito, e não UPDATE: `live_config` é criada sob demanda, e
+  // conta que nunca passou pela tela de live não tem linha nenhuma — um UPDATE
+  // ali afetaria zero linhas e os textos nunca seriam escritos, em silêncio.
+  //
+  // No `do update`, as condições leem o valor ANTIGO da linha: é isso que faz
+  // "liga se o texto estava nulo" ligar só quando a gente acabou de escrever o
+  // texto, e respeitar quem desligou de propósito um texto que já existia.
+  const [linha] = await bd()<{ escreveu: boolean }[]>`
+    insert into live_config (perfil_id, carrinho_texto, carrinho_ativo, venda_texto, venda_ativo)
+    values (${perfilId}, ${SUGESTAO.carrinho}, true, ${SUGESTAO.venda}, true)
+    on conflict (perfil_id) do update
+       set carrinho_texto = coalesce(live_config.carrinho_texto, excluded.carrinho_texto),
+           venda_texto    = coalesce(live_config.venda_texto,    excluded.venda_texto),
+           carrinho_ativo = live_config.carrinho_ativo or live_config.carrinho_texto is null,
+           venda_ativo    = live_config.venda_ativo    or live_config.venda_texto    is null
+    returning true as escreveu
+  `;
+
+  return criou || Boolean(linha?.escreveu);
 }

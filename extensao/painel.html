@@ -58,7 +58,7 @@
             <div class="linha-estado">
               <span class="ponto" id="ponto-chat"></span>
               <strong>Chat da live</strong>
-              <span class="versao empurra">responder, boas-vindas e produtos</span>
+              <span class="versao empurra">responder, boas-vindas e automações</span>
             </div>
             <p id="chat-texto" class="ajuda">
               O LIVE Studio transmite; a Shopia lê o chat pela página da sua live
@@ -116,69 +116,6 @@
           </div>
         </div>
 
-        <!-- Produtos -->
-        <div class="bloco">
-          <h2>Produtos</h2>
-
-          <div id="produto-ensinar" class="aviso alerta">
-            <p>
-              Para fixar produto, a Shopia precisa que você mostre onde ficam os
-              botões na SUA tela. O painel de produtos do LIVE Studio muda de
-              conta para conta — em vez de adivinhar e arriscar clicar no botão
-              errado no meio da sua live, ela pergunta uma vez.
-            </p>
-            <p class="ajuda">
-              Abra a sua live com a lista de produtos à vista e ensine os três.
-            </p>
-            <ol class="passos-ensinar">
-              <li>
-                <button id="btn-ensinar-lista" class="botao pequeno" data-ancora="produto.lista">
-                  1. A lista de produtos
-                </button>
-                <span class="marca-ok" id="ok-produto-lista" hidden>✓</span>
-              </li>
-              <li>
-                <button id="btn-ensinar-item" class="botao pequeno" data-ancora="produto.item">
-                  2. Um produto da lista
-                </button>
-                <span class="marca-ok" id="ok-produto-item" hidden>✓</span>
-              </li>
-              <li>
-                <button id="btn-ensinar-fixar" class="botao pequeno" data-ancora="produto.fixar">
-                  3. O botão de fixar
-                </button>
-                <span class="marca-ok" id="ok-produto-fixar" hidden>✓</span>
-              </li>
-            </ol>
-          </div>
-
-          <div id="produto-pronto" hidden>
-            <p id="produto-total" class="ajuda"></p>
-            <div class="bloco-topo">
-              <label class="campo">
-                <span>Fixar o produto nº</span>
-                <input id="produto-posicao" type="number" min="1" max="99" value="1" />
-              </label>
-              <button id="btn-fixar" class="botao primario pequeno">Fixar agora</button>
-            </div>
-
-            <label class="campo">
-              <span>Rodar entre os produtos a cada</span>
-              <select id="rodizio">
-                <option value="0">Não rodar</option>
-                <option value="2">2 minutos</option>
-                <option value="5">5 minutos</option>
-                <option value="10">10 minutos</option>
-                <option value="15">15 minutos</option>
-                <option value="30">30 minutos</option>
-              </select>
-            </label>
-
-            <p id="produto-recado" class="ajuda" role="status"></p>
-            <button id="btn-reensinar" class="botao texto">Ensinar de novo</button>
-          </div>
-        </div>
-
         <!-- Automações: o que se aperta NO MEIO da live.
              O texto de cada aviso se escreve no painel do site, onde dá para
              ler inteiro e onde a revisão anti-restrição aponta o problema.
@@ -194,27 +131,6 @@
             Nada configurado ainda. Os textos se escrevem no painel da Shopia;
             aqui você liga, desliga e dispara.
           </p>
-
-          <!-- Produto fixado -->
-          <div class="pendencia" id="auto-refixar" hidden>
-            <label class="interruptor">
-              <input type="checkbox" id="sw-refixar" />
-              <span>
-                <strong>Refixar o produto</strong>
-                <small>O TikTok desafixa quando você mexe na vitrine.</small>
-              </span>
-            </label>
-            <div class="bloco-topo">
-              <label class="campo">
-                <span>A cada (segundos)</span>
-                <input id="auto-refixar-s" type="number" min="30" max="3600" step="10" />
-              </label>
-              <label class="campo">
-                <span>Produto nº</span>
-                <input id="auto-refixar-pos" type="number" min="1" max="99" />
-              </label>
-            </div>
-          </div>
 
           <!-- Oferta relâmpago -->
           <div class="pendencia" id="auto-relampago" hidden>

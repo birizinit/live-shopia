@@ -11,6 +11,7 @@ import {
   ajustarIntervaloAviso,
   configAutomacoes,
   dispararAviso,
+  garantirAutomacoesBasicas,
   listarAvisos,
   salvarAutomacoes,
 } from "@/lib/dados/automacoes";
@@ -101,6 +102,10 @@ export async function POST(request: NextRequest) {
     const acao = typeof corpo?.acao === "string" ? corpo.acao : "ler";
 
     if (acao === "ler") {
+      // Semeia aqui também: quem instala a extensão antes de abrir a tela do
+      // site veria tudo vazio e concluiria que não funciona.
+      await garantirAutomacoesBasicas(licenca.perfilId);
+
       const [config, avisos] = await Promise.all([
         configAutomacoes(licenca.perfilId),
         listarAvisos(licenca.perfilId),

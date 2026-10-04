@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Shopia — moderação de live no TikTok",
-  "version": "2.2.0",
+  "version": "2.3.0",
   "description": "Modera a sua live no TikTok: responde os comentários pelo manual que você cadastrou, dá boas-vindas pelo nome e fixa produtos.",
 
   "permissions": ["storage", "alarms", "sidePanel", "tabs"],

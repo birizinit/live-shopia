@@ -10,7 +10,6 @@
 // que sobrevive à morte dele.
 
 import * as api from "./api.js";
-import { ANCORAS } from "./produtos.js";
 
 const $ = (id) => document.getElementById(id);
 
@@ -26,12 +25,11 @@ let vendas = 0;
 /** O que o servidor diz das automações. A extensão não guarda cópia. */
 let auto = null;
 
-/** Âncoras de produto que esta instalação já aprendeu. */
+/**
+ * Âncoras que esta instalação aprendeu apontando na tela. Hoje só a do botão
+ * de enviar do chat.
+ */
 let ancorasLocais = {};
-let rodizioMinutos = 0;
-let relogioRodizio = null;
-let produtoAtual = 1;
-let totalProdutos = 0;
 
 let inicioNoAr = null;
 let relogioCronometro = null;
@@ -183,7 +181,7 @@ function pintarChat(estado) {
     pintarPonto("ponto-chat", "alerta");
     $("chat-texto").textContent =
       "O seu plano não inclui respostas no chat, então a Shopia não vai responder " +
-      "nem dar boas-vindas. Fixar produto continua funcionando.";
+      "nem dar boas-vindas, mas continua lendo e contando o que acontece na live.";
     return;
   }
 
@@ -256,7 +254,6 @@ async function mandarAuto(corpo, aviso = "Salvo.") {
 function pintarAutomacoes() {
   const temAlgo = Boolean(auto?.config);
   $("auto-vazio").hidden = temAlgo;
-  $("auto-refixar").hidden = !temAlgo;
   $("auto-loja").hidden = !temAlgo;
   if (!temAlgo) {
     $("auto-relampago").hidden = true;
@@ -265,12 +262,6 @@ function pintarAutomacoes() {
   }
 
   const c = auto.config;
-  $("sw-refixar").checked = c.refixarAtivo;
-  $("auto-refixar-s").value = String(c.refixarIntervaloS);
-  $("auto-refixar-pos").value = String(c.refixarPosicao);
-  $("auto-refixar-s").min = String(auto.limites?.intervaloMinS ?? 30);
-  $("auto-refixar-s").max = String(auto.limites?.intervaloMaxS ?? 3600);
-
   $("sw-carrinho").checked = c.carrinhoAtivo;
   $("sw-venda").checked = c.vendaAtivo;
   $("sw-sino").checked = c.sinoAtivo;
@@ -516,125 +507,6 @@ function pintarEnsaio(r) {
   );
 }
 
-// ---------------------------------------------------------------- produtos
-
-const INSTRUCOES = {
-  "chat.enviar": "Clique no botão de ENVIAR do chat da live (o de mandar a mensagem). Esc cancela.",
-  [ANCORAS.lista]: "Clique na LISTA de produtos da sua live (a caixa que contém todos). Esc cancela.",
-  [ANCORAS.item]: "Clique em UM produto da lista — qualquer um serve. Esc cancela.",
-  [ANCORAS.fixar]: "Clique no botão de FIXAR de um produto. Ele não será fixado agora. Esc cancela.",
-};
-
-function ancoraAprendida(nome) {
-  return Array.isArray(ancorasLocais[nome]) && ancorasLocais[nome].length > 0;
-}
-
-function pintarProdutos() {
-  const prontas = Object.values(ANCORAS).every(ancoraAprendida);
-  $("produto-ensinar").hidden = prontas;
-  $("produto-pronto").hidden = !prontas;
-
-  $("ok-produto-lista").hidden = !ancoraAprendida(ANCORAS.lista);
-  $("ok-produto-item").hidden = !ancoraAprendida(ANCORAS.item);
-  $("ok-produto-fixar").hidden = !ancoraAprendida(ANCORAS.fixar);
-
-  if (prontas) {
-    $("produto-total").textContent =
-      totalProdutos > 0
-        ? `${totalProdutos} produto(s) na lista da sua live.`
-        : "Abra a sua live para a Shopia enxergar a lista de produtos.";
-  }
-}
-
-/** Manda um recado para a aba da live. Devolve se alguma aba recebeu. */
-async function falarComALive(mensagem) {
-  const abas = await chrome.tabs.query({ url: "*://*.tiktok.com/*" }).catch(() => []);
-  const daLive = abas.filter((a) => ehUrlDeLive(a.url));
-  if (daLive.length === 0) return false;
-  for (const aba of daLive) chrome.tabs.sendMessage(aba.id, mensagem).catch(() => {});
-  return true;
-}
-
-async function ensinar(ancora) {
-  const chegou = await falarComALive({ tipo: "aprender", ancora, instrucao: INSTRUCOES[ancora] });
-  if (!chegou) {
-    recadoDeProduto("Abra a sua live no TikTok primeiro — é lá que você vai apontar.");
-    return;
-  }
-  recadoDeProduto("Vá até a aba da live e clique no que foi pedido.");
-}
-
-function recadoDeProduto(texto) {
-  $("produto-recado").textContent = texto ?? "";
-}
-
-/** Como o envio saiu, para a tela dizer em português. */
-const CAMINHO_ENVIO = {
-  botao: "botão de enviar",
-  enter: "tecla Enter",
-  formulario: "envio do formulário",
-};
-
-const MOTIVO_ENVIO = {
-  sem_campo: "não achei o campo de escrever do chat na página.",
-  nao_digitou: "achei o campo, mas não consegui pôr texto nele de jeito nenhum.",
-  editor_nao_registrou:
-    "o texto entrou no campo, mas o editor do TikTok não o reconheceu — o botão de " +
-    "enviar não acendeu. Foi isto que aconteceu na sua primeira live.",
-  nao_enviou:
-    "o editor reconheceu o texto, o botão acendeu, e ainda assim nada saiu. " +
-    "Apaguei o texto para não deixar lixo na sua caixa.",
-};
-
-/** As técnicas de digitação, na ordem em que são tentadas. */
-const TECNICA = {
-  digitacao: "digitação",
-  input: "evento de entrada",
-  colagem: "colagem",
-  atribuicao: "escrita direta",
-};
-
-const MOTIVO_FIXAR = {
-  sem_ancora: "Falta ensinar onde fica o botão de fixar.",
-  lista_fechada: "A lista de produtos não está à vista na live. Abra ela e tente de novo.",
-  lista_vazia: "Não achei produto nenhum na lista. A sua live está com produtos?",
-  sem_botao: "Achei o produto, mas não o botão de fixar dentro dele. Ensine de novo o passo 3.",
-  botao_desligado: "O botão de fixar está desabilitado nesse produto.",
-};
-
-async function fixar(posicao) {
-  const chegou = await falarComALive({ tipo: "fixar", posicao });
-  if (!chegou) recadoDeProduto("A live não está aberta nesta janela.");
-}
-
-// ------------------------------------------------------------------ rodízio
-
-/**
- * Roda entre os produtos sozinho.
- *
- * O ponteiro anda mesmo quando um produto falha ao fixar: parar no que falhou
- * deixaria o rodízio travado para sempre naquele item, e a live inteira
- * mostrando o produto errado.
- */
-function iniciarRodizio() {
-  pararRodizio();
-  if (rodizioMinutos <= 0) return;
-  relogioRodizio = setInterval(() => {
-    if (totalProdutos <= 0) {
-      void falarComALive({ tipo: "contar_produtos" });
-      return;
-    }
-    produtoAtual = (produtoAtual % totalProdutos) + 1;
-    $("produto-posicao").value = String(produtoAtual);
-    void fixar(produtoAtual);
-  }, rodizioMinutos * 60_000);
-}
-
-function pararRodizio() {
-  clearInterval(relogioRodizio);
-  relogioRodizio = null;
-}
-
 // ---------------------------------------------------------------- controle
 
 /**
@@ -730,7 +602,6 @@ async function entrarNoAr() {
   iniciarCronometro();
   void baterSessao();
   void garantirAbaDaLive();
-  iniciarRodizio();
   pintarEstadoDoAr();
 }
 
@@ -788,7 +659,6 @@ async function baterSessao() {
 
 async function encerrar(motivo = null) {
   clearInterval(relogioBatimento);
-  pararRodizio();
   pararCronometro();
 
   if (sessaoId) {
@@ -820,13 +690,9 @@ async function carregarPreferencias() {
   const usuario = await api.lerLocal(api.CHAVES.usuarioTikTok, "");
   $("usuario-tiktok").value = usuario ? `@${usuario}` : "";
 
-  rodizioMinutos = Number(await api.lerLocal(api.CHAVES.rodizioMinutos, 0)) || 0;
-  $("rodizio").value = String(rodizioMinutos);
-
   ancorasLocais = (await api.lerLocal(api.CHAVES.ancorasLocais)) ?? {};
 
   atualizarBotao();
-  pintarProdutos();
 }
 
 async function abrirOperacao() {
@@ -863,7 +729,6 @@ async function retomarSessao() {
   const desde = Number(await api.lerLocal(api.CHAVES.inicioNoAr, 0)) || Date.now();
   iniciarCronometro(desde);
   void baterSessao();
-  iniciarRodizio();
   pintarEstadoDoAr();
 }
 
@@ -928,7 +793,6 @@ $("btn-recarregar-auto").addEventListener("click", () => void carregarAutomacoes
 $("btn-editar-textos").addEventListener("click", () => void api.abrirNoSite("/automacoes"));
 
 for (const [id, chave] of [
-  ["sw-refixar", "refixarAtivo"],
   ["sw-carrinho", "carrinhoAtivo"],
   ["sw-venda", "vendaAtivo"],
   ["sw-sino", "sinoAtivo"],
@@ -940,14 +804,6 @@ for (const [id, chave] of [
     ),
   );
 }
-
-$("auto-refixar-s").addEventListener("change", (evento) =>
-  void mandarAuto({ acao: "intervalo", segundos: Number(evento.target.value) || 180 }, "Ritmo salvo."),
-);
-
-$("auto-refixar-pos").addEventListener("change", (evento) =>
-  void mandarAuto({ acao: "posicao", posicao: Number(evento.target.value) || 1 }, "Produto salvo."),
-);
 
 // --- diagnóstico do chat ---
 
@@ -970,31 +826,43 @@ $("btn-enviar-teste").addEventListener("click", async () => {
   if (!chegou) recadoDoChat("A página da sua live não está aberta nesta janela do Chrome.");
 });
 
-// --- produtos ---
+// --- automações ---
 
-for (const id of ["btn-ensinar-lista", "btn-ensinar-item", "btn-ensinar-fixar"]) {
-  $(id).addEventListener("click", (evento) => void ensinar(evento.currentTarget.dataset.ancora));
+$("btn-recarregar-auto").addEventListener("click", () => void carregarAutomacoes());
+$("btn-editar-textos").addEventListener("click", () => void api.abrirNoSite("/automacoes"));
+
+for (const [id, chave] of [
+  ["sw-carrinho", "carrinhoAtivo"],
+  ["sw-venda", "vendaAtivo"],
+  ["sw-sino", "sinoAtivo"],
+]) {
+  $(id).addEventListener("change", (evento) =>
+    void mandarAuto(
+      { acao: "alternar", chave, valor: evento.target.checked },
+      evento.target.checked ? "Ligado." : "Desligado.",
+    ),
+  );
 }
 
-$("btn-reensinar").addEventListener("click", async () => {
-  ancorasLocais = {};
-  await api.gravarLocal({ [api.CHAVES.ancorasLocais]: {} });
-  totalProdutos = 0;
-  pintarProdutos();
-  recadoDeProduto("");
+// --- diagnóstico do chat ---
+
+$("btn-ensaiar").addEventListener("click", async () => {
+  recadoDoChat("Testando na aba da live…");
+  const chegou = await falarComALive({ tipo: "ensaiar_envio" });
+  if (!chegou) recadoDoChat("A página da sua live não está aberta nesta janela do Chrome.");
 });
 
-$("btn-fixar").addEventListener("click", () => {
-  produtoAtual = Math.max(1, Number($("produto-posicao").value) || 1);
-  recadoDeProduto("Fixando…");
-  void fixar(produtoAtual);
-});
+$("btn-ensinar-enviar").addEventListener("click", (evento) =>
+  void ensinar(evento.currentTarget.dataset.ancora),
+);
 
-$("rodizio").addEventListener("change", async (evento) => {
-  rodizioMinutos = Number(evento.target.value) || 0;
-  await api.gravarLocal({ [api.CHAVES.rodizioMinutos]: rodizioMinutos });
-  if (sessaoId) iniciarRodizio();
-  else pararRodizio();
+$("btn-enviar-teste").addEventListener("click", async () => {
+  recadoDoChat("Enviando…");
+  const chegou = await falarComALive({
+    tipo: "enviar_teste",
+    texto: $("texto-teste").value,
+  });
+  if (!chegou) recadoDoChat("A página da sua live não está aberta nesta janela do Chrome.");
 });
 
 $("btn-sair").addEventListener("click", async () => {
@@ -1016,27 +884,16 @@ chrome.runtime.onMessage.addListener((mensagem) => {
     $("m-resposta").textContent = String(respostasDadas);
   }
 
-  // --- produtos ---
   if (mensagem?.tipo === "aprendeu") {
     if (mensagem.cancelado) {
-      recadoDeProduto("Cancelado.");
+      recadoDoChat("Cancelado.");
     } else if (Array.isArray(mensagem.cascata) && mensagem.cascata.length > 0) {
       ancorasLocais = { ...ancorasLocais, [mensagem.ancora]: mensagem.cascata };
-      if (mensagem.ancora === "chat.enviar") {
-        recadoDoChat("Anotado. Testando de novo com o botão que você apontou…");
-        void falarComALive({ tipo: "ensaiar_envio" });
-      } else {
-        recadoDeProduto("Anotado.");
-        void falarComALive({ tipo: "contar_produtos" });
-      }
+      recadoDoChat("Anotado. Testando de novo com o botão que você apontou…");
+      void falarComALive({ tipo: "ensaiar_envio" });
     } else {
-      recadoDeProduto("Não consegui descrever o que você clicou. Tente clicar no botão em si.");
+      recadoDoChat("Não consegui descrever o que você clicou. Tente clicar no botão em si.");
     }
-    pintarProdutos();
-  }
-  if (mensagem?.tipo === "produtos") {
-    totalProdutos = mensagem.total ?? 0;
-    pintarProdutos();
   }
   if (mensagem?.tipo === "loja") {
     if (mensagem.qual === "venda") {
@@ -1070,15 +927,6 @@ chrome.runtime.onMessage.addListener((mensagem) => {
     $("diagnostico").open = true;
   }
 
-  if (mensagem?.tipo === "fixou") {
-    recadoDeProduto(
-      mensagem.ok
-        ? `Produto ${mensagem.posicao} fixado.`
-        : mensagem.motivo === "posicao_inexistente"
-          ? `A sua live tem ${mensagem.total} produto(s); não existe o número ${$("produto-posicao").value}.`
-          : (MOTIVO_FIXAR[mensagem.motivo] ?? "Não deu para fixar."),
-    );
-  }
 });
 
 // A aba da live abriu, fechou ou trocou de página: o estado do chat muda junto.
