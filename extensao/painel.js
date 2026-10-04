@@ -204,9 +204,88 @@ function usuarioTikTokValido(bruto) {
   return /^[A-Za-z0-9._]{2,24}$/.test(usuario) ? usuario : null;
 }
 
+// ------------------------------------------------------- diagnóstico do chat
+//
+// "Ela não respondeu" tem quatro causas que ninguém distingue olhando a live:
+// o campo do chat não foi achado, o botão de enviar não foi achado, a cadência
+// segurou, ou a pergunta não está no manual. Este bloco separa as duas
+// primeiras — as únicas que a extensão pode conferir sozinha.
+
+function recadoDoChat(texto) {
+  $("recado-chat").textContent = texto ?? "";
+}
+
+function itemDeEnsaio(texto, tom = "ok") {
+  const li = document.createElement("li");
+  li.textContent = texto;
+  li.dataset.tom = tom;
+  return li;
+}
+
+function pintarEnsaio(r) {
+  const lista = $("resultado-ensaio");
+  lista.innerHTML = "";
+  lista.hidden = false;
+  $("ensinar-envio").hidden = true;
+  $("envio-de-verdade").hidden = true;
+
+  if (!r.campo) {
+    lista.append(itemDeEnsaio("Não achei o campo de escrever do chat nesta página.", "ruim"));
+    lista.append(
+      itemDeEnsaio("Confira se a página da sua live está aberta e o chat visível.", "alerta"),
+    );
+    return;
+  }
+
+  lista.append(itemDeEnsaio(`Campo do chat achado (${r.editavel}).`));
+  if (r.teto) {
+    lista.append(itemDeEnsaio(`O TikTok limita a mensagem a ${r.teto} caracteres.`));
+  }
+
+  if (!r.tecnica) {
+    lista.append(itemDeEnsaio("Não consegui pôr texto nele por nenhum caminho.", "ruim"));
+    return;
+  }
+
+  lista.append(itemDeEnsaio(`Texto entrou por ${TECNICA[r.tecnica] ?? r.tecnica}.`));
+
+  // Este é o item que importa: o botão acender é a prova de que o editor do
+  // TikTok REGISTROU o texto, e não só que o texto está na árvore do DOM.
+  const BOTAO = {
+    pronto: ["ok", "O botão de enviar acendeu — o editor reconheceu o texto."],
+    escondido: [
+      "ruim",
+      "O botão de enviar continua apagado: o editor NÃO reconheceu o texto. " +
+        "É exatamente a falha da sua primeira live.",
+    ],
+    desabilitado: ["ruim", "O botão de enviar está desabilitado mesmo com texto no campo."],
+    nao_achado: ["alerta", "Não achei o botão de enviar nesta página."],
+  };
+  const [tom, texto] = BOTAO[r.botao] ?? BOTAO.nao_achado;
+  lista.append(itemDeEnsaio(texto, tom));
+
+  if (r.dentroDeFormulario) {
+    lista.append(itemDeEnsaio("O campo está dentro de um formulário — há um caminho extra de envio."));
+  }
+
+  // Ensinar o botão só é oferecido quando ele é o que falta. Oferecer sempre
+  // faria a pessoa apontar coisa que já funcionava.
+  $("ensinar-envio").hidden = r.botao !== "nao_achado";
+  $("envio-de-verdade").hidden = false;
+
+  recadoDoChat(
+    r.aceito
+      ? "Tudo que dá para conferir sem enviar está certo. Se ela ainda não responde, " +
+          "o motivo é a cadência ou a pergunta não estar no manual."
+      : "O teste sem enviar já mostrou o problema. Vale tentar o envio de verdade: " +
+          "às vezes o botão só acende depois de o editor processar, e o Enter ainda passa.",
+  );
+}
+
 // ---------------------------------------------------------------- produtos
 
 const INSTRUCOES = {
+  "chat.enviar": "Clique no botão de ENVIAR do chat da live (o de mandar a mensagem). Esc cancela.",
   [ANCORAS.lista]: "Clique na LISTA de produtos da sua live (a caixa que contém todos). Esc cancela.",
   [ANCORAS.item]: "Clique em UM produto da lista — qualquer um serve. Esc cancela.",
   [ANCORAS.fixar]: "Clique no botão de FIXAR de um produto. Ele não será fixado agora. Esc cancela.",
@@ -254,6 +333,32 @@ async function ensinar(ancora) {
 function recadoDeProduto(texto) {
   $("produto-recado").textContent = texto ?? "";
 }
+
+/** Como o envio saiu, para a tela dizer em português. */
+const CAMINHO_ENVIO = {
+  botao: "botão de enviar",
+  enter: "tecla Enter",
+  formulario: "envio do formulário",
+};
+
+const MOTIVO_ENVIO = {
+  sem_campo: "não achei o campo de escrever do chat na página.",
+  nao_digitou: "achei o campo, mas não consegui pôr texto nele de jeito nenhum.",
+  editor_nao_registrou:
+    "o texto entrou no campo, mas o editor do TikTok não o reconheceu — o botão de " +
+    "enviar não acendeu. Foi isto que aconteceu na sua primeira live.",
+  nao_enviou:
+    "o editor reconheceu o texto, o botão acendeu, e ainda assim nada saiu. " +
+    "Apaguei o texto para não deixar lixo na sua caixa.",
+};
+
+/** As técnicas de digitação, na ordem em que são tentadas. */
+const TECNICA = {
+  digitacao: "digitação",
+  input: "evento de entrada",
+  colagem: "colagem",
+  atribuicao: "escrita direta",
+};
 
 const MOTIVO_FIXAR = {
   sem_ancora: "Falta ensinar onde fica o botão de fixar.",
@@ -583,6 +688,27 @@ $("limite").addEventListener("change", async (evento) => {
   pintarFimProgramado();
 });
 
+// --- diagnóstico do chat ---
+
+$("btn-ensaiar").addEventListener("click", async () => {
+  recadoDoChat("Testando na aba da live…");
+  const chegou = await falarComALive({ tipo: "ensaiar_envio" });
+  if (!chegou) recadoDoChat("A página da sua live não está aberta nesta janela do Chrome.");
+});
+
+$("btn-ensinar-enviar").addEventListener("click", (evento) =>
+  void ensinar(evento.currentTarget.dataset.ancora),
+);
+
+$("btn-enviar-teste").addEventListener("click", async () => {
+  recadoDoChat("Enviando…");
+  const chegou = await falarComALive({
+    tipo: "enviar_teste",
+    texto: $("texto-teste").value,
+  });
+  if (!chegou) recadoDoChat("A página da sua live não está aberta nesta janela do Chrome.");
+});
+
 // --- produtos ---
 
 for (const id of ["btn-ensinar-lista", "btn-ensinar-item", "btn-ensinar-fixar"]) {
@@ -635,8 +761,13 @@ chrome.runtime.onMessage.addListener((mensagem) => {
       recadoDeProduto("Cancelado.");
     } else if (Array.isArray(mensagem.cascata) && mensagem.cascata.length > 0) {
       ancorasLocais = { ...ancorasLocais, [mensagem.ancora]: mensagem.cascata };
-      recadoDeProduto("Anotado.");
-      void falarComALive({ tipo: "contar_produtos" });
+      if (mensagem.ancora === "chat.enviar") {
+        recadoDoChat("Anotado. Testando de novo com o botão que você apontou…");
+        void falarComALive({ tipo: "ensaiar_envio" });
+      } else {
+        recadoDeProduto("Anotado.");
+        void falarComALive({ tipo: "contar_produtos" });
+      }
     } else {
       recadoDeProduto("Não consegui descrever o que você clicou. Tente clicar no botão em si.");
     }
@@ -646,6 +777,27 @@ chrome.runtime.onMessage.addListener((mensagem) => {
     totalProdutos = mensagem.total ?? 0;
     pintarProdutos();
   }
+  if (mensagem?.tipo === "ensaio") pintarEnsaio(mensagem);
+
+  if (mensagem?.tipo === "teste_enviado") {
+    recadoDoChat(
+      mensagem.ok
+        ? `Enviou pela ${CAMINHO_ENVIO[mensagem.por] ?? mensagem.por}` +
+            `, com o texto entrando por ${TECNICA[mensagem.tecnica] ?? mensagem.tecnica}. ` +
+            "A mensagem está na sua live."
+        : (MOTIVO_ENVIO[mensagem.motivo] ?? "Não deu para enviar."),
+    );
+    if (!mensagem.ok) $("ensinar-envio").hidden = false;
+  }
+
+  if (mensagem?.tipo === "envio_falhou") {
+    recadoDoChat(
+      `Uma resposta não saiu: ${MOTIVO_ENVIO[mensagem.motivo] ?? mensagem.motivo}. ` +
+        "Abra “Ela não está respondendo?” acima.",
+    );
+    $("diagnostico").open = true;
+  }
+
   if (mensagem?.tipo === "fixou") {
     recadoDeProduto(
       mensagem.ok

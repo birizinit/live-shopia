@@ -47,7 +47,15 @@ export type ItemManual = {
 
 export const LIMITES_MANUAL = {
   rotulo: 60,
-  resposta: 280,
+  /**
+   * 150 porque é o que o TikTok aceita.
+   *
+   * O campo do chat da live declara `maxlength="150"` — visto na página salva
+   * de uma live real. O limite daqui era 280, herdado de nada, e resposta
+   * maior que isso chegaria cortada no meio da frase sem ninguém avisar.
+   * Melhor recusar na hora de cadastrar.
+   */
+  resposta: 150,
   gatilhos: 20,
   gatilho: 40,
 } as const;

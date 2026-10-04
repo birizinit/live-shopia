@@ -71,6 +71,48 @@
               </label>
             </div>
             <button id="btn-abrir-live" class="botao pequeno">Abrir minha live no TikTok</button>
+
+            <!-- Diagnóstico do envio.
+                 Existe porque "ela não respondeu" tem quatro causas possíveis
+                 (campo, botão, cadência, manual) e nenhuma se distingue da
+                 outra olhando a live. -->
+            <details id="diagnostico">
+              <summary class="ajuda">Ela não está respondendo?</summary>
+
+              <p class="ajuda">
+                O teste digita no campo do chat, confere o que achou e
+                <strong>apaga sem enviar</strong>. Nada aparece na sua live.
+              </p>
+              <button id="btn-ensaiar" class="botao pequeno">Testar sem enviar</button>
+
+              <ul id="resultado-ensaio" class="protecao" hidden></ul>
+
+              <div id="ensinar-envio" class="aviso alerta" hidden>
+                <p>
+                  Não achei o botão de enviar nesta página. Aponte para mim:
+                  clique abaixo e depois no botão de enviar do chat, na aba da
+                  live.
+                </p>
+                <button id="btn-ensinar-enviar" class="botao primario pequeno" data-ancora="chat.enviar">
+                  Ensinar o botão de enviar
+                </button>
+              </div>
+
+              <div id="envio-de-verdade" class="aviso alerta" hidden>
+                <p>
+                  Este manda uma mensagem de verdade no chat — <strong>a sua
+                  audiência vai ler</strong>. Use só se o teste acima não
+                  resolveu.
+                </p>
+                <label class="campo">
+                  <span>Texto do teste</span>
+                  <input id="texto-teste" value="testando o chat" maxlength="120" />
+                </label>
+                <button id="btn-enviar-teste" class="botao pequeno">Enviar de verdade</button>
+              </div>
+
+              <p id="recado-chat" class="ajuda" role="status"></p>
+            </details>
           </div>
         </div>
 

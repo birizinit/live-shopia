@@ -15,6 +15,13 @@ import { ehCumprimento } from "@/lib/cumprimento";
  *      não pode ficar onde ele (ou um bug) consegue desligar.
  */
 
+/**
+ * Teto de uma mensagem no chat da live, declarado pelo próprio TikTok
+ * (`maxlength="150"` no campo). Cortar aqui é melhor do que a página cortar:
+ * ela corta no meio da palavra e ninguém fica sabendo.
+ */
+const TETO_CHAT = 150;
+
 export type Decisao =
   | { acao: "ignorar"; motivo: string }
   | { acao: "escrever"; texto: string; esperarMs: number; tema: string | null };
@@ -108,7 +115,7 @@ export async function decidirResposta(
 
     return {
       acao: "escrever",
-      texto: modelo.replaceAll("{nome}", apelido).slice(0, 280),
+      texto: modelo.replaceAll("{nome}", apelido).slice(0, TETO_CHAT),
       esperarMs: esperaComJitter(config.chat_intervalo_min_s, config.chat_intervalo_max_s),
       tema: "boas_vindas",
     };
@@ -143,7 +150,7 @@ export async function decidirResposta(
     const frase = apelido ? modelo.replaceAll("{nome}", apelido) : "Oi! Seja bem-vindo(a) à live!";
     return {
       acao: "escrever",
-      texto: frase.slice(0, 280),
+      texto: frase.slice(0, TETO_CHAT),
       esperarMs: esperaComJitter(config.chat_intervalo_min_s, config.chat_intervalo_max_s),
       tema: "cumprimento",
     };
@@ -164,7 +171,7 @@ export async function decidirResposta(
 
   return {
     acao: "escrever",
-    texto: tema.resposta.slice(0, 280),
+    texto: tema.resposta.slice(0, TETO_CHAT),
     esperarMs,
     tema: tema.chave,
   };
