@@ -360,7 +360,7 @@ async function sessaoFechadaLaFora(erro) {
   await ajustarSessao();
 }
 
-/** Para o ciclo e todas as automações locais. */
+/** Para o ciclo e todas as automações locais, mesmo com o ciclo já parado. */
 async function desligarTudo(motivo) {
   await pararCiclo(motivo);
   const auto = await lerAuto();
@@ -502,6 +502,14 @@ async function pararCiclo(motivo = null) {
     violacao: { ativa: false, fimEm: null, encerrando: false },
   });
   await avisarTodos({ tipo: "ciclo_off" });
+  // Desligar é desligar: nada da extensão continua postando ou clicando na
+  // live. Antes os comentários automáticos tinham o próprio interruptor e
+  // seguiam saindo com a extensão "desligada".
+  const auto = await lerAuto();
+  if (auto.lerTela || auto.comentarios.ativo || auto.bloqueio.ativo || auto.fixar) {
+    await gravarAuto({ lerTela: false, fixar: false, comentarios: { ativo: false }, bloqueio: { ativo: false } });
+    await log("Comentários, bloqueio, fixar automático e leitura do chat desligados", "inf");
+  }
   await ajustarSessao();
   await log(motivo ? `Extensão desligada — ${motivo}` : "Extensão desligada", "inf");
   return publicarCiclo(parado);
@@ -725,7 +733,7 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
         break;
 
       case "ciclo_parar":
-        await pararCiclo(mensagem.motivo ?? null);
+        await desligarTudo(mensagem.motivo ?? null);
         responder({ ok: true });
         break;
 

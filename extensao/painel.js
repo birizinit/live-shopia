@@ -681,7 +681,10 @@ function ligarEventos() {
     const r = await enviar({ tipo: "fixar_agora" });
     if (!r?.r) toast("Abra a página da sua live no TikTok para fixar.");
   });
-  $("togFixar").addEventListener("click", () => salvarAuto({ fixar: !auto.fixar }));
+  $("togFixar").addEventListener("click", () => {
+    if (!auto.fixar && !ciclo.ativo) return toast("Ligue a extensão primeiro — o fixar automático roda com ela ligada.");
+    return salvarAuto({ fixar: !auto.fixar });
+  });
   $("togCupom").addEventListener("click", () => salvarAuto({ cupom: !auto.cupom }));
 
   // Violação
@@ -711,6 +714,7 @@ function ligarEventos() {
     $(id).addEventListener("change", () => salvarComentarios());
   }
   $("btnComentarIniciar").addEventListener("click", async () => {
+    if (!ciclo.ativo) return toast("Ligue a extensão primeiro — os comentários rodam com ela ligada.");
     if (!linhas($("listaComentarios").value).length) return toast("Escreva ao menos uma mensagem (uma por linha).");
     await salvarComentarios({ ativo: true });
     $("comentarioLog").textContent = "▶ Iniciado — o primeiro sai agora.";
@@ -729,6 +733,7 @@ function ligarEventos() {
   $("togBloqueio").addEventListener("click", async () => {
     const palavras = linhas($("palavrasBloqueio").value).slice(0, 200);
     if (!auto.bloqueio?.ativo && !palavras.length) return toast("Escreva ao menos uma palavra (uma por linha).");
+    if (!auto.bloqueio?.ativo && !ciclo.ativo) return toast("Ligue a extensão primeiro — o bloqueio roda com ela ligada.");
     await salvarAuto({ bloqueio: { ativo: !auto.bloqueio?.ativo, palavras } });
   });
   $("btnBaixarBloqueados").addEventListener("click", async () => {

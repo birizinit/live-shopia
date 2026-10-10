@@ -29,6 +29,23 @@
   let alvo = null;
   let auto = {};
   let ciclo = {};
+  /**
+   * A extensão foi desativada, removida ou recarregada no Chrome.
+   *
+   * O script desta aba NÃO morre junto: ele continua com os timers que já
+   * tinha — e escrever no chat não depende da extensão. Sem esta trava, o
+   * comentário automático seguia saindo depois de a pessoa desligar tudo.
+   */
+  let morto = false;
+  const extensaoViva = () => {
+    try {
+      return Boolean(chrome.runtime?.id);
+    } catch {
+      return false;
+    }
+  };
+  /** Comentar, bloquear e fixar sozinho só com "Ligar a extensão" ativo. */
+  const podeAgir = () => !morto && Boolean(ciclo?.ativo) && souAlvo();
 
   const dormir = (ms) => new Promise((r) => setTimeout(r, ms));
   const acaso = (min, max) => min + Math.random() * (max - min);
@@ -87,37 +104,161 @@
     setTimeout(() => el.remove(), ms);
   }
 
+  // --- barra de status no topo e o aviso flutuante da live ------------------
+  //
+  // Os mesmos auxílios visuais da extensão de referência: uma barra fina no
+  // topo (estado, aba, live, timer, scans, proteção) e um aviso arrastável com
+  // espectadores e vendas. Estilo numa <style> com id próprio e prefixo
+  // "shopia-": a folha do TikTok é território deles.
+
+  function injetarEstilo() {
+    if (document.getElementById("shopia-estilo")) return;
+    const st = document.createElement("style");
+    st.id = "shopia-estilo";
+    st.textContent = `
+      @keyframes shopiaPisca{0%,100%{opacity:1}50%{opacity:.3}}
+      #shopia-sb{position:fixed;top:0;left:0;right:0;height:28px;z-index:2147483646;display:flex;align-items:center;gap:12px;padding:0 14px;background:rgba(10,16,13,.94);border-bottom:1px solid rgba(50,213,131,.3);font:600 10px/1 system-ui,-apple-system,'Segoe UI',sans-serif;color:#90A699;letter-spacing:.2px;pointer-events:none;backdrop-filter:blur(8px)}
+      #shopia-sb .sep{width:1px;height:14px;background:rgba(255,255,255,.12)}
+      #shopia-sb .rot{color:rgba(255,255,255,.4)}
+      #shopia-sb .ponto{width:6px;height:6px;border-radius:50%;background:#32D583;animation:shopiaPisca .8s infinite}
+      #shopia-sb .mono{font-family:ui-monospace,Menlo,monospace;letter-spacing:1px}
+      #shopia-pop{position:fixed;z-index:2147483646;display:flex;align-items:center;gap:8px;padding:8px 10px 8px 12px;border-radius:999px;background:rgba(10,16,13,.95);border:1px solid rgba(50,213,131,.35);box-shadow:0 8px 28px rgba(0,0,0,.45);font:600 11px/1 system-ui,-apple-system,'Segoe UI',sans-serif;color:#F6FAF7;cursor:grab;user-select:none;backdrop-filter:blur(8px)}
+      #shopia-pop.arrastando{cursor:grabbing}
+      #shopia-pop .ponto{width:8px;height:8px;border-radius:50%;background:#32D583;box-shadow:0 0 8px #32D583;animation:shopiaPisca .8s infinite}
+      #shopia-pop .ponto.off{background:#90A699;box-shadow:none;animation:none}
+      #shopia-pop .sep{width:1px;height:14px;background:rgba(255,255,255,.14)}
+      #shopia-pop .num{font-size:12px;font-weight:800;font-family:ui-monospace,Menlo,monospace;color:#6CE9A6}
+      #shopia-pop button{width:24px;height:24px;border-radius:50%;border:1px solid rgba(50,213,131,.35);background:rgba(50,213,131,.12);color:#F6FAF7;cursor:pointer;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center}
+      #shopia-pop button.cinza{border-color:rgba(255,255,255,.15);background:rgba(255,255,255,.06)}
+      #shopia-pop button.alerta{border-color:#F04438;background:rgba(240,68,56,.2)}
+    `;
+    document.documentElement.appendChild(st);
+  }
+
+  function relogio() {
+    const resta = ciclo.pausadoRestanteMs ?? (ciclo.fimEm ? Math.max(0, ciclo.fimEm - Date.now()) : null);
+    if (resta === null) return "--:--:--";
+    const s = Math.round(resta / 1000);
+    return [Math.floor(s / 3600), Math.floor((s % 3600) / 60), s % 60].map((n) => String(n).padStart(2, "0")).join(":");
+  }
+
   let barra = null;
-  function pintarBarra() {
-    const ligado = ciclo?.ativo && souAlvo();
-    if (!ligado) {
-      barra?.remove();
-      barra = null;
-      return;
-    }
+  function pintarBarraTopo() {
     if (!barra?.isConnected) {
       barra = document.createElement("div");
-      barra.id = "shopia-barra";
-      barra.style.cssText = `position:fixed;top:0;left:50%;transform:translateX(-50%);height:24px;padding:0 12px;border-radius:0 0 10px 10px;background:#0A100D;border:1px solid rgba(50,213,131,.35);border-top:none;z-index:2147483646;display:flex;align-items:center;gap:12px;font:${FONTE};font-size:10px;color:#90A699;pointer-events:none;`;
+      barra.id = "shopia-sb";
+      barra.innerHTML = `
+        <div style="display:flex;align-items:center;gap:5px"><div class="ponto"></div><span data-c="st" style="color:#32D583;letter-spacing:.5px">MONITORANDO</span></div>
+        <div class="sep"></div><span class="rot">ABA TIKTOK</span><span data-c="aba"></span>
+        <div class="sep"></div><span class="rot">LIVE</span><span data-c="live"></span>
+        <div class="sep"></div><span class="rot">⏱</span><span data-c="timer" class="mono" style="color:#6CE9A6"></span>
+        <div class="sep"></div><span data-c="scan" class="rot"></span>
+        <div class="sep"></div><span data-c="prot"></span>`;
       document.documentElement.appendChild(barra);
     }
-    const resta = ciclo.pausadoRestanteMs ?? (ciclo.fimEm ? Math.max(0, ciclo.fimEm - Date.now()) : null);
-    const s = resta === null ? null : Math.round(resta / 1000);
-    const hms = s === null ? "--:--:--" : [Math.floor(s / 3600), Math.floor((s % 3600) / 60), s % 60].map((n) => String(n).padStart(2, "0")).join(":");
-    barra.innerHTML = "";
-    const item = (txt, cor) => {
-      const sp = document.createElement("span");
-      sp.textContent = txt;
-      if (cor) sp.style.color = cor;
-      barra.appendChild(sp);
-    };
-    item("● SHOPIA", COR.ok);
-    item(ciclo.liveAtiva ? "LIVE detectada" : "procurando live", ciclo.liveAtiva ? COR.ok : undefined);
-    item(`⏱ ${hms}`, "#F6FAF7");
-    item(`Scan ${ciclo.scanN ?? 0}`);
-    item(ciclo.violacao?.ativa ? "🛡 ALERTA" : "🛡 ok", ciclo.violacao?.ativa ? COR.err : COR.ok);
+    const c = (k) => barra.querySelector(`[data-c="${k}"]`);
+    const pausado = ciclo.pausadoRestanteMs != null;
+    c("st").textContent = ciclo.violacao?.ativa ? "VIOLAÇÃO" : pausado ? "TIMER PAUSADO" : "MONITORANDO";
+    c("st").style.color = ciclo.violacao?.ativa ? COR.err : pausado ? COR.warn : COR.ok;
+    c("aba").textContent = "Conectada";
+    c("aba").style.color = "#6CE9A6";
+    c("live").textContent = ciclo.liveAtiva ? "Detectada" : "—";
+    c("live").style.color = ciclo.liveAtiva ? COR.ok : "#888";
+    c("timer").textContent = relogio();
+    c("scan").textContent = `Scan: ${ciclo.scanN ?? 0}`;
+    c("prot").textContent = ciclo.violacao?.ativa ? "🛡 ALERTA DE VIOLAÇÃO" : "🛡 Proteção ativa";
+    c("prot").style.color = ciclo.violacao?.ativa ? COR.err : COR.ok;
   }
-  setInterval(pintarBarra, 1000);
+
+  let pop = null;
+  let posPop = null;
+  void chrome.storage.local.get("shopia_pos_aviso").then((r) => (posPop = r?.shopia_pos_aviso ?? null)).catch(() => {});
+
+  function posicionar(el, pos) {
+    if (pos && Number.isFinite(pos.x) && Number.isFinite(pos.y)) {
+      const x = Math.min(Math.max(pos.x, 0), innerWidth - 60);
+      const y = Math.min(Math.max(pos.y, 30), innerHeight - 40);
+      Object.assign(el.style, { left: `${x}px`, top: `${y}px`, bottom: "auto" });
+    } else {
+      Object.assign(el.style, { left: "12px", bottom: "16px", top: "auto" });
+    }
+  }
+
+  function tornarArrastavel(el) {
+    let ini = null;
+    el.addEventListener("pointerdown", (e) => {
+      if (e.target.closest("button")) return;
+      const r = el.getBoundingClientRect();
+      ini = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+      el.classList.add("arrastando");
+      el.setPointerCapture(e.pointerId);
+    });
+    el.addEventListener("pointermove", (e) => {
+      if (!ini) return;
+      posPop = { x: e.clientX - ini.dx, y: e.clientY - ini.dy };
+      posicionar(el, posPop);
+    });
+    const soltar = () => {
+      if (!ini) return;
+      ini = null;
+      el.classList.remove("arrastando");
+      void chrome.storage.local.set({ shopia_pos_aviso: posPop }).catch(() => {});
+    };
+    el.addEventListener("pointerup", soltar);
+    el.addEventListener("pointercancel", soltar);
+  }
+
+  function pintarAvisoLive() {
+    if (!pop?.isConnected) {
+      pop = document.createElement("div");
+      pop.id = "shopia-pop";
+      pop.innerHTML = `
+        <div class="ponto" data-c="ponto"></div>
+        <div data-c="txt"></div>
+        <div class="sep"></div>
+        <span title="Espectadores">👁</span><span class="num" data-c="viewers">—</span>
+        <div class="sep"></div>
+        <span title="Vendas">🛒</span><span class="num" data-c="vendas">—</span>
+        <div class="sep"></div>
+        <button data-c="prot" title="Proteção ativa">🛡</button>
+        <button data-c="ref" class="cinza" title="Atualizar">↻</button>`;
+      document.documentElement.appendChild(pop);
+      posicionar(pop, posPop);
+      tornarArrastavel(pop);
+      pop.querySelector('[data-c="ref"]').addEventListener("click", () => {
+        lerMetricas();
+        avisoNaTela("↻ Números atualizados", "info", 2000);
+      });
+      pop.querySelector('[data-c="prot"]').addEventListener("click", () => {
+        avisoNaTela(
+          ciclo.violacao?.ativa ? "🔴 Aviso de violação detectado" : "🛡 Proteção ativa — vigiando avisos do TikTok",
+          ciclo.violacao?.ativa ? "err" : "ok",
+          3000,
+        );
+      });
+    }
+    const c = (k) => pop.querySelector(`[data-c="${k}"]`);
+    c("ponto").classList.toggle("off", !ciclo.liveAtiva);
+    c("txt").textContent = ciclo.liveAtiva ? "LIVE ativa · LIVE detectada" : "Procurando a live…";
+    c("viewers").textContent = ciclo.viewers || "—";
+    c("vendas").textContent = ciclo.vendas || "—";
+    c("prot").classList.toggle("alerta", Boolean(ciclo.violacao?.ativa));
+    c("prot").title = ciclo.violacao?.ativa ? "Violação detectada" : "Proteção ativa";
+  }
+
+  function pintarBarra() {
+    const ligado = ciclo?.ativo && souAlvo() && !morto;
+    if (!ligado) {
+      barra?.remove();
+      pop?.remove();
+      barra = pop = null;
+      return;
+    }
+    injetarEstilo();
+    pintarBarraTopo();
+    pintarAvisoLive();
+  }
+  const lacoBarra = setInterval(pintarBarra, 1000);
 
   let pilula = null;
   let pilulaTimer = null;
@@ -345,10 +486,10 @@
   function agendarFixar(primeira = false) {
     clearTimeout(lacoFixar);
     lacoFixar = null;
-    if (!auto.fixar || !souAlvo()) return;
+    if (!auto.fixar || !podeAgir()) return;
     const espera = primeira ? acaso(5000, 8000) : acaso(18000, 30000);
     lacoFixar = setTimeout(async () => {
-      if (auto.fixar && souAlvo()) await fixarEContar("automático");
+      if (auto.fixar && podeAgir()) await fixarEContar("automático");
       agendarFixar();
     }, espera);
   }
@@ -609,6 +750,7 @@
    * `{ ok: false, motivo }` — não saiu, e o motivo serve para a tela explicar.
    */
   async function escreverNoChat(texto) {
+    if (morto) return { ok: false, motivo: "extensao_desligada" };
     const campo = campoDoChat();
     if (!campo) return { ok: false, motivo: "sem_campo" };
 
@@ -699,13 +841,13 @@
   function agendarComentario(imediato = false) {
     pararComentarios();
     const c = auto.comentarios ?? {};
-    if (!c.ativo || !souAlvo() || !(c.mensagens ?? []).length) return;
+    if (!c.ativo || !podeAgir() || !(c.mensagens ?? []).length) return;
     const min = Math.max(10, Number(c.min) || 30);
     const max = Math.max(min, Number(c.max) || 90);
     const espera = imediato ? 500 : Math.floor(Math.random() * (max - min + 1) + min) * 1000;
     void pedir({ tipo: "comentario_feito", agendado: true, emMs: espera, ok: true });
     lacoComentar = setTimeout(async () => {
-      if (!auto.comentarios?.ativo || !souAlvo()) return;
+      if (!auto.comentarios?.ativo || !podeAgir()) return;
       await comentarAgora();
       agendarComentario();
     }, espera);
@@ -713,9 +855,10 @@
 
   function sincronizarComentarios() {
     const c = auto.comentarios ?? {};
-    const chave = JSON.stringify([c.ativo, c.mensagens, c.min, c.max, souAlvo()]);
+    const chave = JSON.stringify([c.ativo, c.mensagens, c.min, c.max, podeAgir()]);
     if (chave === chaveComentarios) return;
-    const ligou = c.ativo && !JSON.parse(chaveComentarios || "[false]")[0];
+    const antes = JSON.parse(chaveComentarios || "[false,null,null,null,false]");
+    const ligou = c.ativo && podeAgir() && !(antes[0] && antes[4]);
     chaveComentarios = chave;
     if (ligou) indiceComentario = 0;
     agendarComentario(ligou);
@@ -785,7 +928,7 @@
   }
 
   async function voltaDoBloqueio() {
-    if (bloqueando || !auto.bloqueio?.ativo || !souAlvo()) return;
+    if (bloqueando || !auto.bloqueio?.ativo || !podeAgir()) return;
     const palavras = (auto.bloqueio.palavras ?? []).map((p) => p.trim()).filter(Boolean);
     if (!palavras.length) return;
     bloqueando = true;
@@ -804,7 +947,7 @@
   }
 
   function sincronizarBloqueio() {
-    const ligado = auto.bloqueio?.ativo && souAlvo();
+    const ligado = auto.bloqueio?.ativo && podeAgir();
     if (ligado && !lacoBloqueio) lacoBloqueio = setInterval(() => void voltaDoBloqueio(), 3500);
     if (!ligado && lacoBloqueio) {
       clearInterval(lacoBloqueio);
@@ -1000,7 +1143,7 @@
   }
 
   async function voltaDaLeitura() {
-    if (suspenso) return;
+    if (suspenso || morto) return;
     if (!auto.lerTela || !souAlvo()) {
       if (lendo) desligarLeitura("desligado");
       return;
@@ -1103,8 +1246,9 @@
     sincronizarMetricas();
     sincronizarComentarios();
     sincronizarBloqueio();
-    if (auto.fixar && souAlvo() && !lacoFixar) agendarFixar(true);
-    if ((!auto.fixar || !souAlvo()) && lacoFixar) {
+    if (morto) return;
+    if (auto.fixar && podeAgir() && !lacoFixar) agendarFixar(true);
+    if ((!auto.fixar || !podeAgir()) && lacoFixar) {
       clearTimeout(lacoFixar);
       lacoFixar = null;
     }
@@ -1112,7 +1256,7 @@
   }
 
   chrome.storage.onChanged.addListener((mudancas, area) => {
-    if (area !== "local") return;
+    if (area !== "local" || morto) return;
     if (mudancas[CH.auto]) auto = mudancas[CH.auto].newValue ?? {};
     if (mudancas[CH.ciclo]) ciclo = mudancas[CH.ciclo].newValue ?? {};
     if (mudancas[CH.abaAlvo]) alvo = mudancas[CH.abaAlvo].newValue ?? null;
@@ -1206,6 +1350,28 @@
   await carregarMapa();
   aplicarEstado();
 
-  setInterval(() => void voltaDaLeitura(), 5000);
-  setInterval(() => void despejar(), 10000);
+  const lacoLeitura = setInterval(() => void voltaDaLeitura(), 5000);
+  const lacoDespejo = setInterval(() => void despejar(), 10000);
+
+  /** Desmonta tudo desta aba: timers, observador e o que foi posto na tela. */
+  function desmontar() {
+    if (morto) return;
+    morto = true;
+    for (const t of [lacoBarra, lacoLeitura, lacoDespejo, lacoBloqueio, lacoMetricas, pilulaTimer, lacoVida]) {
+      clearInterval(t);
+    }
+    clearTimeout(lacoFixar);
+    clearTimeout(lacoComentar);
+    observador?.disconnect();
+    for (const id of ["shopia-sb", "shopia-pop", "shopia-hud", "shopia-estilo"]) {
+      document.getElementById(id)?.remove();
+    }
+    pilula?.remove();
+    avisoAprender?.remove();
+  }
+
+  // A cada 2 s: a extensão ainda existe? Se não, para tudo nesta aba.
+  const lacoVida = setInterval(() => {
+    if (!extensaoViva()) desmontar();
+  }, 2000);
 })();
