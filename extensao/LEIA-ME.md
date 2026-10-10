@@ -1,128 +1,88 @@
-# Extensão Shopia
+# Extensão Shopia (3.0)
 
-Modera a sua live no TikTok: responde os comentários, dá boas-vindas pelo nome
-e fixa produtos — falando com o painel da Shopia por token de licença.
+Painel lateral no formato da extensão de referência (LiveFox), com a paleta
+verde da Shopia. Liga e cuida da live no TikTok Shop: timer de encerramento,
+proteção contra violação, fixar produto (com modo cupom), comentários
+automáticos, bloqueio por nome, aviso de venda no celular e respostas no chat
+pelo manual.
 
 Só precisa do navegador. Nada é instalado no sistema operacional.
 
-## Como ela responde
-
-Tudo o que a Shopia escreve no chat sai do **manual do produto**, que você
-cadastra no painel (`/manual`). Cada linha do manual é uma pergunta com as
-palavras que a audiência usa e a resposta que **você** escreveu.
-
-Ela não gera resposta: escolhe uma que já existe. Quando o comentário não casa
-com nenhuma linha, ela **cala** — e o comentário fica registrado para você
-cadastrar a resposta antes da próxima live.
-
-É por isso que "nunca inventa" não é promessa de marketing: não existe caminho
-pelo qual uma frase que você não aprovou chegue à sua audiência.
-
-Fechar o painel lateral **não** derruba a live: quem lê o chat é o content
-script e quem mantém a sessão viva é um `chrome.alarms` do service worker.
-
 ## Como instalar (modo desenvolvedor)
 
-1. Baixe o ZIP em **Extensão** no painel e **extraia numa pasta fixa**. Não
-   apague a pasta: o Chrome lê a extensão de lá.
-2. Abra `chrome://extensions`.
-3. Ligue o **Modo do desenvolvedor**, no canto superior direito.
-4. **Carregar sem compactação** e escolha a pasta extraída.
-5. Fixe a Shopia na barra, clique no ícone e cole o código da licença.
+1. Baixe o ZIP em **Extensão** no painel e **extraia numa pasta fixa**.
+2. Abra `chrome://extensions` e ligue o **Modo do desenvolvedor**.
+3. **Carregar sem compactação** e escolha a pasta extraída.
+4. Fixe a Shopia na barra, clique no ícone e **entre com o e-mail e a senha**
+   da sua conta. Entrar numa máquina desconecta a anterior (1 conta = 1
+   dispositivo).
 
-> Instalação em modo desenvolvedor **não se atualiza sozinha**. Quando sair
-> versão nova, o painel avisa e você repete os passos 1 e 4. É o maior custo
-> de suporte desse caminho, e é por isso que a Web Store entra depois.
+Quando sair versão nova, o painel mostra o aviso com o link para baixar.
 
-## Fixar produtos
+## O painel
 
-A Shopia **não traz seletor pronto** para o painel de produtos do LIVE Studio.
-O chat nós mapeamos: tem `data-e2e` estável e o mapa publicado foi validado
-contra uma página real. O painel de produtos não — ele muda por país, por tipo
-de conta de vendedor e por teste A/B do TikTok.
+**Cabeçalho:** `✦ IA` (sua conta, créditos, "Ler a tela", contas TikTok e
+planos), `↺` (reset), `⏻` (encerrar a live agora) e o selo ATIVO/INATIVO.
 
-Publicar um palpite seria pior do que não ter o recurso. Um seletor errado não
-falha em silêncio numa lista de produtos: ele acha **algum** botão e clica. Numa
-live de vendas, o botão ao lado pode ser arquivar o produto, tirar do ar ou
-aplicar desconto.
+**Aba Início**
 
-Então você aponta uma vez, na seção **Produtos** do painel: a lista, um produto
-e o botão de fixar. Fica guardado neste navegador e vence o mapa publicado.
+| Bloco | O que faz |
+|---|---|
+| Status | Aba do TikTok, live detectada, ação atual, conexão com o servidor |
+| Scans · Timer · Alertas | Contadores do ciclo |
+| Timer de Encerramento | 1h–8h ou minutos à mão; pausar/retomar; cancelar desliga |
+| Ligar a extensão | Começa o ciclo: timer, varredura de violação a cada 8 s, checagem da live a cada 10 s, leitura de vendas |
+| Fixar produto | Agora, ou automático (refixa a cada 18–30 s) |
+| Tem cupom na lista | Pula o 1º item (o card do cupom) e fixa o de baixo |
+| Proteção Contra Violação | Ao ver o aviso do TikTok: encerra na hora, ou continua por N minutos e encerra |
+| Comentários Automáticos | Uma mensagem por linha, em rodízio, com intervalo aleatório entre mín. e máx. |
+| Bloqueio por Nome | Bloqueia quem entra com palavra da lista no nome (palavra inteira) |
+| Log de Eventos | Tudo que aconteceu, em tempo real |
 
-## Entrar no ar
-
-1. Comece a sua transmissão como você já faz.
-2. No Chrome, clique no ícone da Shopia e escreva o seu @ do TikTok.
-3. **Entrar no ar.** Ela abre a página da sua live sozinha, se ainda não estiver
-   aberta, e começa a ler o chat. O cronômetro corre; em **Encerrar sozinho
-   depois de** dá para programar o fim (30 min a 8 h).
-
-A extensão lê o chat pela **página da live no tiktok.com**, e não pelo LIVE
-Studio: o LIVE Studio é um programa do sistema, e extensão de navegador não
-enxerga dentro dele.
-
-O bloco **Proteção anti-restrição** mostra se o seu manual tem o que costuma
-fazer o TikTok restringir uma live (mandar para WhatsApp, pedir Pix por fora,
-prometer resultado) e aponta qual resposta corrigir. É revisão de conteúdo com
-a mesma lista do painel (`src/lib/termos-restritos.ts`) — não disfarça
-automação.
+**Aba Central:** threshold e intervalo de scan, som de venda, "ensinar" o
+botão de fixar (quando a conta tem um layout diferente), passo a passo das
+notificações no celular e o histórico das últimas 30 sessões.
 
 ## Como é por dentro
 
 | Arquivo | O que faz |
 |---|---|
-| `fundo.js` | Service worker. Bate na licença, guarda o mapa de seletores, obedece o kill switch, junta os eventos e manda em lote |
-| `painel.html/js/css` | Painel lateral: a lista do que falta, cronômetro, produtos e proteção |
+| `fundo.js` | Service worker. Licença, login, o ciclo (timer por instante — sobrevive ao worker morrer), violação, sessão no servidor, histórico, aviso de venda |
+| `painel.html/css/js` | O painel lateral. É só tela: fechar não desliga nada |
+| `conteudo.js` | Na aba do TikTok: detecta live e violação, encerra a live, fixa, comenta, bloqueia, lê vendas e o chat, barra de status na página |
 | `api.js` | Cliente da API, autenticado por token de licença |
-| `seletores.js` | Resolve âncoras do DOM pelo mapa remoto, com cascata; e aprende âncora apontada na tela |
-| `produtos.js` | Acha o produto pela posição na lista e clica em fixar |
-| `conteudo.js` | Lê o chat na aba do TikTok, escreve a resposta e reporta |
+| `seletores.js` / `produtos.js` | Mapa remoto de seletores e âncoras aprendidas apontando na tela |
 
-### Três decisões que explicam o resto
+**Uma aba só age.** O service worker escolhe a aba do TikTok
+(`shopia_aba_alvo`); as outras ficam quietas. Duas abas comentando seria a
+mesma mensagem em dobro.
 
-**Fechar o painel não derruba a live.** Quem lê o chat é o content script, na
-aba da live, e quem mantém a sessão viva é um `chrome.alarms` do service worker
-— que ressuscita o worker depois de ele morrer por ociosidade, coisa que em MV3
-acontece em ~30 segundos. O painel só manda e mostra. Reabri-lo reassume a
-sessão em vez de abrir outra.
+**Os interruptores moram no `chrome.storage`.** O content script escuta
+`storage.onChanged`, então recarregar a aba não desliga nada.
 
-**Nenhum seletor é compilado no pacote.** O `conteudo.js` pede o mapa ao
-servidor e resolve por nome de âncora (`chat.item`, `chat.campo`). Quando o
-TikTok muda o layout, o conserto é publicar um mapa novo: a base inteira volta
-a funcionar no batimento seguinte, sem republicar extensão e sem pedir
-reinstalação. É a diferença entre dez minutos e três dias com todo mundo
-parado.
+**Quem responde o chat é o servidor.** Com "Ler a tela" ligado, cada
+comentário vai a `/api/ext/responder`, que escolhe a resposta no manual e
+segura o ritmo. A extensão não inventa texto.
 
-**O content script não tem o token.** Ele roda dentro de uma página de
-terceiro. Tudo que precisa de credencial passa pelo service worker, que é
-quem guarda o token e fala com a nossa API.
+## Rotas do servidor que ela usa
 
-## O que ela NÃO faz
+`/api/ext/entrar` (login → token), `/api/ext/licenca`, `/api/ext/conta`,
+`/api/ext/sessao`, `/api/ext/responder`, `/api/ext/eventos`,
+`/api/ext/seletores`, `/api/ext/telemetria` e `/api/ext/venda` (só vira push
+no celular do próprio vendedor; **não** entra no ranking nem no faturamento).
 
-- **Não registra venda.** Ingestão de venda precisa de origem verificável;
-  aceitar valor vindo de uma extensão que o próprio cliente controla seria
-  deixar o ranking e o faturamento serem escritos por quem os disputa.
-- **Não decide sozinha quando responder.** Cada comentário vai ao servidor
-  (`/api/ext/responder`), que decide se responde, o quê e depois de quanto
-  tempo — com teto por minuto. Regra que protege a conta não mora na máquina
-  de quem ela protege.
-- **Não inicia a sua transmissão.** Quem sobe a live é você, no LIVE Studio ou
-  no app. A extensão só ABRE A PÁGINA da live no navegador, para poder ler o
-  chat.
-- **Não lê o chat de dentro do LIVE Studio.** Lê pela página da live no
-  tiktok.com, aberta no Chrome. Os seletores dessa página vêm do mapa remoto
-  (v3, migração 0022) e ainda não foram confirmados numa live real — a
-  telemetria da primeira live diz o que ajustar.
+## O que ficou de fora de propósito
+
+A extensão de referência tem uma **câmera virtual** (troca a webcam por vídeo
+gravado em loop) e uma **"camada ao vivo"** (respiração, cliques e ruído
+sintéticos para parecer gente). As duas existem para fazer conteúdo gravado
+passar por transmissão ao vivo — o que viola as regras do TikTok LIVE e é o
+caminho mais rápido para banir a conta do cliente. Não foram reproduzidas.
 
 ## Aviso de risco
 
-Automatizar o chat do TikTok tende a violar os Termos, e um eventual bloqueio
-recai sobre a conta do cliente. O aceite é registrado no painel, e desde a
-1.2.0 o servidor confere: sem aceite na versão vigente do texto,
-`/api/ext/sessao` recusa abrir a sessão (`risco_pendente`) e o painel leva ao
-aceite.
-
-O freio tem dois níveis, de propósito: por CONTA (`ext_licencas.chat`) e na
-BASE INTEIRA (`configuracoes` → `ext.chat_desligado`). O segundo existe para o
-caso de a automação de chat precisar parar em todo mundo de uma vez, sem
-depender de a gente alcançar cada cliente.
+Automatizar ações na live tende a violar os Termos do TikTok, e um eventual
+bloqueio recai sobre a conta do cliente. O aceite é registrado no app (página
+**Ao vivo**); sem ele, o servidor recusa abrir a sessão de respostas
+(`risco_pendente`). O freio existe em dois níveis: por conta e na base inteira
+(`ext.chat_desligado`), e o kill switch do batimento desliga tudo.
