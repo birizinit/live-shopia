@@ -103,8 +103,9 @@ export default async function RankingPage(props: PageProps<"/ranking">) {
           </>
         ) : (
           <CardDescricao>
-            Você ainda não aparece no placar {recorte}. A primeira venda
-            registrada pela extensão já coloca a sua conta na lista.
+            Você ainda não aparece no placar {recorte}. O ranking só conta venda com
+            origem verificável — a venda que a extensão lê na tela vira aviso no seu
+            celular, mas não entra aqui.
           </CardDescricao>
         )}
       </Card>
@@ -113,14 +114,14 @@ export default async function RankingPage(props: PageProps<"/ranking">) {
         <EstadoVazio
           icone={Trophy}
           titulo="O placar ainda está vazio"
-          texto="Ninguém registrou venda no período. O ranking é montado a partir das vendas que a extensão do Chrome envia — assim que a primeira live for ao ar, ele começa a preencher."
+          texto="Ninguém registrou venda verificável no período. A venda que a extensão lê na tela da live vira aviso no seu celular, mas não entra no ranking: aqui só conta venda com origem verificável."
           acao={
             <>
               <Link
-                href="/extensao"
+                href="/notificacoes"
                 className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-fg hover:bg-primary-hover"
               >
-                Instalar a extensão
+                Aviso de venda no celular
               </Link>
               <Link
                 href="/dashboard"

@@ -31,7 +31,7 @@ export default async function FerramentasPage() {
         <Sparkles className="size-5 shrink-0" aria-hidden />
         <span className="min-w-0 flex-1 text-sm">
           <span className="font-semibold">Só quer pôr a live no ar?</span> O assistente
-          “Criar live” faz produto, roteiro, voz e áudio em 3 passos.
+          “Preparar live” faz produto, manual e conexão da extensão em 3 passos.
         </span>
         <ArrowRight className="size-4 shrink-0" aria-hidden />
       </Link>

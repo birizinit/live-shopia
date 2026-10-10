@@ -5,7 +5,7 @@ import {
   origemDaRequisicao,
   tokenDoCabecalho,
 } from "@/lib/dados/extensao";
-import { enfileirar } from "@/lib/dados/fila";
+import { bd } from "@/lib/db";
 import { preferenciasDe } from "@/lib/dados/push";
 import { modoDemo } from "@/lib/env";
 
@@ -74,19 +74,20 @@ export async function POST(request: NextRequest) {
       gmv ? `GMV ${gmv}` : null,
     ].filter(Boolean);
 
-    await enfileirar(licenca.perfilId, "push", {
-      entrada: {
-        perfil_id: licenca.perfilId,
-        carga: {
-          titulo: "🛒 Nova venda na live!",
-          texto: partes.length ? partes.join(" · ") : "Abra o painel para ver os detalhes.",
-          url: "/live",
-          tag: "venda-live",
-        },
-      },
-    });
+    // Pela porta única do push: ela não cria job quando não há aparelho
+    // inscrito, e a chave junta o mesmo total de vendas lido duas vezes.
+    const [linha] = await bd()<{ id: string | null }[]>`
+      select enfileirar_push(
+        ${licenca.perfilId},
+        ${"🛒 Nova venda na live!"},
+        ${partes.length ? partes.join(" · ") : "Abra o painel para ver os detalhes."},
+        ${"/live"},
+        ${"venda-live"},
+        ${vendas ? `venda:${licenca.perfilId}:${vendas}:${valor ?? ""}` : null}
+      ) as id
+    `;
 
-    return NextResponse.json({ ok: true, enviado: true });
+    return NextResponse.json({ ok: true, enviado: Boolean(linha?.id) });
   } catch (erro) {
     console.error("[api/ext/venda]", erro);
     return NextResponse.json({ ok: false, erro: "indisponivel" }, { status: 503 });

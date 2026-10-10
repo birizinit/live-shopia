@@ -118,6 +118,7 @@ export async function usuarioDaSessao(): Promise<Usuario | null> {
       from sessoes s
       join perfis p on p.id = s.perfil_id
       left join assinaturas a on a.perfil_id = p.id and a.status = 'ativa'
+                             and (a.fim is null or a.fim > now())
       left join planos pl on pl.id = a.plano_id
      where s.token_hash = ${chave}
        and s.revogada_em is null

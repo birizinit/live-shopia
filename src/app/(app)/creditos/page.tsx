@@ -49,8 +49,8 @@ const MOTIVOS: Record<MotivoCredito, { rotulo: string; explicacao: string }> = {
     explicacao: "Crédito concedido pela operação, sem cobrança.",
   },
   consumo: {
-    rotulo: "Geração de áudio",
-    explicacao: "Caracteres debitados antes da chamada de voz, nunca depois.",
+    rotulo: "Consumo",
+    explicacao: "Débito feito antes do serviço pago, nunca depois.",
   },
   estorno: {
     rotulo: "Estorno",
@@ -372,8 +372,8 @@ export default async function CreditosPage() {
             dizer por quê antes de qualquer débito.
           </li>
           <li>
-            O débito acontece <em>antes</em> da chamada de voz, no mesmo commit
-            que enfileira o trabalho: ou você foi cobrado e o áudio está na fila,
+            O débito acontece <em>antes</em> do serviço pago, no mesmo commit
+            que enfileira o trabalho: ou você foi cobrado e o trabalho está na fila,
             ou nada aconteceu.
           </li>
           <li>

@@ -57,14 +57,14 @@ export function Hero({ versao, temPacote, ticket }: HeroProps) {
         </div>
 
         <h1 className="mt-4 text-[28px] leading-tight font-bold text-balance sm:text-[40px]">
-          A extensão que põe a sua live no ar
+          A extensão que cuida da sua live
         </h1>
 
         <p className="mt-3 max-w-2xl text-base text-fg-muted sm:text-lg">
-          Ela mora no Chrome: responde os comentários da sua live com o que você
-          escreveu no manual, dá boas-vindas pelo nome e fixa os produtos enquanto você
-          cuida de outra coisa. Só com o navegador — não precisa instalar nada no
-          computador.
+          Ela mora no Chrome: encerra a live no horário ou ao aviso de violação, fixa
+          produtos, posta comentários automáticos, bloqueia nomes suspeitos, avisa cada
+          venda no seu celular e responde o chat com o que você escreveu no manual. Só
+          com o navegador — não precisa instalar nada no computador.
         </p>
       </div>
 

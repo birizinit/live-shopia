@@ -6,25 +6,37 @@ se publica uma versão nova.
 
 ## O estado de hoje, sem maquiagem
 
-**Publicadas: 1.0.2, 1.1.0 e 1.1.1.** A **1.2.0** está pronta em `extensao/` e
-ainda não foi publicada. Ela corrige o que travou as primeiras clientes:
+**A 3.0.0 está em `extensao/` e é a fonte da regra de negócio** — o app se
+ajusta a ela, não o contrário. Painel no formato da extensão de referência
+(LiveFox), com a paleta verde:
 
-- **"(sem nome)" no cabo.** O painel lateral não consegue mostrar o balão de
-  permissão de áudio; sem ela o Chrome esconde o nome das saídas, o cabo não era
-  achado e a extensão tocava no alto-falante — live muda. Agora o painel abre
-  `permissao.html` numa aba ("Liberar acesso") e bloqueia "Entrar no ar"
-  enquanto o cabo não for identificado.
-- **Sem áudio para tocar.** O painel diz o que falta e leva ao assistente `/criar`.
-- **Chat.** Mostra se achou a página da live no tiktok.com e abre ela; o script
-  passou a acompanhar a navegação interna do TikTok.
-- **Cronômetro** (tempo no ar e encerramento programado) e **proteção
-  anti-restrição** (revisão do texto do áudio, vinda de `/api/ext/montagem`).
-- **Kill switch** de chat agora segura: antes a volta de 5s religava a leitura.
-- Sessão exige aceite do aviso de risco na versão vigente (`risco_pendente`).
+- **Login por e-mail e senha** (`/api/ext/entrar`), que emite e rotaciona o
+  token: 1 conta = 1 dispositivo. A máquina antiga recebe "Esta conta entrou em
+  outro dispositivo" (`token_hash_anterior`, migração 0030) e para.
+- **Paid-only:** sem assinatura vigente (`status = 'ativa'` e dentro do `fim`)
+  o painel tranca e `/api/ext/licenca` devolve `plano.ativo = false`; a sessão
+  recusa com `402 sem_plano`.
+- **Ciclo "Ligar a extensão":** timer de encerramento, varredura de violação
+  (≥ 8 s), checagem da live (10 s), leitura de vendas → push via
+  `/api/ext/venda` (não grava venda).
+- **Locais na extensão:** fixar produto (manual, automático 18–30 s, modo
+  cupom), comentários automáticos, bloqueio por nome, som de venda. O refixar do
+  servidor saiu; os comentários locais entram no teto por minuto.
+- **"Ler a tela":** comentários vão a `/api/ext/responder`, que escolhe a
+  resposta no manual. Exige aceite do aviso de risco na versão vigente
+  (`risco_pendente`, aceite na página Ao vivo).
+- **O app manda parar:** "Desligar a extensão" (/live) e "Parar tudo"
+  (/painel) fecham a sessão com `encerrada_por = 'painel'`; o batimento seguinte
+  recebe `409 {pelo: "painel"}` e a extensão desliga tudo em vez de reabrir.
+- **Download:** `/extensao` monta o ZIP da pasta `extensao/` do próprio deploy
+  (`src/lib/pacote-local.ts`); versão mais nova no catálogo vence.
 
-Publicar: `node scripts/publicar-extensao.mjs --pasta ./extensao --versao 1.2.0`
-(os links para vb-audio.com e existential.audio pedem `--confirmar-dominios`).
-O mapa de seletores v3 entra pela migração 0022, no deploy.
+Fora, de propósito: câmera virtual, áudio no LIVE Studio/cabo virtual e camadas
+sintéticas de "presença".
+
+Publicar no catálogo (opcional, o download já sai da pasta):
+`node scripts/publicar-extensao.mjs --pasta ./extensao --versao 3.0.0 --confirmar-dominios`
+(o domínio do próprio servidor aparece como "terceiro" na checagem).
 
 ---
 
@@ -33,9 +45,9 @@ O mapa de seletores v3 entra pela migração 0022, no deploy.
 ```bash
 node scripts/publicar-extensao.mjs \
   --pasta ./extensao \
-  --versao 1.0.0 \
+  --versao 3.0.1 \
   --canal estavel \
-  --notas "Primeira versão pública: mixer de áudio e leitura do chat."
+  --notas "O que mudou nesta versão."
 ```
 
 Com o ZIP já montado por outra ferramenta, é a mesma coisa trocando a origem —
@@ -263,7 +275,7 @@ update ext_versoes set kill_switch = false, kill_motivo = null where versao = '1
 
 ### O freio menor: só o chat
 
-Matar a automação de chat na base inteira **sem derrubar o mixer** é outra
+Matar as respostas no chat na base inteira **sem parar timer, violação e fixar** é outra
 chave, e é ela que se usa quando o problema é a política de automação e não o
 código:
 
@@ -272,8 +284,9 @@ update configuracoes set valor = 'true'::jsonb, atualizado_em = now()
  where chave = 'ext.chat_desligado';
 ```
 
-Chat e mixer são recursos separados desde o schema justamente para isto: se o
-chat precisar morrer, o produto continua de pé. Por conta, em vez da base
+As respostas são separadas do resto da extensão justamente para isto: se o
+chat precisar morrer, timer, proteção contra violação, fixar e aviso de venda
+continuam de pé. Por conta, em vez da base
 inteira: `update ext_licencas set chat = false where perfil_id = '…';`.
 
 ### Usar o canário como freio
@@ -379,7 +392,7 @@ avisar.
 
 | Configuração | Padrão | Efeito |
 |---|---|---|
-| `ext.chat_desligado` | `false` | Mata a automação de chat na base inteira, sem tocar no mixer. |
+| `ext.chat_desligado` | `false` | Mata as respostas no chat na base inteira, sem parar timer, violação e fixar. |
 | `ext.canario_percentual` | `5` | Fatia padrão do canário ao publicar versão nova. |
 | `ext.heartbeat_segundos` | `120` | Atraso máximo entre publicar um mapa e a base voltar. |
 | `ext.quebra_percentual_alerta` | `5` | A partir de quanto uma falha de seletor vira alerta. |

@@ -6,7 +6,7 @@ export default function manifest(): MetadataRoute.Manifest {
     name: "Shopia — live commerce com IA",
     short_name: "Shopia",
     description:
-      "Responde o chat da sua live no TikTok pelo manual que você cadastrou, dá boas-vindas pelo nome e fixa o produto.",
+      "Cuida da sua live no TikTok Shop pelo Chrome: timer de encerramento, proteção contra violação, fixar produto, comentários automáticos, aviso de venda no celular e respostas pelo seu manual.",
     id: "/",
     start_url: "/inicio",
     scope: "/",

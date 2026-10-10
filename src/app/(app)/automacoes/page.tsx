@@ -32,7 +32,7 @@ export const metadata: Metadata = { title: "Automações da live" };
 /**
  * As automações: o que a Shopia faz na live sem ninguém pedir.
  *
- * Três famílias, e o que separa elas é o gatilho: tempo (refixar o produto,
+ * Três famílias, e o que separa elas é o gatilho: tempo (os
  * avisos programados), evento (carrinho e venda, detectados no chat) e pergunta
  * (as respostas do manual, que moram em /manual).
  *
@@ -98,7 +98,7 @@ export default async function AutomacoesPage() {
     <>
       <PageHeader
         titulo="Automações"
-        descricao="O que a Shopia faz sozinha durante a live: refixa o produto, repete os seus avisos no chat e reage a carrinho e venda. Mudança feita no meio da transmissão vale a partir do próximo contato da extensão."
+        descricao="O que o servidor faz pela extensão durante a live: avisos programados no chat e reação a carrinho e venda. Mudança feita no meio da transmissão vale a partir do próximo contato da extensão."
         acoes={
           sessao ? (
             <Indicador estado="no_ar" texto="Live no ar" className="self-center" />
@@ -109,6 +109,14 @@ export default async function AutomacoesPage() {
       />
 
       <div className="space-y-4">
+        <Alerta tom="info">
+          <strong>O que mora no painel da extensão, e não aqui:</strong> fixar produto
+          (agora, automático e modo cupom), comentários automáticos em rodízio, bloqueio por
+          nome, som de venda, timer de encerramento e proteção contra violação. Os avisos
+          desta tela são uma lista a mais, enviada pelo servidor — se ligar os dois, o chat
+          recebe as duas. Nada daqui sai sem a extensão ligada; reações e respostas exigem{" "}
+          <strong>✦ IA → Ler a tela</strong> ligado.
+        </Alerta>
 
         <AvisosProgramados
           tipo="relampago"

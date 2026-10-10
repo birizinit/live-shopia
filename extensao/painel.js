@@ -590,10 +590,10 @@ function checarVersao() {
     ${licenca.notas ? `<div class="at-n">${esc(licenca.notas)}</div>` : ""}
     <a class="at-btn" href="#" id="atBaixar">⬇️ Baixar a nova versão</a>
     <details class="at-ajuda"><summary>Como instalar</summary><ol>
-      <li>Baixe e <b>extraia</b> o ZIP numa pasta fixa (não apague ela depois).</li>
-      <li>Abra <b>chrome://extensions</b> e ligue o <b>Modo do desenvolvedor</b>.</li>
-      <li>Remova a Shopia antiga (botão Remover).</li>
-      <li><b>Carregar sem compactação</b> → escolha a pasta que você extraiu.</li>
+      <li>Baixe e <b>extraia</b> o ZIP.</li>
+      <li>Copie o conteúdo da pasta <b>shopia-extensao</b> por cima da pasta de sempre (a que o Chrome já usa).</li>
+      <li>Abra <b>chrome://extensions</b> e clique em <b>↻</b> na Shopia.</li>
+      <li>Pronto — você continua conectada, sem entrar de novo.</li>
     </ol></details>
     ${licenca.atualizacaoObrigatoria ? "" : '<button class="at-x" id="atX">Agora não</button>'}
   </div>`;

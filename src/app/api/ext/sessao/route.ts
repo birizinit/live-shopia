@@ -3,11 +3,13 @@ import {
   autenticarLicenca,
   dentroDoLimite,
   origemDaRequisicao,
+  planoVigente,
   tokenDoCabecalho,
 } from "@/lib/dados/extensao";
 import {
   abrirSessaoExtensao,
   baterSessaoExtensao,
+  encerradaPor,
   fecharSessaoExtensao,
   riscoAceitoNaVersaoVigente,
 } from "@/lib/dados/ext-live";
@@ -57,7 +59,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (licenca.estado !== "ativa") {
-      return NextResponse.json({ ok: false, erro: licenca.estado }, { status: 403 });
+      return NextResponse.json(
+        { ok: false, erro: licenca.estado, detalhe: licenca.revogadaMotivo },
+        { status: 403 },
+      );
     }
 
     if (!(await dentroDoLimite(`ext:sessao:${licenca.licencaId}`, TETO_POR_LICENCA, JANELA_S))) {
@@ -68,12 +73,18 @@ export async function POST(request: NextRequest) {
     const acao = typeof corpo?.acao === "string" ? corpo.acao : "";
 
     if (acao === "abrir") {
+      if (!(await planoVigente(licenca.perfilId))) {
+        return NextResponse.json(
+          { ok: false, erro: "sem_plano", detalhe: "Assine ou renove o plano para usar a extensão." },
+          { status: 402 },
+        );
+      }
       if (!(await riscoAceitoNaVersaoVigente(licenca.perfilId))) {
         return NextResponse.json(
           {
             ok: false,
             erro: "risco_pendente",
-            detalhe: "Leia e aceite o aviso de automação no painel da Shopia antes de entrar no ar.",
+            detalhe: "Leia e aceite o aviso de automação na página Ao vivo do app antes de ligar a extensão.",
           },
           { status: 403 },
         );
@@ -96,11 +107,16 @@ export async function POST(request: NextRequest) {
         Number.isSafeInteger(bruto) && bruto >= 0 && bruto < 10_000_000 ? bruto : null;
 
       const viva = await baterSessaoExtensao(licenca.perfilId, sessaoId, espectadores);
-      // 409 e não 404: a sessão pode ter sido encerrada pelo painel enquanto a
-      // extensão batia. A extensão trata isso reabrindo, não como erro.
+      // 409 e não 404: a sessão pode ter sido encerrada enquanto a extensão
+      // batia. Fechada pela faxina, a extensão reabre; fechada pelo PAINEL
+      // ("Encerrar a live", "Parar tudo"), ela desliga tudo — reabrir sozinha
+      // desfaria o que a pessoa acabou de pedir.
       return viva
         ? NextResponse.json({ ok: true })
-        : NextResponse.json({ ok: false, erro: "sessao_encerrada" }, { status: 409 });
+        : NextResponse.json(
+            { ok: false, erro: "sessao_encerrada", pelo: await encerradaPor(licenca.perfilId, sessaoId) },
+            { status: 409 },
+          );
     }
 
     if (acao === "fechar") {
@@ -109,8 +125,13 @@ export async function POST(request: NextRequest) {
           ? corpo.erro.trim().slice(0, 300)
           : null;
 
-      const fechou = await fecharSessaoExtensao(licenca.perfilId, sessaoId, erroTexto);
-      return NextResponse.json({ ok: fechou, jaEstavaFechada: !fechou });
+      const motivo =
+        typeof corpo?.motivo === "string" && corpo.motivo.trim()
+          ? corpo.motivo.trim().slice(0, 200)
+          : null;
+      const fechou = await fecharSessaoExtensao(licenca.perfilId, sessaoId, erroTexto, motivo);
+      // Já fechada é sucesso para quem pediu para fechar.
+      return NextResponse.json({ ok: true, jaEstavaFechada: !fechou });
     }
 
     return NextResponse.json({ ok: false, erro: "acao_invalida" }, { status: 400 });

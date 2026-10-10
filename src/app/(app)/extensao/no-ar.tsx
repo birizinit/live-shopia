@@ -1,31 +1,39 @@
 import { Info } from "lucide-react";
 
 /**
- * Do LIVE Studio aberto à Shopia respondendo — a parte que faltava no passo a
- * passo.
+ * Da live aberta à Shopia cuidando dela — o roteiro do painel da extensão.
  *
- * Foi aqui que as primeiras clientes travaram: transmitiam pelo LIVE Studio e
- * ficavam esperando a extensão agir, sem saber que o chat é lido pela página da
- * live no tiktok.com e que ela precisa do @ para achar essa página. Cada passo
- * abaixo responde a uma dessas dúvidas.
+ * A transmissão é da pessoa (LIVE Studio ou app). A extensão age na PÁGINA da
+ * live aberta no Chrome: é de lá que ela lê o chat e as vendas, fixa o
+ * produto e, se for o caso, encerra a live.
  */
 
 const PASSOS: { titulo: string; texto: string; so?: "produtos" }[] = [
   {
-    titulo: "No Chrome, abra o painel da Shopia",
+    titulo: "Comece a transmissão e deixe a página da live aberta no Chrome",
     texto:
-      "Clique no ícone da Shopia na barra do Chrome. O painel abre do lado direito e mostra o que falta para entrar no ar — cada item tem o botão que resolve.",
+      "Transmita como você já faz. No Chrome, deixe aberta a página da sua live no tiktok.com — é dela que a Shopia lê o chat, as vendas e os avisos do TikTok.",
   },
   {
-    titulo: "Escreva o seu @ do TikTok e clique em “Entrar no ar”",
+    titulo: "Abra o painel da Shopia e toque em “Ligar a extensão”",
     texto:
-      "A Shopia abre a sua live sozinha na mesma janela, se ela ainda não estiver aberta, e começa a ler o chat. O cronômetro corre. Em “Encerrar sozinho depois de”, dá para programar a live para parar em 1, 2, 3 horas ou mais.",
+      "Clique no ícone da Shopia na barra do Chrome. Em “Timer de Encerramento”, escolha 1h a 8h (ou digite os minutos): quando zerar, ela encerra a live sozinha. Ligada, ela detecta a live, lê as vendas e vigia o aviso de violação do TikTok.",
   },
   {
-    titulo: "Para fixar produto, ensine uma vez onde ficam os botões",
+    titulo: "Escolha o que fazer se o TikTok mandar aviso de violação",
+    texto:
+      "Em “Proteção Contra Violação”: encerrar a live na hora, ou continuar por 10, 20, 30 minutos (ou o tempo que quiser) e então encerrar.",
+  },
+  {
+    titulo: "Para responder o chat, ligue “Ler a tela” no botão ✦ IA",
+    texto:
+      "Cada comentário vai para o servidor, que escolhe a resposta no seu manual e a escreve no chat. Antes, aceite o aviso de automação na página Ao vivo do app.",
+  },
+  {
+    titulo: "Fixar produto: agora, automático ou com cupom",
     so: "produtos",
     texto:
-      "Na seção Produtos do painel, clique nos três passos e aponte na sua própria live: a lista, um produto e o botão de fixar. O painel de produtos do LIVE Studio muda de conta para conta — em vez de adivinhar e arriscar clicar no botão errado no meio da sua live, a Shopia pergunta. É uma vez só, fica guardado.",
+      "“Fixar produto agora” ou ligue o automático (refixa a cada 18–30 s). Tem cupom no 1º item da lista? Ligue “Tem cupom na lista”. Se o botão não funcionar na sua conta, ensine uma vez em Central → Configurações: aponte a lista, um produto e o botão de fixar.",
   },
 ];
 
@@ -60,13 +68,14 @@ export function NoAr() {
       <div className="mt-5 flex gap-3 rounded-md bg-info-soft px-4 py-3 text-info">
         <Info className="mt-0.5 size-4 shrink-0" aria-hidden />
         <div className="min-w-0 text-sm">
-          <p className="font-semibold">Proteção anti-restrição</p>
+          <p className="font-semibold">Proteção anti-restrição (no app)</p>
           <p className="mt-1">
-            O painel revisa as respostas do seu manual contra o que costuma fazer o TikTok
+            O app revisa, na página Manual, as respostas do seu manual contra o que costuma fazer o TikTok
             restringir uma live — mandar para o WhatsApp, pedir Pix, prometer resultado — e
             aponta qual corrigir, antes de você subir. No ar, as respostas saem com pausa
             de gente e limite por minuto. É proteção de conteúdo: segue as regras do
-            TikTok, não esconde a automação.
+            TikTok, não esconde a automação. É diferente da “Proteção Contra Violação” da
+            extensão, que encerra a live quando o TikTok mostra um aviso.
           </p>
         </div>
       </div>

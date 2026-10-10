@@ -485,7 +485,7 @@ export async function estadoExtensao(perfilId: string): Promise<EstadoExtensao> 
         `,
         bd()<{ desligado: boolean }[]>`
           select coalesce(
-            (select valor = 'true'::jsonb from configuracoes where chave = 'ext.chat_desligado'),
+            (select (valor #>> '{}') = 'true' from configuracoes where chave = 'ext.chat_desligado'),
             false
           ) as desligado
         `,
@@ -675,7 +675,7 @@ function montarChecklist(
           ? "A extensão nunca deu sinal nesta conta."
           : contatoMinutos <= 15
             ? `Último contato há ${contatoMinutos} min · versão ${extensao.versao ?? "?"}.`
-            : `Sem sinal há ${contatoMinutos} min — abra o LIVE Studio com a extensão ligada.`,
+            : `Sem sinal há ${contatoMinutos} min — abra a página da sua live no Chrome e toque em “Ligar a extensão”.`,
       ok: extensao.licenciada && contatoMinutos !== null && contatoMinutos <= 15,
       href: "/extensao",
       rotuloHref: "Extensão",
@@ -965,15 +965,16 @@ export async function iniciarLive(
   return comTraducao(async () => {
     const sql = bd();
 
-    // Duplo clique e retry de rede caem aqui: a sessao que ja existe e
-    // devolvida em vez de estourar no indice unico da conta ativa.
+    // Qualquer sessão aberta do perfil é reaproveitada — inclusive a que a
+    // extensão abriu sozinha ao "Ligar a extensão" (sem conta vinculada).
+    // Abrir outra em paralelo deixava o painel mostrando a sessão vazia e a
+    // faxina avisando "a live caiu" de uma sessão que nunca teve batimento.
     const abertas = await sql<LinhaSessao[]>`
       select id, estado, conta_tiktok_id, inicio, fim, visto_em,
              espectadores_pico, erro
         from live_sessoes
        where perfil_id = ${perfilId}
-         and conta_tiktok_id = ${contaId}
-         and estado in ('iniciando', 'ativa')
+         and fim is null
        order by inicio desc
        limit 1
     `;
@@ -1006,7 +1007,7 @@ export async function pararLive(perfilId: string, sessaoId: string): Promise<Ses
 
     const linhas = await sql<LinhaSessao[]>`
       update live_sessoes
-         set estado = 'encerrada', fim = now()
+         set estado = 'encerrada', fim = now(), encerrada_por = 'painel'
        where id = ${sessaoId}
          and perfil_id = ${perfilId}
          and estado in ('iniciando', 'ativa')

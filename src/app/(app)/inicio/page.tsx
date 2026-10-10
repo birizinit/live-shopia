@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowRight, Check, Compass, Radio, Sparkles, Zap } from "lucide-react";
 import { dispensarCartaoTour } from "@/app/(app)/bem-vindo/actions";
 import { PageHeader } from "@/components/layout/page-header";
+import { Alerta } from "@/components/ui/alerta";
 import { Card } from "@/components/ui/card";
 import { Indicador } from "@/components/ui/indicador";
 import { formatarDuracao } from "@/lib/caracteres";
@@ -66,15 +67,20 @@ function montarPassos(j: JornadaDaLive): Passo[] {
       },
     },
     {
-      titulo: "Instale a extensão no Chrome",
-      feito: j.extensao.instalada,
-      texto: j.extensao.instalada
+      titulo: "Instale a extensão e entre com a sua conta",
+      feito: j.extensao.conectada,
+      texto: j.extensao.conectada
         ? `Conectada. Último contato ${desde(j.extensao.vistaEm) ?? "—"}.`
-        : "É ela que lê o chat da sua live e responde por lá. Não precisa instalar nada além dela.",
-      acao: { href: "/extensao", rotulo: j.extensao.instalada ? "Ver instruções" : "Instalar" },
+        : j.extensao.instalada
+          ? "Instalada, mas desconectada agora. Abra o Chrome, clique no ícone da Shopia e entre com o seu e-mail e senha."
+          : "É ela que cuida da sua live: timer, proteção contra violação, fixar produto, aviso de venda e respostas pelo manual.",
+      acao: {
+        href: "/extensao",
+        rotulo: j.extensao.instalada ? "Ver instruções" : "Baixar e instalar",
+      },
     },
     {
-      titulo: "Entre no ar",
+      titulo: "Ligue a extensão na sua live",
       feito: j.live.noAr,
       texto: j.live.noAr
         ? `A Shopia está cuidando do chat ${desde(j.live.desde) ?? ""}.`
@@ -82,18 +88,23 @@ function montarPassos(j: JornadaDaLive): Passo[] {
       acao: j.live.noAr ? { href: "/live", rotulo: "Acompanhar" } : null,
       extra: j.live.noAr ? null : (
         <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-fg-muted">
-          <li>Comece a sua transmissão como você já faz.</li>
+          <li>Comece a transmissão e deixe a página da sua live aberta no Chrome.</li>
           <li>
-            No Chrome, clique no ícone da Shopia, escreva o seu @ e clique em{" "}
-            <strong className="text-fg">Entrar no ar</strong> — ela abre a sua live sozinha.
+            Clique no ícone da Shopia e toque em{" "}
+            <strong className="text-fg">Ligar a extensão</strong> — defina o timer de
+            encerramento se quiser que ela encerre sozinha.
+          </li>
+          <li>
+            Para responder o chat, abra <strong className="text-fg">✦ IA</strong> e ligue{" "}
+            <strong className="text-fg">Ler a tela</strong>.
           </li>
           {!j.riscoAceito && (
             <li>
-              Antes da primeira vez,{" "}
-              <Link href="/bem-vindo" className="font-medium text-primary underline-offset-4 hover:underline">
-                aceite o aviso de automação
+              Antes, na página{" "}
+              <Link href="/live" className="font-medium text-primary underline-offset-4 hover:underline">
+                Ao vivo
               </Link>
-              .
+              , aceite o aviso de automação — sem ele a extensão não responde o chat.
             </li>
           )}
         </ol>
@@ -183,7 +194,7 @@ function CartaoTour({ resumo }: { resumo: ResumoTour }) {
         </p>
         <p className="mt-0.5 text-sm text-fg-muted">
           {soAceite ? (
-            "O texto do aviso mudou. Ele explica o risco de automatizar o LIVE Studio, e o seu aceite fica registrado com data e versão."
+            "O texto do aviso mudou. Ele explica o risco de automatizar ações na sua live do TikTok, e o seu aceite fica registrado com data e versão."
           ) : (
             <>
               {resumo.pendentes === 1 ? "Falta" : "Faltam"}{" "}
@@ -236,9 +247,19 @@ export default async function InicioPage() {
     <>
       <PageHeader titulo={`Olá, ${primeiroNome}`} descricao={descricao} />
 
+      {!jornada.planoAtivo && (
+        <Alerta tom="erro" className="mb-4">
+          <strong>A extensão só funciona com plano ativo.</strong> Sem ele, ela fica
+          trancada na tela de assinatura.{" "}
+          <Link href="/planos" className="font-medium underline underline-offset-2">
+            Ver planos
+          </Link>
+        </Alerta>
+      )}
+
       <section aria-labelledby="titulo-passos">
         <h2 id="titulo-passos" className="sr-only">
-          Sua live em três passos
+          Sua live, passo a passo
         </h2>
         <ol className="space-y-3">
           {passos.map((passo, indice) => (

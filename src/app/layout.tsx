@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     template: "%s · Shopia",
   },
   description:
-    "Responde os comentários da sua live no TikTok usando o manual que você cadastrou, dá boas-vindas pelo nome e fixa o produto na tela. Nunca inventa resposta.",
+    "Cuida da sua live no TikTok Shop pelo Chrome: timer de encerramento, proteção contra violação, fixar produto, comentários automáticos, aviso de venda no celular e respostas pelo seu manual. Nunca inventa resposta.",
   applicationName: "Shopia",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "Shopia", statusBarStyle: "default" },

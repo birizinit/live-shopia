@@ -4,8 +4,10 @@ import {
   chatDesligadoNaBase,
   dentroDoLimite,
   origemDaRequisicao,
+  planoVigente,
   tokenDoCabecalho,
 } from "@/lib/dados/extensao";
+import { encerradaPor, sessaoAberta } from "@/lib/dados/ext-live";
 import { decidirResposta, registrarResposta } from "@/lib/dados/respostas";
 import { proximaTarefa, registrarRefixada } from "@/lib/dados/automacoes";
 import { tetoDaConta } from "@/lib/dados/automacoes";
@@ -57,7 +59,10 @@ export async function POST(request: NextRequest) {
     }
 
     if (licenca.estado !== "ativa") {
-      return NextResponse.json({ ok: false, erro: licenca.estado }, { status: 403 });
+      return NextResponse.json(
+        { ok: false, erro: licenca.estado, detalhe: licenca.revogadaMotivo },
+        { status: 403 },
+      );
     }
 
     if (!(await dentroDoLimite(`ext:responder:${licenca.licencaId}`, TETO_POR_LICENCA, JANELA_S))) {
@@ -70,6 +75,16 @@ export async function POST(request: NextRequest) {
       typeof corpo?.sessaoId === "string" && UUID.test(corpo.sessaoId) ? corpo.sessaoId : null;
     if (!sessaoId) {
       return NextResponse.json({ ok: false, erro: "sessao_invalida" }, { status: 400 });
+    }
+
+    // Sessão fechada (pelo painel, pela faxina) não responde nem programa:
+    // sem isto, entre o "Encerrar" e o próximo batimento as respostas saíam
+    // sem teto, porque nada era registrado numa sessão fechada.
+    if (!(await sessaoAberta(licenca.perfilId, sessaoId))) {
+      return NextResponse.json(
+        { ok: false, erro: "sessao_encerrada", pelo: await encerradaPor(licenca.perfilId, sessaoId) },
+        { status: 409 },
+      );
     }
 
     // Confirmação de envio: a extensão avisa que a resposta de fato saiu.
@@ -98,7 +113,10 @@ export async function POST(request: NextRequest) {
     // Os dois freios da automação de chat, checados aqui: o da licença (por
     // conta) e o global (base inteira).
     const chatLiberado =
-      licenca.chat && licenca.recursos.chat && !(await chatDesligadoNaBase());
+      licenca.chat &&
+      licenca.recursos.chat &&
+      !(await chatDesligadoNaBase()) &&
+      (await planoVigente(licenca.perfilId));
 
     /**
      * "Tem algo programado para agora?"
