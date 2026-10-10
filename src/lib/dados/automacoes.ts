@@ -434,22 +434,9 @@ export async function proximaTarefa(
   sessaoId: string,
   config: { tetoPorMinuto: number },
 ): Promise<TarefaProgramada> {
-  // Refixar vem primeiro porque não escreve no chat: não gasta cadência, e o
-  // produto fora da tela custa mais caro que um aviso atrasado.
-  const auto = await configAutomacoes(perfilId);
-  if (auto.refixarAtivo) {
-    const [r] = await bd()<{ segundos: number | null }[]>`
-      select extract(epoch from (now() - max(criado_em)))::int as segundos
-        from live_eventos
-       where perfil_id = ${perfilId} and live_sessao_id = ${sessaoId}
-         and tipo = 'aviso' and dados->>'tema' = 'refixar'
-    `;
-    const desde = r?.segundos;
-    if (desde === null || desde === undefined || desde >= auto.refixarIntervaloS) {
-      return { acao: "fixar", posicao: auto.refixarPosicao };
-    }
-  }
-
+  // O refixar NÃO mora mais aqui: a extensão 3.0 fixa sozinha ("Fixar
+  // produto" automático a cada 18–30 s, com modo cupom). Mandar "fixar" daqui
+  // fazia as duas fixarem ao mesmo tempo, e a posição do app era ignorada.
   const avisos = await bd()<
     (LinhaAviso & { segundos_desde: number | null })[]
   >`
@@ -644,8 +631,10 @@ export async function dispararAviso(
  *   texto que a pessoa editou nunca é sobrescrito.
  *
  * As reações nascem LIGADAS, e isso é seguro: nada é publicado fora de uma
- * sessão de live aberta. A pessoa precisa clicar em "Entrar no ar" para
- * qualquer coisa daqui chegar ao chat.
+ * sessão de live aberta. A pessoa precisa tocar em "Ligar a extensão" ou em
+ * "Ler a tela" para qualquer coisa daqui chegar ao chat. O aviso programado
+ * nasce DESLIGADO: os "Comentários Automáticos" da extensão já postam, e os
+ * dois ligados por padrão seriam duas correntes no mesmo chat.
  */
 export async function garantirAutomacoesBasicas(perfilId: string): Promise<boolean> {
   if (modoDemo) return false;
@@ -660,7 +649,7 @@ export async function garantirAutomacoesBasicas(perfilId: string): Promise<boole
     await bd()`
       insert into avisos_programados (perfil_id, tipo, texto, intervalo_s, ativo, ordem)
       values
-        (${perfilId}, 'aviso',     ${SUGESTAO.aviso},     300, true,  10),
+        (${perfilId}, 'aviso',     ${SUGESTAO.aviso},     300, false, 10),
         (${perfilId}, 'relampago', ${SUGESTAO.relampago}, 900, false, 10)
     `;
     criou = true;

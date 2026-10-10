@@ -58,9 +58,17 @@ export type JornadaDaLive = {
   };
   extensao: {
     instalada: boolean;
+    /**
+     * Conectada AGORA: licença valendo (não revogada, não substituída por
+     * login em outra máquina, dentro da janela) e contato nos últimos 15 min.
+     * "Instalada um dia" não basta — a extensão desloga.
+     */
+    conectada: boolean;
     /** Último contato de qualquer máquina desta conta. */
     vistaEm: string | null;
   };
+  /** Assinatura ativa e dentro do prazo: sem ela a extensão tranca. */
+  planoAtivo: boolean;
   live: {
     noAr: boolean;
     desde: string | null;
@@ -72,7 +80,8 @@ export type JornadaDaLive = {
 const JORNADA_DEMO: JornadaDaLive = {
   produto: { pronto: true, nome: "Kit 3 camisetas", quantos: 3 },
   manual: { pronto: true, perguntas: 6, semResposta: 2 },
-  extensao: { instalada: false, vistaEm: null },
+  extensao: { instalada: false, conectada: false, vistaEm: null },
+  planoAtivo: true,
   live: { noAr: false, desde: null, lives: 0 },
   riscoAceito: true,
 };
@@ -93,6 +102,8 @@ export async function jornadaDaLive(perfilId: string): Promise<JornadaDaLive> {
             ao_vivo_desde: Date | null;
             lives: number;
             risco_ok: boolean | null;
+            licenca_ok: boolean;
+            plano_ok: boolean;
           }[]
         >`
           select
@@ -118,8 +129,20 @@ export async function jornadaDaLive(perfilId: string): Promise<JornadaDaLive> {
             (select min(s.inicio) from live_sessoes s
               where s.perfil_id = ${perfilId} and s.estado = 'ativa' and s.fim is null) as ao_vivo_desde,
             (select count(*)::int from live_sessoes s where s.perfil_id = ${perfilId}) as lives,
-            (select lc.risco_aceito_em is not null from live_config lc
-              where lc.perfil_id = ${perfilId}) as risco_ok
+            -- O aceite vale só na versão vigente do aviso — a mesma regra que
+            -- /api/ext/sessao aplica antes de abrir a sessão.
+            (select lc.risco_aceito_em is not null
+                    and coalesce(lc.risco_aceito_versao, 0) >= coalesce(
+                      (select (c.valor #>> '{}')::int from configuracoes c
+                        where c.chave = 'live.risco_aceito_versao'), 1)
+               from live_config lc
+              where lc.perfil_id = ${perfilId}) as risco_ok,
+            exists (select 1 from ext_licencas l
+                     where l.perfil_id = ${perfilId}
+                       and l.revogada_em is null and l.expira_em > now()) as licenca_ok,
+            exists (select 1 from assinaturas a
+                     where a.perfil_id = ${perfilId} and a.status = 'ativa'
+                       and (a.fim is null or a.fim > now())) as plano_ok
         `
       )[0]!;
 
@@ -139,8 +162,13 @@ export async function jornadaDaLive(perfilId: string): Promise<JornadaDaLive> {
         },
         extensao: {
           instalada: numeroDe(linha.instalacoes) > 0,
+          conectada:
+            linha.licenca_ok === true &&
+            linha.extensao_vista_em !== null &&
+            Date.now() - linha.extensao_vista_em.getTime() < 15 * 60_000,
           vistaEm: linha.extensao_vista_em?.toISOString() ?? null,
         },
+        planoAtivo: linha.plano_ok === true,
         live: {
           noAr: linha.ao_vivo_desde !== null,
           desde: linha.ao_vivo_desde?.toISOString() ?? null,

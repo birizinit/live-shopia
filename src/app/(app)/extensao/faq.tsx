@@ -38,9 +38,10 @@ export function Faq() {
     <div className="space-y-2.5">
       <Pergunta pergunta="Preciso deixar o computador ligado durante a live?">
         <p>
-          Precisa. A live roda na sua máquina, com o Chrome e o TikTok LIVE Studio abertos
-          o tempo todo. Não existe servidor nosso operando no seu lugar: quem lê o chat e
-          responde é a extensão, e ela só existe enquanto o navegador está aberto.
+          Precisa. A Shopia roda na sua máquina, com a página da sua live aberta no Chrome
+          o tempo todo. A extensão lê o chat e a tela; com “Ler a tela” ligado, a resposta é
+          escolhida no servidor a partir do seu manual — mas quem a escreve no chat é a
+          extensão, e ela só existe enquanto o navegador está aberto.
         </p>
         <p>
           Na prática: desligue a suspensão automática e o desligamento de tela por
@@ -52,7 +53,7 @@ export function Faq() {
       <Pergunta pergunta="Preciso instalar algum programa ou driver no computador?">
         <p>
           Não. A extensão vive dentro do Chrome e trabalha em cima das páginas que você já
-          abriria de qualquer jeito — a sua live no tiktok.com e o LIVE Studio. Não há cabo
+          abriria de qualquer jeito — a sua live no tiktok.com. Não há cabo
           de áudio virtual, driver nem programa de fundo para instalar.
         </p>
         <p>
@@ -64,12 +65,12 @@ export function Faq() {
       <Pergunta pergunta="Funciona em Mac e em Windows?">
         <p>
           Nos dois, sem diferença de passo a passo. O Chrome é o mesmo, a extensão é a
-          mesma e o LIVE Studio existe para os dois sistemas — e como nada é instalado
+          mesma — e como nada é instalado
           fora do navegador, não há nada que se comporte diferente entre eles.
         </p>
         <p>
-          Em celular e tablet não roda. O LIVE Studio é programa de computador e o Chrome
-          do celular não aceita extensão.
+          Em celular e tablet não roda: o Chrome do celular não aceita extensão. Você pode
+          transmitir pelo celular e deixar a página da live aberta no Chrome do computador.
         </p>
       </Pergunta>
 
@@ -82,7 +83,8 @@ export function Faq() {
         </p>
         <p>
           Use a mesma pasta, não uma nova: o Chrome guarda a extensão pelo caminho da
-          pasta. O seu token continua valendo, não precisa gerar outro nem reconectar.
+          pasta. Sua conta continua conectada; não precisa entrar de novo. E o painel da
+          extensão avisa quando sai versão nova, com o link para baixar.
         </p>
         <p>
           Você não precisa ficar de olho. Cada máquina se apresenta para a gente de poucos

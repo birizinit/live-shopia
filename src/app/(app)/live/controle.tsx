@@ -5,14 +5,12 @@ import {
   CircleStop,
   Link2Off,
   Plus,
-  Radio,
   ShieldAlert,
   TriangleAlert,
 } from "lucide-react";
 import {
   aceitarRiscoAcao,
   desvincularContaAcao,
-  iniciarLiveAcao,
   pararLiveAcao,
   salvarConfiguracaoAcao,
   vincularContaAcao,
@@ -243,7 +241,7 @@ export function ContasDoTikTok({
         <EstadoVazio
           className="mt-4"
           titulo="Nenhuma conta vinculada"
-          texto="Informe o @ da conta que vai transmitir. É ele que a extensão procura no LIVE Studio."
+          texto="Cadastre o @ das suas contas do TikTok (limite do plano). A extensão age na página da live aberta no Chrome — dá para gerenciar as contas também pelo ✦ IA dela."
         />
       ) : (
         <ul className="mt-4 divide-y divide-border">
@@ -518,23 +516,22 @@ export function ConfiguracaoDaLive({
 
 export function Transmissao({
   sessao,
-  contaId,
   bloqueios,
 }: {
   sessao: SessaoLive | null;
-  contaId: string | null;
   /** O que impede de subir. Vazio = pode. */
   bloqueios: string[];
 }) {
-  const [estadoInicio, iniciar, iniciando] = useActionState(iniciarLiveAcao, INICIAL);
+  // A sessão é aberta pela EXTENSÃO ("Ligar a extensão" ou "Ler a tela"),
+  // nunca daqui: o app abrir sessão sozinho criava uma live que não existia
+  // do lado do TikTok. Daqui só se desliga, remotamente.
   const [estadoParada, parar, parando] = useActionState(pararLiveAcao, INICIAL);
   const [confirmando, setConfirmando] = useState(false);
-  useRetorno(estadoInicio);
   useRetorno(estadoParada);
 
   const noAr = sessao !== null;
   const sessaoId = sessao?.id ?? "";
-  const erro = estadoInicio.erro ?? estadoParada.erro;
+  const erro = estadoParada.erro;
 
   return (
     <>
@@ -543,7 +540,7 @@ export function Transmissao({
       {!noAr && bloqueios.length > 0 && (
         <Alerta tom="info">
           Falta{bloqueios.length > 1 ? "m" : ""} {bloqueios.length} item
-          {bloqueios.length > 1 ? "s" : ""} antes de subir: {bloqueios.join(", ")}.
+          {bloqueios.length > 1 ? "s" : ""} antes de ligar a extensão: {bloqueios.join(", ")}.
         </Alerta>
       )}
 
@@ -557,19 +554,19 @@ export function Transmissao({
             disabled={parando}
           >
             <CircleStop className="size-5" aria-hidden />
-            {parando ? "Encerrando…" : "Encerrar a live"}
+            {parando ? "Desligando…" : "Desligar a extensão"}
           </Button>
 
           <ConfirmarAcao
             aberto={confirmando}
             aoFechar={() => setConfirmando(false)}
-            titulo="Encerrar a transmissão?"
-            rotuloConfirmar="Encerrar agora"
-            texto="A sessão é fechada na hora e entra no histórico."
+            titulo="Desligar a extensão remotamente?"
+            rotuloConfirmar="Desligar agora"
+            texto="A sessão fecha na hora e, no próximo contato (até 1 minuto), a extensão desliga tudo. A transmissão no TikTok continua — para encerrá-la, use ⏻ no painel da extensão."
             perdas={[
-              "A extensão para de responder o chat desta live",
-              "Ninguém mais recebe boas-vindas",
-              "O painel ao vivo fecha o fluxo de eventos",
+              "Respostas no chat, boas-vindas e avisos param",
+              "Timer, proteção contra violação, fixar automático, comentários e bloqueio são desligados",
+              "Para voltar, toque em “Ligar a extensão” no painel dela",
             ]}
             aoConfirmar={() => {
               const dados = new FormData();
@@ -580,18 +577,11 @@ export function Transmissao({
           />
         </>
       ) : (
-        <form action={iniciar}>
-          <input type="hidden" name="contaId" value={contaId ?? ""} />
-          <Button
-            type="submit"
-            tamanho="lg"
-            bloco
-            disabled={iniciando || bloqueios.length > 0}
-          >
-            <Radio className="size-5" aria-hidden />
-            {iniciando ? "Abrindo a sessão…" : "Subir a live"}
-          </Button>
-        </form>
+        <Alerta tom="info">
+          A sessão abre sozinha quando você toca em <strong>Ligar a extensão</strong> (ou
+          em <strong>✦ IA → Ler a tela</strong>) no painel da extensão, com a página da
+          sua live aberta no Chrome.
+        </Alerta>
       )}
     </>
   );

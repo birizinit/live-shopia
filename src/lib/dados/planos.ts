@@ -131,6 +131,16 @@ const FMT_DATA_HORA = new Intl.DateTimeFormat("pt-BR", {
   timeZone: FUSO,
 });
 
+/**
+ * A assinatura vale AGORA: ativa e dentro do prazo. Cortesia e plano pago
+ * gravam `fim`, e nada muda o status quando ele passa — é a mesma regra que
+ * tranca a extensão.
+ */
+export function assinaturaVigente(assinatura: Assinatura | null): boolean {
+  if (assinatura?.status !== "ativa") return false;
+  return !assinatura.fim || new Date(assinatura.fim).getTime() > Date.now();
+}
+
 export function formatarData(iso: string) {
   return FMT_DATA.format(new Date(iso));
 }
@@ -178,10 +188,12 @@ const PLANOS_DEMO: Plano[] = [
     contasTiktok: 3,
     creditosMes: 30000,
     recursos: [
-      "Acesso a tudo",
-      "Respostas no chat pelo manual",
-      "Boas-vindas pelo nome",
-      "Produto fixado na tela",
+      "Extensão Shopia para Chrome (1 conta = 1 dispositivo)",
+      "Timer de encerramento e proteção contra violação",
+      "Fixar produto (manual, automático e modo cupom)",
+      "Comentários automáticos e bloqueio por nome",
+      "Respostas no chat pelo seu manual",
+      "Aviso de venda no celular",
       "3 contas TikTok",
     ],
   },
@@ -196,10 +208,12 @@ const PLANOS_DEMO: Plano[] = [
     contasTiktok: 3,
     creditosMes: 30000,
     recursos: [
-      "Acesso a tudo",
-      "Respostas no chat pelo manual",
-      "Boas-vindas pelo nome",
-      "Produto fixado na tela",
+      "Extensão Shopia para Chrome (1 conta = 1 dispositivo)",
+      "Timer de encerramento e proteção contra violação",
+      "Fixar produto (manual, automático e modo cupom)",
+      "Comentários automáticos e bloqueio por nome",
+      "Respostas no chat pelo seu manual",
+      "Aviso de venda no celular",
       "3 contas TikTok",
       "Economia de 32% sobre o mensal",
     ],
@@ -215,10 +229,12 @@ const PLANOS_DEMO: Plano[] = [
     contasTiktok: 3,
     creditosMes: 30000,
     recursos: [
-      "Acesso a tudo",
-      "Respostas no chat pelo manual",
-      "Boas-vindas pelo nome",
-      "Produto fixado na tela",
+      "Extensão Shopia para Chrome (1 conta = 1 dispositivo)",
+      "Timer de encerramento e proteção contra violação",
+      "Fixar produto (manual, automático e modo cupom)",
+      "Comentários automáticos e bloqueio por nome",
+      "Respostas no chat pelo seu manual",
+      "Aviso de venda no celular",
       "3 contas TikTok",
       "Economia de 57% sobre o mensal",
     ],

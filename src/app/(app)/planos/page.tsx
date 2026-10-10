@@ -19,6 +19,7 @@ import {
   type Assinatura,
   type Plano,
   type StatusAssinatura,
+  assinaturaVigente,
 } from "@/lib/dados/planos";
 import { obterUsuario } from "@/lib/sessao";
 import { cn, numero } from "@/lib/utils";
@@ -156,14 +157,24 @@ function BlocoAssinatura({ assinatura }: { assinatura: Assinatura }) {
 function CartaoPlano({
   plano,
   atual,
+  escolhido,
   cobrancaLigada,
 }: {
   plano: Plano;
   atual: boolean;
+  /** Veio da extensão com ?plano=<slug>: o cartão chega destacado. */
+  escolhido: boolean;
   cobrancaLigada: boolean;
 }) {
   return (
-    <Card className={cn("flex flex-col", atual && "border-primary-border")}>
+    <Card
+      id={`plano-${plano.slug}`}
+      className={cn(
+        "flex scroll-mt-6 flex-col",
+        atual && "border-primary-border",
+        escolhido && "border-primary ring-2 ring-primary",
+      )}
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <CardTitulo>{plano.nome}</CardTitulo>
@@ -248,7 +259,13 @@ function CartaoPlano({
   );
 }
 
-export default async function PlanosPage() {
+export default async function PlanosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ plano?: string | string[] }>;
+}) {
+  const pedido = (await searchParams).plano;
+  const escolhido = typeof pedido === "string" ? pedido : null;
   // /planos e rota publica (src/lib/rotas.ts): a vitrine tem de renderizar para
   // quem ainda nao entrou, entao aqui nao se exige sessao.
   const usuario = await obterUsuario();
@@ -259,7 +276,7 @@ export default async function PlanosPage() {
   ]);
 
   const cobrancaLigada = podeCobrar();
-  const planoAtualId = assinatura?.status === "ativa" ? assinatura.plano.id : null;
+  const planoAtualId = assinaturaVigente(assinatura) ? assinatura!.plano.id : null;
 
   return (
     <>
@@ -338,6 +355,7 @@ export default async function PlanosPage() {
                 key={plano.id}
                 plano={plano}
                 atual={plano.id === planoAtualId}
+                escolhido={plano.slug === escolhido}
                 cobrancaLigada={cobrancaLigada}
               />
             ))}
@@ -424,7 +442,7 @@ export default async function PlanosPage() {
           </li>
           <li>
             Crédito é medido em <strong className="font-medium text-fg">caracteres</strong>,
-            porque é a unidade que a geração de voz cobra. O detalhe do consumo
+            a mesma unidade do saldo exibido na extensão. O detalhe do consumo
             está em{" "}
             <Link
               href="/creditos"

@@ -64,26 +64,6 @@ function falhar(erro: unknown, onde: string): EstadoAutomacao {
   return { ok: false, erro: "Não deu para salvar. Tente de novo." };
 }
 
-export async function salvarRefixarAcao(
-  _anterior: EstadoAutomacao = INICIAL,
-  formData: FormData,
-): Promise<EstadoAutomacao> {
-  const usuario = await exigirUsuario("/automacoes");
-
-  try {
-    await salvarAutomacoes(usuario.id, {
-      refixarAtivo: marcado(formData, "refixarAtivo"),
-      refixarIntervaloS: inteiro(formData, "refixarIntervaloS", 180),
-      refixarPosicao: inteiro(formData, "refixarPosicao", 1),
-    });
-
-    revalidatePath("/automacoes");
-    return { ok: true, mensagem: "Produto fixado salvo." };
-  } catch (erro) {
-    return falhar(erro, "refixar");
-  }
-}
-
 /**
  * Carrinho e venda numa ação só.
  *
@@ -109,7 +89,7 @@ export async function salvarGatilhoAcao(
   const dados: Partial<ConfigAutomacoes> =
     qual === "carrinho"
       ? { carrinhoAtivo: ativo, carrinhoTexto: corpo }
-      : { vendaAtivo: ativo, vendaTexto: corpo, sinoAtivo: marcado(formData, "sino") };
+      : { vendaAtivo: ativo, vendaTexto: corpo };
 
   try {
     await salvarAutomacoes(usuario.id, dados);

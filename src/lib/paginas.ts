@@ -50,7 +50,7 @@ export const PAGINAS = {
   },
   "/extensao": {
     titulo: "Extensão",
-    descricao: "Download, licença e instalação da extensão do Chrome.",
+    descricao: "Download, instalação e conta conectada da extensão do Chrome.",
     fase: 5,
     entrega: [
       "Download do pacote e estado da licença",

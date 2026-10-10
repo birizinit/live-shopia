@@ -2,12 +2,11 @@
 
 import { useActionState, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { Megaphone, Pencil, Pin, Plus, ShoppingCart, Trash2, Zap } from "lucide-react";
+import { Megaphone, Pencil, Plus, ShoppingCart, Trash2, Zap } from "lucide-react";
 import {
   removerAvisoAcao,
   salvarAvisoAcao,
   salvarGatilhoAcao,
-  salvarRefixarAcao,
   type EstadoAutomacao,
 } from "./actions";
 import { Alerta } from "@/components/ui/alerta";
@@ -84,122 +83,6 @@ function cadencia(segundos: number) {
  */
 function passouDoLimite(texto: string, limite: number) {
   return contarCaracteres(texto) > limite || texto.length > limite;
-}
-
-// -----------------------------------------------------------------------------
-// 1. Produto fixado
-// -----------------------------------------------------------------------------
-
-export function ProdutoFixado({
-  config,
-  limites,
-}: {
-  config: ConfigAutomacoes;
-  limites: { intervaloMinS: number; intervaloMaxS: number };
-}) {
-  const [estado, acao, enviando] = useActionState(salvarRefixarAcao, INICIAL);
-  useRetorno(estado);
-
-  const [ativo, setAtivo] = useState(config.refixarAtivo);
-  const [intervalo, setIntervalo] = useState(String(config.refixarIntervaloS));
-  const [posicao, setPosicao] = useState(String(config.refixarPosicao));
-
-  const segundos = Number(intervalo) || limites.intervaloMinS;
-
-  return (
-    <Card>
-      <div className="flex items-start gap-3">
-        <span
-          className="grid size-9 shrink-0 place-items-center rounded-md bg-bg-subtle text-fg-muted"
-          aria-hidden
-        >
-          <Pin className="size-4" />
-        </span>
-        <div className="min-w-0">
-          <CardTitulo>Produto fixado</CardTitulo>
-          <CardDescricao>
-            O TikTok desafixa o produto sozinho quando o vendedor mexe na vitrine — abre a
-            lista, troca o preço, reordena. A live continua rodando sem produto na tela, e de
-            dentro do LIVE Studio ninguém percebe: quem vê a vitrine vazia é a audiência.
-            Ligado, a Shopia refixa de tempo em tempo.
-          </CardDescricao>
-        </div>
-      </div>
-
-      {estado.erro && (
-        <Alerta tom="erro" className="mt-4">
-          {estado.erro}
-        </Alerta>
-      )}
-
-      <form action={acao} className="mt-5 space-y-5">
-        <Interruptor
-          ligado={ativo}
-          aoMudar={setAtivo}
-          rotulo="Refixar o produto durante a live"
-          descricao="Desligado, o produto fica fixado só enquanto o TikTok quiser."
-        />
-        {ativo && <input type="hidden" name="refixarAtivo" value="1" />}
-
-        {/* Os campos não são desabilitados com o interruptor desligado: campo
-            desabilitado não é enviado, e o valor voltaria para o padrão — ou
-            seja, desligar apagaria o número que a pessoa configurou. */}
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Campo
-            rotulo="Refixar a cada (segundos)"
-            htmlFor="refixarIntervaloS"
-            dica={`de ${numero(limites.intervaloMinS)} a ${numero(limites.intervaloMaxS)} segundos`}
-          >
-            <Input
-              id="refixarIntervaloS"
-              name="refixarIntervaloS"
-              type="number"
-              inputMode="numeric"
-              className="num"
-              min={limites.intervaloMinS}
-              max={limites.intervaloMaxS}
-              value={intervalo}
-              onChange={(evento) => setIntervalo(evento.target.value)}
-            />
-          </Campo>
-
-          <Campo
-            rotulo="Posição do produto na vitrine"
-            htmlFor="refixarPosicao"
-            dica="1 é o primeiro da lista — é essa posição que a extensão clica"
-          >
-            <Input
-              id="refixarPosicao"
-              name="refixarPosicao"
-              type="number"
-              inputMode="numeric"
-              className="num"
-              min={1}
-              max={99}
-              value={posicao}
-              onChange={(evento) => setPosicao(evento.target.value)}
-            />
-          </Campo>
-        </div>
-
-        <p className="text-xs text-fg-subtle" aria-live="polite">
-          {ativo ? (
-            <>
-              A cada <span className="num">{cadencia(segundos)}</span> a Shopia fixa de novo o
-              produto da posição <span className="num">{numero(Number(posicao) || 1)}</span>.
-              Refixar não escreve no chat: não gasta o teto de mensagens por minuto.
-            </>
-          ) : (
-            "Desligado: se o TikTok desafixar no meio da live, o produto fica fora da tela."
-          )}
-        </p>
-
-        <Button type="submit" disabled={enviando}>
-          {enviando ? "Salvando…" : "Salvar produto fixado"}
-        </Button>
-      </form>
-    </Card>
-  );
 }
 
 // -----------------------------------------------------------------------------
@@ -372,7 +255,8 @@ export function AvisosProgramados({
           <p className="mt-1.5 text-sm text-fg-muted">
             O intervalo diz “no máximo tão rápido”, e não “sempre”. Quem decide por último é o
             teto de mensagens por minuto da cadência, que vale para a conta inteira — resposta
-            do manual, boas-vindas, reação de venda e aviso programado dividem a mesma conta. E
+            do manual, boas-vindas, reação de venda, aviso programado e os comentários
+            automáticos da extensão dividem a mesma conta. E
             o aviso programado é o <strong className="text-fg">primeiro a calar</strong> quando
             o chat enche: ninguém está esperando um “aproveitem a oferta”, enquanto perder a
             resposta de quem perguntou o preço custa a venda.
@@ -610,7 +494,6 @@ export function GatilhoDaLoja({
   const [texto, setTexto] = useState(
     (qual === "carrinho" ? config.carrinhoTexto : config.vendaTexto) ?? "",
   );
-  const [sino, setSino] = useState(config.sinoAtivo);
 
   const excedeu = passouDoLimite(texto, limiteTexto);
   const previa = texto.trim().replaceAll("{nome}", EXEMPLO);
@@ -683,15 +566,14 @@ export function GatilhoDaLoja({
         </div>
 
         {qual === "venda" && (
-          <>
-            <Interruptor
-              ligado={sino}
-              aoMudar={setSino}
-              rotulo="Tocar um som quando vender"
-              descricao="Toca no painel da extensão, no navegador onde a live está rodando. Não é notificação no celular."
-            />
-            {sino && <input type="hidden" name="sino" value="1" />}
-          </>
+          <p className="text-xs text-fg-subtle">
+            O som de venda liga e desliga no painel da extensão: Central → Configurações →
+            Som de venda. O aviso no celular fica em{" "}
+            <Link href="/notificacoes" className="font-medium text-primary underline-offset-2 hover:underline">
+              Notificações
+            </Link>
+            .
+          </p>
         )}
 
         {excedeu && (

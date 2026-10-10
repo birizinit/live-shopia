@@ -31,8 +31,9 @@ const PIPELINE = [
   },
   {
     Icone: MessagesSquare,
-    titulo: "Ela assume o chat",
-    texto: "Responde, chama quem entra pelo nome e fixa o produto na tela.",
+    titulo: "Ela cuida da live",
+    texto:
+      "Responde pelo manual, fixa o produto, encerra a live no horário ou ao aviso de violação e avisa cada venda no seu celular.",
   },
 ] as const;
 
@@ -81,7 +82,7 @@ export default async function LandingPage() {
 
           <p className="mt-5 max-w-xl text-lg text-fg-muted">
             Você escreve as respostas uma vez, no manual do produto. Na live, quem
-            pergunta preço, frete ou cupom recebe o que você escreveu — na hora, e
+            pergunta preço, frete ou cupom recebe o que você escreveu — em segundos, com ritmo de gente, e
             sem você digitar.
           </p>
 

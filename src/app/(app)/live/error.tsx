@@ -41,8 +41,8 @@ export default function ErroLive({
           <div className="min-w-0">
             <CardTitulo>Não foi possível carregar a sala de live</CardTitulo>
             <CardDescricao>
-              Se a sua live já estava no ar, ela continua: quem transmite é a
-              extensão no seu navegador, não esta tela. Recarregue para voltar ao
+              Se a sua live já estava no ar, ela continua: quem transmite é você,
+              pelo TikTok, e a extensão segue cuidando dela no Chrome. Recarregue para voltar ao
               controle.
             </CardDescricao>
 

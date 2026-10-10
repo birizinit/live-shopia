@@ -133,6 +133,13 @@ async function baterLicenca() {
 
     await sincronizarMapa(mapaVersao);
 
+    estado.planoAtivo = r.plano?.ativo !== false;
+    if (!estado.planoAtivo) {
+      // Sem plano vigente a extensão tranca: o painel mostra "Assinar/Renovar"
+      // e nada roda sozinho na live.
+      await desligarTudo("plano sem assinatura vigente");
+    }
+
     if (estado.pararAgora) {
       // Kill switch: vale para a versão que está rodando agora.
       await avisarTodos({ tipo: "parar", motivo: estado.pararMotivo });
@@ -289,7 +296,10 @@ async function ajustarSessao() {
       await api.gravarLocal({ [api.CHAVES.sessao]: r.sessaoId });
       await log(r.jaEstavaAberta ? "Sessão retomada no servidor" : "Sessão aberta no servidor", "ok");
     } catch (erro) {
-      if (erro.codigo === "risco_pendente") {
+      if (erro.codigo === "sem_plano") {
+        await log("Sem plano vigente — assine ou renove para usar a extensão.", "warn");
+        avisarPainel({ tipo: "aviso", texto: "Seu plano não está ativo.", abrir: "/planos" });
+      } else if (erro.codigo === "risco_pendente") {
         await log("Aceite o aviso de automação no app (página Ao vivo) para responder o chat.", "warn");
         avisarPainel({ tipo: "aviso", texto: "Falta aceitar o aviso de automação no app.", abrir: "/live" });
       } else if (erro.codigo !== "sem_token") {
@@ -297,7 +307,7 @@ async function ajustarSessao() {
       }
     }
   } else if (!precisa && sessaoId) {
-    await api.fecharSessao(sessaoId).catch(() => {});
+    await api.fecharSessao(sessaoId, null, ciclo.ultimoMotivo ?? "extensão desligada").catch(() => {});
     await chrome.storage.local.remove(api.CHAVES.sessao);
     await log("Sessão fechada no servidor", "inf");
   }
@@ -327,15 +337,45 @@ async function baterSessaoAberta() {
   const sessaoId = await api.lerLocal(api.CHAVES.sessao);
   if (!sessaoId) return;
   const ciclo = await lerCiclo();
-  const espectadores = Number.parseInt(String(ciclo.viewers ?? "").replace(/\D/g, ""), 10);
+  const espectadores = contarEspectadores(ciclo.viewers);
   try {
     await api.baterSessao(sessaoId, Number.isSafeInteger(espectadores) ? espectadores : null);
   } catch (erro) {
-    if (erro?.codigo === "sessao_encerrada") {
-      await chrome.storage.local.remove(api.CHAVES.sessao);
-      await ajustarSessao();
-    }
+    if (erro?.codigo === "sessao_encerrada") await sessaoFechadaLaFora(erro);
   }
+}
+
+/**
+ * O servidor fechou a sessão. Pela faxina (batimento atrasado), reabre. Pelo
+ * PAINEL do app ("Encerrar a live", "Parar tudo"), obedece e desliga tudo:
+ * reabrir sozinha desfaria o que a pessoa acabou de pedir.
+ */
+async function sessaoFechadaLaFora(erro) {
+  await chrome.storage.local.remove(api.CHAVES.sessao);
+  if (erro?.dados?.pelo === "painel") {
+    await desligarTudo("desligada pelo app");
+    avisarPainel({ tipo: "aviso", texto: "A extensão foi desligada pelo app." });
+    return;
+  }
+  await ajustarSessao();
+}
+
+/** Para o ciclo e todas as automações locais. */
+async function desligarTudo(motivo) {
+  await pararCiclo(motivo);
+  const auto = await lerAuto();
+  if (auto.lerTela || auto.comentarios.ativo || auto.bloqueio.ativo || auto.fixar) {
+    await gravarAuto({ lerTela: false, fixar: false, comentarios: { ativo: false }, bloqueio: { ativo: false } });
+  }
+}
+
+/** "1.234", "1,2K", "3M" → número. */
+function contarEspectadores(texto) {
+  const m = String(texto ?? "").trim().match(/^([\d.,]+)\s*([kKmM]?)$/);
+  if (!m) return null;
+  const mult = /k/i.test(m[2]) ? 1e3 : /m/i.test(m[2]) ? 1e6 : 1;
+  const base = mult > 1 ? Number(m[1].replace(",", ".")) : Number(m[1].replace(/[.,]/g, ""));
+  return Number.isFinite(base) ? Math.round(base * mult) : null;
 }
 
 /** Automações programadas no app (avisos, refixar). Quem conta o tempo é o servidor. */
@@ -346,7 +386,7 @@ async function rodarProgramado() {
   try {
     tarefa = await api.proximaTarefa(sessaoId);
   } catch (erro) {
-    if (erro?.codigo === "sessao_encerrada") await chrome.storage.local.remove(api.CHAVES.sessao);
+    if (erro?.codigo === "sessao_encerrada") await sessaoFechadaLaFora(erro);
     return;
   }
   if (!tarefa?.ok || tarefa.acao === "nada") return;
@@ -437,6 +477,7 @@ async function iniciarCiclo(cfgNova) {
     inicio: Date.now(),
     fimEm: Date.now() + minutos * 60000,
     acao: "Monitorando",
+    ultimoMotivo: null,
   });
 
   await escolherAbaAlvo();
@@ -453,6 +494,7 @@ async function pararCiclo(motivo = null) {
   await gerarRelatorio(ciclo);
   pararLacos();
   const parado = await gravarCiclo({
+    ultimoMotivo: motivo,
     ativo: false,
     fimEm: null,
     pausadoRestanteMs: null,
@@ -776,11 +818,19 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
         break;
       }
 
-      case "comentario_feito":
+      case "comentario_feito": {
         avisarPainel({ tipo: "comentario_log", ...mensagem });
         if (!mensagem.ok) await log(`Comentário não saiu: ${mensagem.motivo}`, "warn");
+        // O comentário automático entra no teto por minuto do servidor: sem
+        // isto, as respostas pelo manual e os avisos do app não enxergavam o
+        // que a extensão já postou.
+        const sessaoId = await api.lerLocal(api.CHAVES.sessao);
+        if (mensagem.ok && !mensagem.agendado && sessaoId && mensagem.texto) {
+          await api.confirmarResposta(sessaoId, mensagem.texto, "comentario_local").catch(() => {});
+        }
         responder({ ok: true });
         break;
+      }
 
       // --- mapa e aprendizado ---
       case "mapa": {
@@ -829,6 +879,7 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
           responder({ ok: true, ...(await api.decidirResposta({ sessaoId, ...mensagem.evento })) });
         } catch (erro) {
           responder({ ok: false, acao: "ignorar", motivo: erro.codigo ?? "falhou" });
+          if (erro?.codigo === "sessao_encerrada") await sessaoFechadaLaFora(erro);
         }
         break;
       }

@@ -149,10 +149,29 @@ export async function baterSessaoExtensao(
   return linhas.length > 0;
 }
 
+/** Quem fechou a sessão: 'painel', 'extensao', 'faxina' ou null. */
+export async function encerradaPor(perfilId: string, sessaoId: string): Promise<string | null> {
+  const linhas = await bd()<{ encerrada_por: string | null }[]>`
+    select encerrada_por from live_sessoes
+     where id = ${sessaoId} and perfil_id = ${perfilId}
+  `;
+  return linhas[0]?.encerrada_por ?? null;
+}
+
+/** A sessão existe, é deste perfil e está aberta? */
+export async function sessaoAberta(perfilId: string, sessaoId: string): Promise<boolean> {
+  const linhas = await bd()<{ id: string }[]>`
+    select id from live_sessoes
+     where id = ${sessaoId} and perfil_id = ${perfilId} and fim is null
+  `;
+  return linhas.length > 0;
+}
+
 export async function fecharSessaoExtensao(
   perfilId: string,
   sessaoId: string,
   erro: string | null,
+  motivo: string | null = null,
 ): Promise<boolean> {
   const sql = bd();
   // "Encerrada pelo usuário", "tempo programado encerrado"... chegam neste
@@ -167,7 +186,8 @@ export async function fecharSessaoExtensao(
        set fim = now(),
            visto_em = now(),
            estado = ${falha ? "caiu" : "encerrada"}::estado_live,
-           erro = ${falha}
+           erro = ${falha},
+           encerrada_por = 'extensao'
      where id = ${sessaoId} and perfil_id = ${perfilId} and fim is null
     returning id
   `;
@@ -176,7 +196,7 @@ export async function fecharSessaoExtensao(
 
   await sql`
     insert into live_eventos (live_sessao_id, perfil_id, tipo, texto)
-    values (${sessaoId}, ${perfilId}, ${falha ? "erro" : "fim"}, ${erro})
+    values (${sessaoId}, ${perfilId}, ${falha ? "erro" : "fim"}, ${erro ?? motivo})
   `;
 
   return true;

@@ -194,9 +194,9 @@ export async function EtapaLive({ perfilId }: { perfilId: string }) {
           <Passo
             numero={1}
             icone={Puzzle}
-            titulo="Instale a extensão no Chrome"
-            feito={jornada.extensao.instalada}
-            texto="Ela lê o chat da sua live e responde por lá. Não precisa instalar nada no computador além dela."
+            titulo="Instale a extensão e entre com a sua conta"
+            feito={jornada.extensao.conectada}
+            texto="Baixe o ZIP na página Extensão, carregue a pasta no Chrome e entre com o mesmo e-mail e senha do app. Não precisa instalar nada no computador além dela."
             acao={
               <BotaoLink href="/extensao" tom={jornada.extensao.instalada ? "secundario" : "primario"}>
                 {jornada.extensao.instalada ? "Ver a extensão" : "Instalar agora"}
@@ -206,9 +206,9 @@ export async function EtapaLive({ perfilId }: { perfilId: string }) {
           <Passo
             numero={2}
             icone={Radio}
-            titulo="Abra a live e clique em Entrar no ar"
+            titulo="Abra a sua live e ligue a extensão"
             feito={jornada.live.lives > 0}
-            texto="No painel da extensão, escreva o seu @ e clique. Ela abre a sua live, começa a ler o chat e responde pelo manual."
+            texto="Com a transmissão no ar e a página da live aberta no Chrome, toque em “Ligar a extensão” e, em ✦ IA, ligue “Ler a tela”. Ela lê o chat e responde pelo manual."
             acao={
               <BotaoLink href="/live" tom="secundario">
                 Ver a sala de live
@@ -219,11 +219,11 @@ export async function EtapaLive({ perfilId }: { perfilId: string }) {
 
         {!jornada.riscoAceito && (
           <Alerta tom="info" className="mt-5">
-            Antes de entrar no ar, leia e aceite o aviso sobre automação em{" "}
-            <Link href="/bem-vindo" className="underline">
-              boas-vindas
+            Antes de ligar a extensão, leia e aceite o aviso sobre automação na página{" "}
+            <Link href="/live" className="underline">
+              Ao vivo
             </Link>
-            . É exigido pelo servidor: sem o aceite, a sessão não abre.
+            . É exigido pelo servidor: sem o aceite, a extensão não responde o chat.
           </Alerta>
         )}
       </Card>
