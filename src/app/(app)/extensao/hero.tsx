@@ -1,7 +1,6 @@
 import { Download, Hourglass, PackageOpen } from "lucide-react";
 import { Alerta } from "@/components/ui/alerta";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { VersaoExtensao } from "@/lib/dados/extensao";
 
@@ -28,7 +27,7 @@ export type HeroProps = {
   versao: VersaoExtensao | null;
   /** O arquivo existe e está servível — a versão estar no catálogo não basta. */
   temPacote: boolean;
-  /** Assinado no render e válido por minutos; nulo quando falta EXTENSAO_SEGREDO. */
+  /** Assinado no render; nulo sem EXTENSAO_SEGREDO — aí o download vai pela sessão. */
   ticket: string | null;
 };
 
@@ -130,36 +129,24 @@ function AreaDeDownload({ versao, temPacote, ticket }: HeroProps) {
             Esta versão está no catálogo, mas o arquivo dela não está disponível para
             download neste momento. Estamos resolvendo; o botão volta sozinho.
           </Alerta>
-        ) : ticket ? (
+        ) : (
           <>
             <a
-              href={`/api/ext/baixar?t=${encodeURIComponent(ticket)}`}
+              href={
+                ticket
+                  ? `/api/ext/baixar?t=${encodeURIComponent(ticket)}`
+                  : "/api/extensao/baixar"
+              }
               className="inline-flex h-11 w-full items-center justify-center gap-2 rounded-md bg-primary px-5 text-sm font-medium text-primary-fg shadow-sm transition-colors duration-[--dur-fast] hover:bg-primary-hover sm:w-auto"
             >
               <Download className="size-4" aria-hidden />
               Baixar a extensão (<span className="num">v{versao.versao}</span>)
             </a>
             <p className="mt-2.5 text-sm text-fg-muted">
-              Chrome, Windows e Mac. Incluso no seu plano.
+              Chrome, Windows e Mac. Incluso no seu plano. Extraia o ZIP e carregue a pasta{" "}
+              <code className="font-[family-name:var(--font-mono)] text-xs">shopia-extensao</code>{" "}
+              em <code className="font-[family-name:var(--font-mono)] text-xs">chrome://extensions</code>.
             </p>
-            <p className="mt-1 text-xs text-fg-subtle">
-              O link vale por alguns minutos e é só seu — se expirar, atualize a página.
-            </p>
-          </>
-        ) : (
-          <>
-            <Button bloco disabled className="h-11 sm:w-auto">
-              <Download className="size-4" aria-hidden />
-              Baixar a extensão
-            </Button>
-            <Alerta tom="info" className="mt-2.5">
-              O download pelo navegador precisa de{" "}
-              <code className="font-[family-name:var(--font-mono)] text-xs">
-                EXTENSAO_SEGREDO
-              </code>{" "}
-              no ambiente — é ela que assina o link temporário. Sem essa variável o botão
-              fica desligado, em vez de servir um arquivo sem prova de quem pediu.
-            </Alerta>
           </>
         )}
       </div>

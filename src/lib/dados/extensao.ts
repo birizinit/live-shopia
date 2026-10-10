@@ -1,4 +1,5 @@
 import "server-only";
+import { localVence, pacoteLocal, versaoLocal } from "@/lib/pacote-local";
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { ler } from "@/lib/armazenamento";
 import { contarCaracteres } from "@/lib/caracteres";
@@ -465,15 +466,35 @@ export async function versaoPara(
       `;
 
   const l = linhas[0];
-  if (!l) return null;
+  const doCatalogo: VersaoExtensao | null = l
+    ? {
+        versao: l.versao,
+        canal: l.canal,
+        notas: l.notas,
+        obrigatoria: l.obrigatoria,
+        publicadaEm: l.publicada_em?.toISOString() ?? null,
+        temPacote: l.tem_pacote,
+      }
+    : null;
 
+  return (await versaoDaPasta(doCatalogo?.versao ?? null)) ?? doCatalogo;
+}
+
+/**
+ * A versão que veio na pasta `extensao/` do deploy, quando ela é mais nova
+ * que o catálogo e não está com kill switch. Ver src/lib/pacote-local.ts.
+ */
+async function versaoDaPasta(versaoDoCatalogo: string | null): Promise<VersaoExtensao | null> {
+  if (!(await localVence(versaoDoCatalogo))) return null;
+  const versao = await versaoLocal();
+  if (!versao || (await paradaForcada(versao)).parar) return null;
   return {
-    versao: l.versao,
-    canal: l.canal,
-    notas: l.notas,
-    obrigatoria: l.obrigatoria,
-    publicadaEm: l.publicada_em?.toISOString() ?? null,
-    temPacote: l.tem_pacote,
+    versao,
+    canal: "estavel",
+    notas: null,
+    obrigatoria: false,
+    publicadaEm: null,
+    temPacote: true,
   };
 }
 
@@ -951,6 +972,17 @@ export async function pacoteDaVersao(
       `;
 
   const linha = linhas[0];
+
+  // A pasta do deploy serve quando pedem exatamente a versão dela, ou quando
+  // ela é mais nova que a última do catálogo.
+  const local = await versaoLocal();
+  if (local && (versao === local || (!versao && (await localVence(linha?.versao ?? null))))) {
+    if (!(await paradaForcada(local)).parar) {
+      const pacote = await pacoteLocal();
+      if (pacote) return pacote;
+    }
+  }
+
   if (!linha?.arquivo_id) return null;
 
   // `ler` confronta o dono do arquivo. O pacote é global (perfil_id nulo), mas
