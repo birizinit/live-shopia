@@ -1,943 +1,857 @@
-// Painel lateral: o controle da moderação.
+// Painel lateral da Shopia — no formato da LiveFox.
 //
-// O painel é organizado como a lista do que falta para entrar no ar, e cada
-// pendência traz o botão que a resolve. Quem abre a extensão pela primeira vez
-// não deveria precisar de manual para saber o que fazer em seguida.
-//
-// Quem lê o chat é o content script, na aba da live; quem guarda o token é o
-// service worker. Este painel só manda e mostra — por isso fechá-lo NÃO
-// derruba a live, e o batimento da sessão mora num `chrome.alarms` do worker,
-// que sobrevive à morte dele.
+// O painel é TELA: quem guarda o estado do ciclo é o service worker (que
+// sobrevive ao painel fechado) e quem age na live é o content script da aba
+// escolhida. Fechar o painel não desliga nada; reabrir só repinta.
 
 import * as api from "./api.js";
 
 const $ = (id) => document.getElementById(id);
-
-const tela = { entrar: $("tela-entrar"), operar: $("tela-operar") };
-let estadoLicenca = null;
-let protecao = null;
-let sessaoId = null;
-let comentariosLidos = 0;
-let respostasDadas = 0;
-let carrinhos = 0;
-let vendas = 0;
-
-/** O que o servidor diz das automações. A extensão não guarda cópia. */
-let auto = null;
-
-/**
- * Âncoras que esta instalação aprendeu apontando na tela. Hoje só a do botão
- * de enviar do chat.
- */
-let ancorasLocais = {};
-
-let inicioNoAr = null;
-let relogioCronometro = null;
-let limiteMinutos = 0;
-
-function mostrarErro(elemento, mensagem) {
-  elemento.textContent = mensagem ?? "";
-  elemento.hidden = !mensagem;
-}
-
-function mostrar(qual) {
-  tela.entrar.hidden = qual !== "entrar";
-  tela.operar.hidden = qual !== "operar";
-}
-
-function pintarPonto(id, cor) {
-  $(id).dataset.cor = cor ?? "";
-}
-
-// ---------------------------------------------------------------- licença
-
-function pintarLicenca(estado) {
-  estadoLicenca = estado;
-  const texto = $("texto-licenca");
-
-  if (estado.pararAgora) {
-    pintarPonto("ponto-licenca", "ruim");
-    texto.textContent = "Operação suspensa";
-    mostrarErro($("aviso-parar"), estado.pararMotivo || "O painel pediu para parar agora.");
-    if (sessaoId) void encerrar("suspensa pelo painel");
-  } else {
-    $("aviso-parar").hidden = true;
-  }
-
-  if (estado.licenciada && !estado.pararAgora) {
-    pintarPonto("ponto-licenca", "ok");
-    const partes = ["Licença ativa"];
-    if (!estado.recursos?.chat) partes.push("chat desligado");
-    texto.textContent = partes.join(" · ");
-  } else if (estado.motivo === "offline") {
-    pintarPonto("ponto-licenca", "alerta");
-    texto.textContent = "Sem conexão — seguindo com a licença anterior";
-  } else if (!estado.licenciada) {
-    pintarPonto("ponto-licenca", "ruim");
-    texto.textContent = rotuloDoMotivo(estado.motivo);
-  }
-
-  protecao = estado?.protecao ?? null;
-  pintarVersao(estado);
-  pintarProtecao();
-  atualizarBotao();
-}
-
-function pintarVersao(estado) {
-  const atual = chrome.runtime.getManifest().version;
-  const aviso = $("aviso-versao");
-  if (estado.versaoPublicada && estado.versaoPublicada !== atual) {
-    aviso.hidden = false;
-    aviso.textContent = estado.atualizacaoObrigatoria
-      ? `Atualização obrigatória: a versão ${estado.versaoPublicada} saiu. Baixe no painel e recarregue a extensão.`
-      : `Versão ${estado.versaoPublicada} disponível. A sua é a ${atual}.`;
-  } else {
-    aviso.hidden = true;
-  }
-}
-
-function rotuloDoMotivo(motivo) {
-  switch (motivo) {
-    case "sem_token": return "Nenhuma licença conectada";
-    case "token_invalido": return "Código de licença inválido";
-    case "expirada": return "Licença vencida — confira a assinatura";
-    case "revogada": return "Licença revogada";
-    case "limite_excedido": return "Muitas tentativas — aguarde um minuto";
-    default: return "Licença indisponível";
-  }
-}
-
-// ---------------------------------------------------------------- proteção
-
-function itemProtecao(texto, tom = "ok") {
-  const li = document.createElement("li");
-  li.textContent = texto;
-  li.dataset.tom = tom;
-  return li;
-}
-
-/**
- * Proteção anti-restrição: o que a live evita para não ser restringida pelo
- * TikTok. É revisão de CONTEÚDO — as mesmas regras que um vendedor humano
- * segue — e não disfarce de automação.
- *
- * O alvo é o MANUAL, porque é de lá que sai, palavra por palavra, tudo o que a
- * Shopia escreve no chat. Revisar na hora do envio seria tarde: a frase já
- * estaria escolhida, e recusá-la ao vivo deixaria a pessoa sem resposta sem
- * saber por quê.
- */
-function pintarProtecao() {
-  const lista = $("protecao");
-  lista.innerHTML = "";
-  const revisar = $("btn-revisar");
-  revisar.hidden = true;
-
-  if (!protecao) {
-    lista.append(itemProtecao("A revisão do manual aparece no próximo contato com o servidor."));
-  } else if (protecao.alertas === 0) {
-    lista.append(
-      itemProtecao(
-        "Manual revisado: nada de contato fora do TikTok, Pix por fora ou promessa de resultado.",
-      ),
-    );
-  } else {
-    const exemplos = protecao.itens.flatMap((i) => i.exemplos).slice(0, 3);
-    lista.append(
-      itemProtecao(
-        `${protecao.alertas} trecho(s) do seu manual costumam restringir a live: ` +
-          exemplos.map((e) => `“${e}”`).join(", ") + ".",
-        "alerta",
-      ),
-    );
-    revisar.hidden = false;
-  }
-
-  if (estadoLicenca?.recursos?.chat) {
-    lista.append(itemProtecao("Respostas no chat com pausa de gente e limite por minuto — sem rajada."));
-  }
-}
-
-// ---------------------------------------------------------------- chat
-
-const TEXTO_CHAT = {
-  lendo: ["ok", "Lendo o chat da sua live."],
-  procurando: ["alerta", "Página da live aberta — procurando o chat…"],
-  sem_chat: [
-    "alerta",
-    "A página da live está aberta, mas o chat não apareceu. Deixe o chat visível na página; se continuar assim, avise o suporte.",
-  ],
-  suspenso: ["ruim", "Leitura do chat suspensa pelo painel."],
-  fora_da_live: [null, "Abra a página da sua live no tiktok.com, nesta janela do Chrome."],
-  sem_aba: [null, "Abra a página da sua live no tiktok.com, nesta janela do Chrome."],
+const enviar = (mensagem) => chrome.runtime.sendMessage(mensagem).catch(() => null);
+const esc = (s) =>
+  String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+const pad = (n) => String(n).padStart(2, "0");
+const hms = (ms) => {
+  if (ms == null) return "--:--:--";
+  const s = Math.max(0, Math.round(ms / 1000));
+  return `${pad(Math.floor(s / 3600))}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`;
 };
+const minhaVersao = chrome.runtime.getManifest().version;
 
-function pintarChat(estado) {
-  const [cor, texto] = TEXTO_CHAT[estado] ?? TEXTO_CHAT.sem_aba;
+let ciclo = {};
+let restanteMs = null;
+let restanteEm = Date.now();
+let cfg = {};
+let auto = {};
+let licenca = {};
 
-  // Ler o chat e PODER responder são coisas diferentes: o plano libera a
-  // segunda. Sem este aviso, a extensão ficaria com a bolinha verde de "lendo"
-  // e sem responder ninguém — o sintoma não apontaria para a causa.
-  if (estadoLicenca?.licenciada && estadoLicenca.recursos && !estadoLicenca.recursos.chat) {
-    pintarPonto("ponto-chat", "alerta");
-    $("chat-texto").textContent =
-      "O seu plano não inclui respostas no chat, então a Shopia não vai responder " +
-      "nem dar boas-vindas, mas continua lendo e contando o que acontece na live.";
+// ===========================================================================
+// AVISO FLUTUANTE
+// ===========================================================================
+
+function toast(texto) {
+  let t = $("toast");
+  if (!t) {
+    t = document.createElement("div");
+    t.id = "toast";
+    t.setAttribute("role", "status");
+    document.body.appendChild(t);
+  }
+  t.textContent = texto;
+  t.hidden = false;
+  clearTimeout(t._h);
+  t._h = setTimeout(() => (t.hidden = true), 4000);
+}
+
+// ===========================================================================
+// LOG
+// ===========================================================================
+
+function linhaDeLog({ hora, texto, nivel }) {
+  const box = $("logBox");
+  const el = document.createElement("div");
+  el.className = `le ${nivel ?? ""}`;
+  el.textContent = `[${hora}] ${texto}`;
+  box.appendChild(el);
+  while (box.children.length > 150) box.firstChild.remove();
+  box.scrollTop = box.scrollHeight;
+}
+
+async function carregarLog() {
+  $("logBox").innerHTML = "";
+  linhaDeLog({ hora: new Date().toLocaleTimeString("pt-BR"), texto: `[SHOPIA] v${minhaVersao} — Pronto para usar.`, nivel: "inf" });
+  const r = await chrome.storage.session.get("shopia_log").catch(() => ({}));
+  for (const l of r?.shopia_log ?? []) linhaDeLog(l);
+}
+
+// ===========================================================================
+// TELA DE ACESSO (entrar / sem plano)
+// ===========================================================================
+
+function telaAcesso(qual, info = {}) {
+  const tela = $("telaAcesso");
+  if (!qual) {
+    tela.hidden = true;
     return;
   }
-
-  pintarPonto("ponto-chat", cor);
-  $("chat-texto").textContent = texto;
+  tela.hidden = false;
+  $("acessoEntrar").hidden = qual !== "entrar";
+  $("acessoPlano").hidden = qual !== "plano";
+  if (qual === "plano") {
+    $("acessoPlanoMsg").textContent = info.nuncaAssinou
+      ? "Você ainda não tem um plano ativo."
+      : info.status === "expirada" || info.motivo === "expirada"
+        ? "Seu plano venceu."
+        : info.texto || "Assine para usar a Shopia.";
+    $("acessoPlanoInfo").textContent = info.nome ? `Plano: ${info.nome}` : "";
+    $("acessoAssinar").textContent = info.nuncaAssinou ? "Assinar plano" : "Renovar plano";
+  }
 }
 
-async function conferirChat() {
-  const guardado = await chrome.storage.session?.get("shopia_chat").catch(() => null);
-  if (guardado?.shopia_chat?.estado) pintarChat(guardado.shopia_chat.estado);
+/** Decide se o painel abre, pede login ou pede plano. */
+async function conferirAcesso() {
+  const token = await api.token();
+  if (!token) return telaAcesso("entrar"), false;
 
+  const r = await enviar({ tipo: "bater" });
+  licenca = r?.estado ?? {};
+  pintarServidor();
+
+  if (["sem_token", "token_invalido", "revogada"].includes(licenca.motivo)) {
+    if (licenca.motivo === "revogada") $("acessoErr").textContent = "Esta conta entrou em outro dispositivo. Entre de novo.";
+    return telaAcesso("entrar"), false;
+  }
+  if (licenca.motivo === "expirada") return telaAcesso("plano", { motivo: "expirada" }), false;
+
+  // Offline não tranca: quem já estava no ar continua.
+  if (licenca.motivo === "offline") return telaAcesso(null), true;
+
+  try {
+    const c = await api.conta();
+    if (!c.plano?.ativo) return telaAcesso("plano", c.plano ?? {}), false;
+  } catch (erro) {
+    if (erro.codigo === "token_invalido") return telaAcesso("entrar"), false;
+  }
+  telaAcesso(null);
+  checarVersao();
+  return true;
+}
+
+async function fazerLogin() {
+  const login = $("acessoLogin").value.trim();
+  const senha = $("acessoSenha").value;
+  $("acessoErr").textContent = "";
+  $("acessoOk").textContent = "";
+  if (!login || !senha) return void ($("acessoErr").textContent = "Preencha e-mail e senha.");
+  const btn = $("acessoBtn");
+  btn.disabled = true;
+  btn.textContent = "Entrando…";
+  const r = await enviar({ tipo: "entrar", login, senha });
+  btn.disabled = false;
+  btn.textContent = "Entrar";
+  if (!r?.ok) return void ($("acessoErr").textContent = r?.erro || "Falha no login.");
+  $("acessoSenha").value = "";
+  $("acessoOk").textContent = `Bem-vindo${r.usuario?.nome ? `, ${r.usuario.nome.split(" ")[0]}` : ""}!`;
+  await conferirAcesso();
+}
+
+// ===========================================================================
+// PINTURA DO CICLO
+// ===========================================================================
+
+function restanteAgora() {
+  if (restanteMs == null) return null;
+  if (ciclo.pausadoRestanteMs != null || !ciclo.ativo) return restanteMs;
+  return Math.max(0, restanteMs - (Date.now() - restanteEm));
+}
+
+function pintarServidor() {
+  const el = $("lsServidor");
+  if (licenca.licenciada && licenca.motivo !== "offline") {
+    el.textContent = "Conectado";
+    el.className = "ls-val pequeno on";
+  } else if (licenca.motivo === "offline") {
+    el.textContent = "Offline";
+    el.className = "ls-val pequeno warn";
+  } else {
+    el.textContent = "—";
+    el.className = "ls-val pequeno";
+  }
+}
+
+function badge(id, texto, classe) {
+  const el = $(id);
+  el.textContent = texto;
+  el.className = `cbadge ${classe}`;
+}
+
+function pintarCiclo() {
+  const ativo = Boolean(ciclo.ativo);
+  const pausado = ciclo.pausadoRestanteMs != null;
+
+  $("sbadge").classList.toggle("on", ativo);
+  $("stxt").textContent = ativo ? "ATIVO" : "INATIVO";
+  $("bStatus").textContent = ativo ? "ATIVO" : "INATIVO";
+  $("bStatus").classList.toggle("on", ativo);
+
+  const btn = $("btnCiclo");
+  btn.className = `btn-main ${ativo ? "btn-stop" : "btn-start"}`;
+  btn.innerHTML = ativo ? "⏹ &nbsp;Desligar a extensão" : "🟢 &nbsp;Ligar a extensão";
+
+  $("lsAba").textContent = ativo ? (ciclo.abaConectada ? "Conectada" : "Procurando…") : "—";
+  $("lsAba").className = `ls-val ${ativo && ciclo.abaConectada ? "on" : ""}`;
+  $("lsLive").textContent = ativo ? (ciclo.liveAtiva ? "Detectada" : "Não detectada") : "—";
+  $("lsLive").className = `ls-val ${ativo && ciclo.liveAtiva ? "on" : ativo ? "warn" : ""}`;
+  $("lsAcao").textContent = ativo ? (ciclo.violacao?.ativa ? "Violação!" : pausado ? "Timer pausado" : ciclo.acao || "Monitorando") : "—";
+  $("lsAcao").className = `ls-val ${ativo ? (ciclo.violacao?.ativa ? "warn" : "blue") : ""}`;
+
+  $("cardScans").textContent = ciclo.scanN ?? 0;
+  $("bScan").textContent = `Scan: ${ciclo.scanN ?? 0}`;
+  $("cardAlertas").textContent = ciclo.alertas ?? 0;
+  $("cardAlertas").classList.toggle("warn", (ciclo.alertas ?? 0) > 0);
+
+  const pausa = $("btnPausarTimer");
+  pausa.classList.toggle("pausado", pausado);
+  pausa.innerHTML = pausado ? "▶ &nbsp;Retomar Timer" : "⏸ &nbsp;Pausar Timer";
+  pausa.disabled = !ativo;
+  $("btnCancelarTimer").disabled = !ativo;
+
+  badge("bTimer", ativo ? (pausado ? "Pausado" : "Ativo") : "Inativo", ativo ? (pausado ? "bwarn" : "bon") : "boff");
+  $("timerIniciado").textContent = ativo && ciclo.inicio ? new Date(ciclo.inicio).toLocaleTimeString("pt-BR") : "—";
+
+  if (ciclo.violacao?.ativa) badge("bProt", "ALERTA!", "bwarn");
+  else badge("bProt", ativo ? "Ligado" : "Desligado", ativo ? "bon" : "boff");
+
+  const vio = ciclo.violacao ?? {};
+  $("violacaoStatus").hidden = !(ativo && vio.ativa && vio.fimEm);
+  pintarRelogios();
+}
+
+function pintarRelogios() {
+  const resta = ciclo.ativo ? restanteAgora() : null;
+  const txt = hms(resta);
+  $("timerDisplay").textContent = ciclo.ativo ? txt : hms((Number(cfg.duracaoMinutos) || 60) * 60000);
+  $("cardTimer").textContent = txt;
+  const perigo = resta != null && resta < 600000;
+  $("timerDisplay").classList.toggle("danger", ciclo.ativo && perigo);
+  $("cardTimer").classList.toggle("warn", ciclo.ativo && perigo);
+  if (ciclo.violacao?.ativa && ciclo.violacao.fimEm) {
+    $("violacaoCountdown").textContent = hms(ciclo.violacao.fimEm - Date.now());
+  }
+  const agora = new Date();
+  $("bRelogio").textContent = agora.toLocaleTimeString("pt-BR");
+}
+
+function pintarCfg() {
+  $("duracaoMinutos").value = cfg.duracaoMinutos ?? 60;
+  $("threshold").value = cfg.threshold ?? 50;
+  $("intervalo").value = cfg.intervalo ?? 8;
+  $("minutosViolacao").value = cfg.minutosViolacao ?? 20;
+  const continuar = cfg.modoViolacao === "continuar";
+  $("vbtnEncerrar").classList.toggle("active", !continuar);
+  $("vbtnContinuar").classList.toggle("active", continuar);
+  $("violacaoOpcoes").hidden = !continuar;
+  document.querySelectorAll("[data-dur]").forEach((b) => b.classList.toggle("active", Number(b.dataset.dur) === Number(cfg.duracaoMinutos)));
+  document.querySelectorAll("[data-vmin]").forEach((b) => b.classList.toggle("active", Number(b.dataset.vmin) === Number(cfg.minutosViolacao)));
+  if (!ciclo.ativo) pintarRelogios();
+}
+
+function interruptor(id, ligado, rotuloId) {
+  const t = $(id);
+  t.classList.toggle("on", Boolean(ligado));
+  t.setAttribute("aria-pressed", String(Boolean(ligado)));
+  if (rotuloId) $(rotuloId).textContent = ligado ? "ON" : "OFF";
+}
+
+function pintarAuto() {
+  interruptor("togFixar", auto.fixar, "togFixarLbl");
+  interruptor("togCupom", auto.cupom, "togCupomLbl");
+  interruptor("togSom", auto.som);
+  interruptor("togBloqueio", auto.bloqueio?.ativo);
+
+  const c = auto.comentarios ?? {};
+  if (document.activeElement !== $("listaComentarios")) $("listaComentarios").value = (c.mensagens ?? []).join("\n");
+  $("comentarioMin").value = c.min ?? 30;
+  $("comentarioMax").value = c.max ?? 90;
+  $("comentarioMinVal").textContent = `${c.min ?? 30}s`;
+  $("comentarioMaxVal").textContent = `${c.max ?? 90}s`;
+  badge("bComentarios", c.ativo ? "Ativo" : "Inativo", c.ativo ? "bon" : "boff");
+  if (!c.ativo) $("comentarioContagem").hidden = true;
+
+  const b = auto.bloqueio ?? {};
+  if (document.activeElement !== $("palavrasBloqueio")) $("palavrasBloqueio").value = (b.palavras ?? []).join("\n");
+  badge("bBloqueio", b.ativo ? "Ativo" : "Inativo", b.ativo ? "bon" : "boff");
+  $("bloqueioStatus").hidden = !b.ativo;
+  $("bloqueadosBox").hidden = !b.ativo && !$("bloqueadosLista").dataset.tem;
+
+  pintarIaLerTela();
+}
+
+function pintarBloqueados(lista) {
+  const box = $("bloqueadosLista");
+  $("bloqueadosN").textContent = lista.length;
+  if (!lista.length) {
+    box.innerHTML = '<span class="vazio">Nenhum bloqueio ainda...</span>';
+    delete box.dataset.tem;
+    return;
+  }
+  box.dataset.tem = "1";
+  box.innerHTML = lista
+    .slice()
+    .reverse()
+    .map((b) => `<div>🚫 <b>${esc(b.usuario)}</b> · "${esc(b.palavra)}" · ${esc(b.hora)}</div>`)
+    .join("");
+  $("bloqueadosBox").hidden = false;
+}
+
+function pintarHistorico(hist) {
+  const box = $("historico");
+  if (!hist?.length) {
+    box.innerHTML = '<div class="vazio-centro">Nenhuma sessão ainda</div>';
+    return;
+  }
+  box.innerHTML = hist
+    .slice(0, 10)
+    .map(
+      (h) => `<div class="hitem">
+        <div class="htop"><span class="hdate">${esc(h.data)} · ${esc(h.inicio)} → ${esc(h.fim)}</span><span class="hdur">${esc(h.horas)}h</span></div>
+        <div class="hmeta">${esc(h.minutos)} min · ${esc(h.scans)} scans · ${esc(h.alertas)} alertas · 👀 ${esc(h.viewers)} · 🛒 ${esc(h.vendas)}</div>
+      </div>`,
+    )
+    .join("");
+}
+
+async function recarregarTudo() {
+  const r = await enviar({ tipo: "ciclo_estado" });
+  if (r?.ok) {
+    ciclo = r.ciclo;
+    cfg = r.cfg;
+    auto = r.auto;
+    restanteMs = r.restanteMs;
+    restanteEm = Date.now();
+  }
+  pintarCfg();
+  pintarCiclo();
+  pintarAuto();
+  const local = await chrome.storage.local.get([api.CHAVES.historico, api.CHAVES.bloqueados]);
+  pintarHistorico(local[api.CHAVES.historico] ?? []);
+  pintarBloqueados(local[api.CHAVES.bloqueados] ?? []);
+}
+
+// ===========================================================================
+// AÇÕES
+// ===========================================================================
+
+async function salvarCfg(parcial) {
+  const r = await enviar({ tipo: "cfg", cfg: parcial });
+  if (r?.cfg) cfg = r.cfg;
+  pintarCfg();
+}
+
+async function salvarAuto(parcial) {
+  const r = await enviar({ tipo: "auto", auto: parcial });
+  if (r?.auto) auto = r.auto;
+  pintarAuto();
+  return auto;
+}
+
+const linhas = (texto) =>
+  texto
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+
+async function haAbaDoTikTok() {
   const abas = await chrome.tabs.query({ url: "*://*.tiktok.com/*" }).catch(() => []);
-  const daLive = abas.filter((a) => /\/(live|studio|live_studio)(\/|$|\?)/i.test(new URL(a.url ?? "", "https://x").pathname));
-  if (daLive.length === 0) {
-    pintarChat("sem_aba");
-    return;
-  }
-  for (const aba of daLive) chrome.tabs.sendMessage(aba.id, { tipo: "status_chat?" }).catch(() => {});
+  return abas.length > 0;
 }
 
-function usuarioTikTokValido(bruto) {
-  const usuario = String(bruto ?? "").trim().replace(/^@/, "");
-  return /^[A-Za-z0-9._]{2,24}$/.test(usuario) ? usuario : null;
-}
-
-// ---------------------------------------------------------------- automações
-//
-// O texto de cada aviso se escreve no painel do site: lá dá para ler a frase
-// inteira e lá a revisão anti-restrição aponta o trecho que costuma restringir
-// a live. Aqui ficam o interruptor, o ritmo e o "disparar agora" — porque é
-// aqui que a mão da pessoa está com a live no ar.
-//
-// Nada é guardado localmente. A mesma conta pode ter o painel do site aberto
-// noutra janela, e dois lugares guardando o mesmo interruptor é a receita de um
-// desligar o que o outro acabou de ligar.
-
-function recadoAuto(texto) {
-  $("auto-recado").textContent = texto ?? "";
-}
-
-async function carregarAutomacoes() {
+async function alternarCiclo() {
+  const btn = $("btnCiclo");
+  btn.disabled = true;
   try {
-    const r = await api.automacoes({ acao: "ler" });
-    auto = r;
-    pintarAutomacoes();
-    recadoAuto("");
-  } catch (erro) {
-    auto = null;
-    recadoAuto(`Não deu para ler as automações: ${erro.message}`);
-  }
-}
-
-/** Aplica no servidor e repinta com o que ELE devolveu, não com o que eu pedi. */
-async function mandarAuto(corpo, aviso = "Salvo.") {
-  recadoAuto("Salvando…");
-  try {
-    const r = await api.automacoes(corpo);
-    if (r.config) auto = { ...auto, config: r.config };
-    if (r.avisos) auto = { ...auto, avisos: r.avisos };
-    pintarAutomacoes();
-    recadoAuto(aviso);
-  } catch (erro) {
-    // Repinta a partir do servidor: o interruptor tem de voltar sozinho ao
-    // estado real, senão a tela mente sobre o que está ligado.
-    recadoAuto(erro.detalhe || erro.message || "Não deu para salvar.");
-    void carregarAutomacoes();
-  }
-}
-
-function pintarAutomacoes() {
-  const temAlgo = Boolean(auto?.config);
-  $("auto-vazio").hidden = temAlgo;
-  $("auto-loja").hidden = !temAlgo;
-  if (!temAlgo) {
-    $("auto-relampago").hidden = true;
-    $("auto-aviso").hidden = true;
-    return;
-  }
-
-  const c = auto.config;
-  $("sw-carrinho").checked = c.carrinhoAtivo;
-  $("sw-venda").checked = c.vendaAtivo;
-  $("sw-sino").checked = c.sinoAtivo;
-
-  // Mostrar o texto configurado ao lado do interruptor é o que evita a pessoa
-  // ligar sem lembrar o que ela escreveu — e descobrir ao vivo.
-  $("txt-carrinho").textContent = c.carrinhoTexto
-    ? `“${c.carrinhoTexto}”`
-    : "Sem texto escrito. Ligue no painel do site, onde dá para escrever.";
-  $("txt-venda").textContent = c.vendaTexto
-    ? `“${c.vendaTexto}”`
-    : "Sem texto escrito. Ligue no painel do site, onde dá para escrever.";
-
-  // Um interruptor que não tem o que dizer fica desabilitado em vez de
-  // enganar: ligado sem texto, a Shopia detectaria a venda e ficaria calada.
-  $("sw-carrinho").disabled = !c.carrinhoTexto;
-  $("sw-venda").disabled = !c.vendaTexto;
-
-  pintarListaDeAvisos("relampago", $("lista-relampago"), $("auto-relampago"));
-  pintarListaDeAvisos("aviso", $("lista-aviso"), $("auto-aviso"));
-}
-
-function pintarListaDeAvisos(tipo, lista, caixa) {
-  const itens = (auto?.avisos ?? []).filter((a) => a.tipo === tipo);
-  caixa.hidden = itens.length === 0;
-  lista.innerHTML = "";
-
-  for (const aviso of itens) {
-    const li = document.createElement("li");
-
-    const linha = document.createElement("label");
-    linha.className = "interruptor";
-    const marca = document.createElement("input");
-    marca.type = "checkbox";
-    marca.checked = aviso.ativo;
-    marca.addEventListener("change", () =>
-      void mandarAuto(
-        { acao: "aviso", avisoId: aviso.id, ativo: marca.checked },
-        marca.checked ? "Ligado." : "Desligado.",
-      ),
-    );
-    const rotulo = document.createElement("span");
-    const forte = document.createElement("strong");
-    forte.textContent = tipo === "relampago" ? "Oferta relâmpago" : "Aviso";
-    rotulo.append(forte);
-    linha.append(marca, rotulo);
-
-    const texto = document.createElement("span");
-    texto.className = "texto-aviso";
-    texto.textContent = `“${aviso.texto}”`;
-
-    const controles = document.createElement("div");
-    controles.className = "controles";
-
-    const campo = document.createElement("input");
-    campo.type = "number";
-    campo.min = String(auto.limites?.intervaloMinS ?? 30);
-    campo.max = String(auto.limites?.intervaloMaxS ?? 3600);
-    campo.step = "10";
-    campo.value = String(aviso.intervaloS);
-    campo.setAttribute("aria-label", "Intervalo em segundos");
-    campo.addEventListener("change", () =>
-      void mandarAuto(
-        { acao: "aviso_intervalo", avisoId: aviso.id, segundos: Number(campo.value) || 300 },
-        "Ritmo salvo.",
-      ),
-    );
-
-    const seg = document.createElement("span");
-    seg.className = "ajuda";
-    seg.textContent = "segundos";
-
-    const disparar = document.createElement("button");
-    disparar.className = "botao pequeno empurra";
-    disparar.textContent = "Disparar agora";
-    disparar.addEventListener("click", () => void dispararAgora(aviso));
-
-    controles.append(campo, seg, disparar);
-    li.append(linha, texto, controles);
-    lista.append(li);
-  }
-}
-
-const MOTIVO_DISPARO = {
-  sem_aviso: "Esse aviso não existe mais.",
-  desligado: "Ligue o aviso antes de disparar.",
-  teto_por_minuto:
-    "O chat já recebeu o máximo de mensagens deste minuto. Espere um pouco — esse limite é o que protege a sua conta.",
-};
-
-/**
- * Dispara pulando o intervalo, que é o ponto da oferta relâmpago.
- *
- * O que não se pula é o teto por minuto: ele vale até para o que o vendedor
- * pediu de propósito, porque não protege contra a vontade dele — protege a
- * conta dele.
- */
-async function dispararAgora(aviso) {
-  if (!sessaoId) {
-    recadoAuto("Entre no ar primeiro: sem live aberta não há chat para escrever.");
-    return;
-  }
-
-  recadoAuto("Disparando…");
-  let r;
-  try {
-    r = await api.automacoes({ acao: "disparar", avisoId: aviso.id, sessaoId });
-  } catch (erro) {
-    recadoAuto(erro.detalhe || erro.message || "Não deu para disparar.");
-    return;
-  }
-
-  if (!r.enviar) {
-    recadoAuto(MOTIVO_DISPARO[r.motivo] ?? "Não deu para disparar agora.");
-    return;
-  }
-
-  const chegou = await falarComALive({
-    tipo: "programado_escrever",
-    texto: r.texto,
-    tema: r.tema,
-    avisoId: r.avisoId,
-  });
-  recadoAuto(chegou ? "Mandado para a live." : "A página da sua live não está aberta.");
-}
-
-// ---------------------------------------------------------------- sininho
-//
-// Som gerado, e não arquivo: um .mp3 de sino no pacote seria mais um binário
-// para baixar, mais um caminho para o Chrome recusar por CSP, e mais uma coisa
-// para versionar. Dois tons curtos de oscilador fazem o mesmo trabalho em vinte
-// linhas e sem nenhum arquivo.
-//
-// Toca AQUI e não no service worker porque o worker não tem contexto de áudio —
-// ele nem é uma página. Com o painel fechado o sino não toca, e isso é honesto:
-// quem fechou a janela não está olhando para ela.
-
-let audio = null;
-
-function tocarSino() {
-  try {
-    audio ??= new AudioContext();
-    if (audio.state === "suspended") void audio.resume();
-
-    const agora = audio.currentTime;
-    // Duas notas, a segunda uma quinta acima: é o que faz soar "caixa
-    // registradora" em vez de "alerta de erro".
-    for (const [atraso, hz] of [
-      [0, 880],
-      [0.12, 1320],
-    ]) {
-      const osc = audio.createOscillator();
-      const ganho = audio.createGain();
-      osc.type = "sine";
-      osc.frequency.value = hz;
-      ganho.gain.setValueAtTime(0, agora + atraso);
-      ganho.gain.linearRampToValueAtTime(0.18, agora + atraso + 0.01);
-      ganho.gain.exponentialRampToValueAtTime(0.0001, agora + atraso + 0.35);
-      osc.connect(ganho).connect(audio.destination);
-      osc.start(agora + atraso);
-      osc.stop(agora + atraso + 0.4);
-    }
-  } catch {
-    // Sem áudio o contador continua subindo. Sino é enfeite; contador não.
-  }
-}
-
-// ------------------------------------------------------- diagnóstico do chat
-//
-// "Ela não respondeu" tem quatro causas que ninguém distingue olhando a live:
-// o campo do chat não foi achado, o botão de enviar não foi achado, a cadência
-// segurou, ou a pergunta não está no manual. Este bloco separa as duas
-// primeiras — as únicas que a extensão pode conferir sozinha.
-
-function recadoDoChat(texto) {
-  $("recado-chat").textContent = texto ?? "";
-}
-
-function itemDeEnsaio(texto, tom = "ok") {
-  const li = document.createElement("li");
-  li.textContent = texto;
-  li.dataset.tom = tom;
-  return li;
-}
-
-function pintarEnsaio(r) {
-  const lista = $("resultado-ensaio");
-  lista.innerHTML = "";
-  lista.hidden = false;
-  $("ensinar-envio").hidden = true;
-  $("envio-de-verdade").hidden = true;
-
-  if (!r.campo) {
-    lista.append(itemDeEnsaio("Não achei o campo de escrever do chat nesta página.", "ruim"));
-    lista.append(
-      itemDeEnsaio("Confira se a página da sua live está aberta e o chat visível.", "alerta"),
-    );
-    return;
-  }
-
-  lista.append(itemDeEnsaio(`Campo do chat achado (${r.editavel}).`));
-  if (r.teto) {
-    lista.append(itemDeEnsaio(`O TikTok limita a mensagem a ${r.teto} caracteres.`));
-  }
-
-  if (!r.tecnica) {
-    lista.append(itemDeEnsaio("Não consegui pôr texto nele por nenhum caminho.", "ruim"));
-    return;
-  }
-
-  lista.append(itemDeEnsaio(`Texto entrou por ${TECNICA[r.tecnica] ?? r.tecnica}.`));
-
-  // Este é o item que importa: o botão acender é a prova de que o editor do
-  // TikTok REGISTROU o texto, e não só que o texto está na árvore do DOM.
-  const BOTAO = {
-    pronto: ["ok", "O botão de enviar acendeu — o editor reconheceu o texto."],
-    escondido: [
-      "ruim",
-      "O botão de enviar continua apagado: o editor NÃO reconheceu o texto. " +
-        "É exatamente a falha da sua primeira live.",
-    ],
-    desabilitado: ["ruim", "O botão de enviar está desabilitado mesmo com texto no campo."],
-    nao_achado: ["alerta", "Não achei o botão de enviar nesta página."],
-  };
-  const [tom, texto] = BOTAO[r.botao] ?? BOTAO.nao_achado;
-  lista.append(itemDeEnsaio(texto, tom));
-
-  if (r.dentroDeFormulario) {
-    lista.append(itemDeEnsaio("O campo está dentro de um formulário — há um caminho extra de envio."));
-  }
-
-  // Ensinar o botão só é oferecido quando ele é o que falta. Oferecer sempre
-  // faria a pessoa apontar coisa que já funcionava.
-  $("ensinar-envio").hidden = r.botao !== "nao_achado";
-  $("envio-de-verdade").hidden = false;
-
-  recadoDoChat(
-    r.aceito
-      ? "Tudo que dá para conferir sem enviar está certo. Se ela ainda não responde, " +
-          "o motivo é a cadência ou a pergunta não estar no manual."
-      : "O teste sem enviar já mostrou o problema. Vale tentar o envio de verdade: " +
-          "às vezes o botão só acende depois de o editor processar, e o Enter ainda passa.",
-  );
-}
-
-// ---------------------------------------------------------------- controle
-
-/**
- * Um motivo só, o primeiro que impede: é o que a pessoa resolve em seguida.
- *
- * A licença é a única coisa que IMPEDE. Manual vazio não impede: a Shopia
- * entra no ar, lê o chat e cala — e o aviso de manual vazio aparece como
- * pendência, não como tranca. Quem está com a live já rodando não pode ser
- * barrado por causa de cadastro.
- */
-function motivoDeBloqueio() {
-  if (!estadoLicenca?.licenciada) return "A licença não está ativa.";
-  if (estadoLicenca.pararAgora) return "A operação foi suspensa pelo painel.";
-  return null;
-}
-
-function atualizarBotao() {
-  const noAr = sessaoId !== null;
-  const motivo = noAr ? null : motivoDeBloqueio();
-  $("btn-tocar").disabled = Boolean(motivo);
-  $("motivo-bloqueio").textContent = motivo ?? "";
-  $("motivo-bloqueio").hidden = !motivo;
-}
-
-/** Quem manda no "está no ar" é a SESSÃO: é ela que o servidor conhece. */
-function pintarEstadoDoAr() {
-  const noAr = sessaoId !== null;
-  $("btn-tocar").hidden = noAr;
-  $("btn-parar").hidden = !noAr;
-  $("no-ar").hidden = !noAr;
-  if (!noAr) pararCronometro();
-  atualizarBotao();
-}
-
-function formatarDuracao(ms) {
-  const s = Math.floor(ms / 1000);
-  const partes = [Math.floor(s / 3600), Math.floor((s % 3600) / 60), s % 60];
-  return partes.map((n) => String(n).padStart(2, "0")).join(":");
-}
-
-function pintarFimProgramado() {
-  const aviso = $("fim-programado");
-  if (!inicioNoAr || limiteMinutos <= 0) {
-    aviso.hidden = true;
-    return;
-  }
-  const fim = new Date(inicioNoAr + limiteMinutos * 60000);
-  aviso.textContent = `Encerra sozinho às ${fim.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}.`;
-  aviso.hidden = false;
-}
-
-function iniciarCronometro(desde = null) {
-  inicioNoAr = desde ?? Date.now();
-  void api.gravarLocal({ [api.CHAVES.inicioNoAr]: inicioNoAr });
-  clearInterval(relogioCronometro);
-  const tique = () => {
-    const decorrido = Date.now() - inicioNoAr;
-    $("cronometro").textContent = formatarDuracao(decorrido);
-    if (limiteMinutos > 0 && decorrido >= limiteMinutos * 60000) {
-      void encerrar("tempo programado encerrado");
-    }
-  };
-  tique();
-  relogioCronometro = setInterval(tique, 1000);
-  pintarFimProgramado();
-}
-
-function pararCronometro() {
-  clearInterval(relogioCronometro);
-  relogioCronometro = null;
-  inicioNoAr = null;
-  pintarFimProgramado();
-}
-
-async function entrarNoAr() {
-  mostrarErro($("erro-operar"), null);
-  if (motivoDeBloqueio()) return;
-
-  try {
-    const r = await api.abrirSessao({ contaTikTokId: null });
-    sessaoId = r.sessaoId;
-    await chrome.runtime.sendMessage({ tipo: "sessao", sessaoId }).catch(() => {});
-  } catch (erro) {
-    if (erro.codigo === "risco_pendente") {
-      mostrarErro($("erro-operar"), "Antes de entrar no ar, leia e aceite o aviso de automação no painel da Shopia.");
-      void api.abrirNoSite("/bem-vindo");
+    if (ciclo.ativo) {
+      await enviar({ tipo: "ciclo_parar" });
       return;
     }
-    mostrarErro($("erro-operar"), `Não deu para abrir a sessão: ${erro.message}`);
-    return;
+    if (!(await haAbaDoTikTok())) {
+      toast("Abra a página da sua live no TikTok neste Chrome — a extensão lê a tela dela.");
+    }
+    await enviar({
+      tipo: "ciclo_iniciar",
+      cfg: {
+        duracaoMinutos: Math.min(Math.max(Number($("duracaoMinutos").value) || 60, 1), 1440),
+        threshold: Number($("threshold").value) || 50,
+        intervalo: Math.max(Number($("intervalo").value) || 8, 8),
+        minutosViolacao: Number($("minutosViolacao").value) || 20,
+      },
+    });
+  } finally {
+    btn.disabled = false;
+    await recarregarTudo();
   }
-
-  iniciarCronometro();
-  void baterSessao();
-  void garantirAbaDaLive();
-  pintarEstadoDoAr();
 }
 
-/**
- * Garante que a live está aberta nesta janela.
- *
- * A Shopia lê o chat pela página da live no tiktok.com — sem a aba, não há o
- * que ler. Pedir para a pessoa abrir na mão era um passo que ela esquecia, e
- * o sintoma ("não responde ninguém") não aponta para a causa.
- *
- * Só ATIVA uma aba que já exista; abrir uma segunda live da mesma pessoa
- * confunde o TikTok e a própria pessoa.
- */
-async function garantirAbaDaLive() {
-  const abas = await chrome.tabs.query({ url: "*://*.tiktok.com/*" }).catch(() => []);
-  const daLive = abas.filter((a) => ehUrlDeLive(a.url));
-  if (daLive.length > 0) {
-    await chrome.tabs.update(daLive[0].id, { active: true }).catch(() => {});
-    return;
-  }
-
-  const usuario = usuarioTikTokValido($("usuario-tiktok").value);
-  await chrome.tabs
-    .create({
-      url: usuario ? `https://www.tiktok.com/@${usuario}/live` : "https://www.tiktok.com/live",
-      active: true,
-    })
-    .catch(() => {});
-}
-
-function ehUrlDeLive(url) {
+function tocarConfirmacao() {
   try {
-    return /\/(live|studio|live_studio)(\/|$)/i.test(new URL(url ?? "", "https://x").pathname);
-  } catch {
-    return false;
-  }
+    const ctx = new AudioContext();
+    const t = ctx.currentTime;
+    [[1318, 0, 0.15], [1047, 0.18, 0.15], [1318, 0.36, 0.25]].forEach(([f, d, dur]) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = "sine";
+      o.frequency.value = f;
+      g.gain.value = 0.3;
+      o.connect(g).connect(ctx.destination);
+      o.start(t + d);
+      o.stop(t + d + dur);
+    });
+  } catch { /* sem áudio */ }
 }
 
-let relogioBatimento = null;
+let contagemComentario = null;
+function mostrarContagemComentario(emMs) {
+  clearInterval(contagemComentario);
+  const fim = Date.now() + emMs;
+  $("comentarioContagem").hidden = false;
+  const barra = $("comentarioBarra");
+  const pintar = () => {
+    const resta = Math.max(0, fim - Date.now());
+    $("comentarioContagemTxt").textContent = `Próximo comentário em ${Math.ceil(resta / 1000)}s`;
+    barra.style.width = `${emMs ? (resta / emMs) * 100 : 0}%`;
+    if (resta <= 0) clearInterval(contagemComentario);
+  };
+  pintar();
+  contagemComentario = setInterval(pintar, 1000);
+}
 
-async function baterSessao() {
-  clearInterval(relogioBatimento);
-  relogioBatimento = setInterval(async () => {
-    if (!sessaoId) return;
+// ===========================================================================
+// OVERLAY "IA de vendas"
+// ===========================================================================
+
+let iaAba = "config";
+let lidos = 0;
+let ultimoLido = "";
+
+function iaMsg(texto, ruim = false) {
+  const m = $("ia-msg");
+  m.textContent = texto || "";
+  m.classList.toggle("ruim", ruim);
+}
+
+function abrirIa() {
+  $("iaPainel").hidden = false;
+  void iaMostrar(iaAba);
+}
+
+async function iaMostrar(nome) {
+  iaAba = nome;
+  document.querySelectorAll("[data-iaaba]").forEach((b) => b.classList.toggle("active", b.dataset.iaaba === nome));
+  for (const t of ["config", "contas", "planos"]) $(`ia-${t}`).hidden = t !== nome;
+  iaMsg("");
+  let dados;
+  try {
+    dados = await api.conta();
+  } catch (erro) {
+    return iaMsg(erro.codigo === "rede" ? "Sem conexão com o servidor." : `Não carregou: ${erro.message}`, true);
+  }
+  if (nome === "config") pintarIaConfig(dados);
+  if (nome === "contas") pintarIaContas(dados);
+  if (nome === "planos") pintarIaPlanos(dados);
+}
+
+const numero = (x) => Number(x || 0).toLocaleString("pt-BR");
+const reais = (c) => (Number(c || 0) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+
+function pintarIaConfig(d) {
+  const ativo = Boolean(d.plano?.ativo);
+  const saldo = Number(d.creditos?.saldo || 0);
+  const cota = Number(d.creditos?.cotaMes || 0);
+  const pct = cota > 0 ? Math.min(100, Math.round((saldo / cota) * 100)) : saldo > 0 ? 100 : 0;
+  $("ia-config").innerHTML = `
+    <div class="slabel">Sua conta</div>
+    <div class="card open"><div class="cb">
+      <div class="frow"><span class="fdesc">Plano</span>
+        <b style="color:${ativo ? "var(--ok)" : "var(--red)"}">${ativo ? esc(d.plano.nome || "ativo") : "sem plano ativo"}</b></div>
+      ${ativo && d.plano.diasRestantes != null ? `<div class="frow"><span class="fdesc">Dias restantes</span><b>${d.plano.diasRestantes}</b></div>` : ""}
+      <div class="frow"><span class="fdesc">⚡ Créditos de IA</span><b style="color:var(--primary)">${numero(saldo)}</b></div>
+      <div class="medidor"><div style="width:${pct}%"></div></div>
+      <div class="fdesc">${cota ? `${numero(saldo)} de ${numero(cota)} do mês` : `${numero(saldo)} caracteres`} · gasta só quando a IA gera algo novo</div>
+      ${ativo
+        ? '<button class="btn bghost" id="ia-comprar">➕ Comprar créditos / gerenciar plano</button>'
+        : '<button class="btn bgreen" id="ia-assinar">Assinar / Renovar no app</button>'}
+    </div></div>
+
+    <div class="slabel">Ler comentários da live</div>
+    <div class="card open"><div class="cb">
+      <div class="fdesc">
+        A extensão <b>lê os comentários</b> da sua live e manda pro servidor.
+        <b>Quem escolhe a resposta é o servidor</b>, a partir do <b>manual</b> que você cadastrou no app — e ela sai escrita no chat.
+        <br><br>1️⃣ No <b>app</b>, monte o manual e aceite o aviso de automação.
+        <br>2️⃣ Aqui, clique <b>“Ler a tela”</b>.
+        <br>3️⃣ Deixe a <b>aba da live aberta</b> — é dela que a extensão lê o chat.
+      </div>
+      <button class="btn-main btn-start" id="ia-ler">📖 Ler a tela</button>
+      <div class="fdesc" id="ia-ler-status"></div>
+      <button class="btn bghost" id="ia-abrir-app">⚙️ Configurar minha live no app</button>
+    </div></div>`;
+  $("ia-assinar")?.addEventListener("click", () => api.abrirNoSite("/planos"));
+  $("ia-comprar")?.addEventListener("click", () => api.abrirNoSite("/creditos"));
+  $("ia-abrir-app").addEventListener("click", () => api.abrirNoSite("/manual"));
+  $("ia-ler").addEventListener("click", async () => {
+    const ligar = !auto.lerTela;
+    if (ligar && !licenca.recursos?.chat) {
+      toast("O seu plano não libera respostas no chat, ou elas estão pausadas pelo servidor.");
+    }
+    await salvarAuto({ lerTela: ligar });
+    if (ligar && !(await haAbaDoTikTok())) toast("Abra a página da sua live no TikTok neste Chrome.");
+  });
+  pintarIaLerTela();
+}
+
+const ESTADO_CHAT = {
+  lendo: "🟢 Lendo o chat da live",
+  procurando: "Procurando o chat na página…",
+  sem_chat: "⚠️ Não achei o chat nesta página. Abra a página da live.",
+  fora_da_live: "Abra a página da sua live no TikTok.",
+  desligado: "Desligado — clique pra começar a ler os comentários.",
+  suspenso: "⛔ Pausado pelo servidor.",
+};
+let estadoChat = null;
+
+function pintarIaLerTela() {
+  const btn = $("ia-ler");
+  if (!btn) return;
+  btn.innerHTML = auto.lerTela ? "⏹️ Parar leitura" : "📖 Ler a tela";
+  btn.className = `btn-main ${auto.lerTela ? "btn-stop" : "btn-start"}`;
+  const st = $("ia-ler-status");
+  if (!auto.lerTela) st.textContent = ESTADO_CHAT.desligado;
+  else if (lidos) st.textContent = `👂 ${lidos} lidos${ultimoLido ? ` · última resposta: ${ultimoLido}` : ""}`;
+  else st.textContent = ESTADO_CHAT[estadoChat] ?? "Ligando…";
+}
+
+function pintarIaContas(d) {
+  const contas = d.contas ?? [];
+  const limite = d.limiteContas ?? 1;
+  $("ia-contas").innerHTML = `
+    <div class="slabel">Contas TikTok (${contas.length}/${limite})</div>
+    <div class="card open"><div class="cb">
+      ${contas.map((c) => `<div class="frow"><span class="fdesc">@${esc(c.usuario)}</span><button class="btn bdanger" data-remover="${esc(c.id)}" style="flex:unset;padding:4px 10px">Remover</button></div>`).join("") ||
+        '<div class="fdesc">Nenhuma conta ainda.</div>'}
+      ${contas.length < limite
+        ? '<div class="brow"><input type="text" id="ia-nova-conta" placeholder="@suaconta" style="flex:1"><button class="btn bgreen" id="ia-add-conta" style="flex:unset;padding:6px 12px">Adicionar</button></div>'
+        : '<div class="fdesc" style="color:var(--warn)">Limite do plano atingido. Faça upgrade pra adicionar mais contas.</div>'}
+    </div></div>`;
+  $("ia-add-conta")?.addEventListener("click", async () => {
     try {
-      await api.baterSessao(sessaoId, null);
+      pintarIaContas(await api.alterarConta({ acao: "adicionar", usuario: $("ia-nova-conta").value }));
+      iaMsg("Conta adicionada.");
     } catch (erro) {
-      if (erro.codigo === "sessao_encerrada") {
-        // O painel encerrou do outro lado. Parar é obedecer o dono.
-        await encerrar("encerrada pelo painel");
+      iaMsg(`Erro: ${erro.message}`, true);
+    }
+  });
+  $("ia-contas").querySelectorAll("[data-remover]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      try {
+        pintarIaContas(await api.alterarConta({ acao: "remover", id: b.dataset.remover }));
+      } catch (erro) {
+        iaMsg(`Erro: ${erro.message}`, true);
       }
-    }
-  }, 45000);
-}
-
-async function encerrar(motivo = null) {
-  clearInterval(relogioBatimento);
-  pararCronometro();
-
-  if (sessaoId) {
-    try {
-      await api.fecharSessao(sessaoId, motivo);
-    } catch {
-      /* a faxina do servidor fecha sessão órfã pelo batimento */
-    }
-    sessaoId = null;
-    await chrome.runtime.sendMessage({ tipo: "sessao", sessaoId: null }).catch(() => {});
-  }
-
-  // Depois de zerar a sessão, nunca antes: é ela que a tela lê para saber se
-  // ainda está no ar.
-  pintarEstadoDoAr();
-}
-
-// ---------------------------------------------------------------- ligação
-
-async function atualizarEstado() {
-  const r = await chrome.runtime.sendMessage({ tipo: "bater" }).catch(() => null);
-  if (r?.estado) pintarLicenca(r.estado);
-  return r?.estado ?? null;
-}
-
-async function carregarPreferencias() {
-  limiteMinutos = Number(await api.lerLocal(api.CHAVES.limiteMinutos, 0)) || 0;
-  $("limite").value = String(limiteMinutos);
-  const usuario = await api.lerLocal(api.CHAVES.usuarioTikTok, "");
-  $("usuario-tiktok").value = usuario ? `@${usuario}` : "";
-
-  ancorasLocais = (await api.lerLocal(api.CHAVES.ancorasLocais)) ?? {};
-
-  atualizarBotao();
-}
-
-async function abrirOperacao() {
-  mostrar("operar");
-  await carregarPreferencias();
-  await retomarSessao();
-  await atualizarEstado();
-  await Promise.all([conferirChat(), carregarAutomacoes()]);
-}
-
-/**
- * Reassume a sessão que ficou aberta com o painel fechado.
- *
- * Sem isto, reabrir o painel mostraria "Entrar no ar" com a live já
- * respondendo — e, pior, escondendo o "Encerrar": a pessoa não teria como
- * desligar pelo lugar de onde ligou. É o preço de deixar a sessão sobreviver
- * ao painel, e tem que ser pago aqui.
- */
-async function retomarSessao() {
-  const guardada = await api.lerLocal(api.CHAVES.sessao);
-  if (!guardada) return;
-
-  try {
-    await api.baterSessao(guardada, null);
-  } catch {
-    // Servidor fechou (409) ou está fora do ar. Nos dois casos, não assumimos
-    // uma sessão que talvez não exista: o próximo "Entrar no ar" abre outra, e
-    // abrir sessão já é idempotente do lado de lá.
-    await chrome.storage.local.remove(api.CHAVES.sessao);
-    return;
-  }
-
-  sessaoId = guardada;
-  const desde = Number(await api.lerLocal(api.CHAVES.inicioNoAr, 0)) || Date.now();
-  iniciarCronometro(desde);
-  void baterSessao();
-  pintarEstadoDoAr();
-}
-
-async function iniciar() {
-  $("versao").textContent = "v" + chrome.runtime.getManifest().version;
-  if (!(await api.token())) {
-    mostrar("entrar");
-    return;
-  }
-  await abrirOperacao();
-}
-
-$("btn-entrar").addEventListener("click", async () => {
-  const valor = $("token").value.trim();
-  mostrarErro($("erro-entrar"), null);
-
-  if (!valor) {
-    mostrarErro($("erro-entrar"), "Cole o código que aparece no painel.");
-    return;
-  }
-
-  await api.guardarToken(valor);
-  const estado = await atualizarEstado();
-
-  if (!estado?.licenciada) {
-    await api.esquecerToken();
-    mostrarErro($("erro-entrar"), rotuloDoMotivo(estado?.motivo));
-    return;
-  }
-
-  $("token").value = "";
-  await abrirOperacao();
-});
-
-$("btn-pegar-codigo").addEventListener("click", () => void api.abrirNoSite("/extensao"));
-$("btn-tocar").addEventListener("click", () => void entrarNoAr());
-$("btn-parar").addEventListener("click", () => void encerrar("encerrada pelo usuário"));
-$("btn-revisar").addEventListener("click", () => void api.abrirNoSite("/manual"));
-
-$("btn-abrir-live").addEventListener("click", () => {
-  const usuario = usuarioTikTokValido($("usuario-tiktok").value);
-  void chrome.tabs.create({
-    url: usuario ? `https://www.tiktok.com/@${usuario}/live` : "https://www.tiktok.com/live",
-  });
-});
-
-$("usuario-tiktok").addEventListener("change", async (evento) => {
-  const usuario = usuarioTikTokValido(evento.target.value);
-  evento.target.value = usuario ? `@${usuario}` : "";
-  await api.gravarLocal({ [api.CHAVES.usuarioTikTok]: usuario ?? "" });
-});
-
-$("limite").addEventListener("change", async (evento) => {
-  limiteMinutos = Number(evento.target.value) || 0;
-  await api.gravarLocal({ [api.CHAVES.limiteMinutos]: limiteMinutos });
-  pintarFimProgramado();
-});
-
-// --- automações ---
-
-$("btn-recarregar-auto").addEventListener("click", () => void carregarAutomacoes());
-$("btn-editar-textos").addEventListener("click", () => void api.abrirNoSite("/automacoes"));
-
-for (const [id, chave] of [
-  ["sw-carrinho", "carrinhoAtivo"],
-  ["sw-venda", "vendaAtivo"],
-  ["sw-sino", "sinoAtivo"],
-]) {
-  $(id).addEventListener("change", (evento) =>
-    void mandarAuto(
-      { acao: "alternar", chave, valor: evento.target.checked },
-      evento.target.checked ? "Ligado." : "Desligado.",
-    ),
+    }),
   );
 }
 
-// --- diagnóstico do chat ---
+const PERIODO = { 1: "mês", 3: "trimestre", 12: "ano" };
 
-$("btn-ensaiar").addEventListener("click", async () => {
-  recadoDoChat("Testando na aba da live…");
-  const chegou = await falarComALive({ tipo: "ensaiar_envio" });
-  if (!chegou) recadoDoChat("A página da sua live não está aberta nesta janela do Chrome.");
-});
-
-$("btn-ensinar-enviar").addEventListener("click", (evento) =>
-  void ensinar(evento.currentTarget.dataset.ancora),
-);
-
-$("btn-enviar-teste").addEventListener("click", async () => {
-  recadoDoChat("Enviando…");
-  const chegou = await falarComALive({
-    tipo: "enviar_teste",
-    texto: $("texto-teste").value,
-  });
-  if (!chegou) recadoDoChat("A página da sua live não está aberta nesta janela do Chrome.");
-});
-
-// --- automações ---
-
-$("btn-recarregar-auto").addEventListener("click", () => void carregarAutomacoes());
-$("btn-editar-textos").addEventListener("click", () => void api.abrirNoSite("/automacoes"));
-
-for (const [id, chave] of [
-  ["sw-carrinho", "carrinhoAtivo"],
-  ["sw-venda", "vendaAtivo"],
-  ["sw-sino", "sinoAtivo"],
-]) {
-  $(id).addEventListener("change", (evento) =>
-    void mandarAuto(
-      { acao: "alternar", chave, valor: evento.target.checked },
-      evento.target.checked ? "Ligado." : "Desligado.",
-    ),
+function pintarIaPlanos(d) {
+  $("ia-planos").innerHTML =
+    `<div class="slabel">Escolha seu plano</div>
+     <div class="fdesc">O pagamento abre no app, já logado. A liberação é automática.</div>` +
+    (d.planos ?? [])
+      .map(
+        (p) => `<div class="card open"><div class="cb">
+          <div class="plano-nome">${esc(p.nome)}</div>
+          <div class="plano-preco">${reais(p.precoCentavos)} <small>/ ${PERIODO[p.meses] ?? `${p.meses} meses`}</small></div>
+          ${p.meses > 1 ? `<div class="fdesc">${reais(p.precoMensalCentavos)} por mês</div>` : ""}
+          <div class="recurso">📱 ${p.contasTiktok} conta(s) TikTok</div>
+          ${(p.recursos ?? []).map((r) => `<div class="recurso">✓ ${esc(r)}</div>`).join("")}
+          <button class="btn bgreen" data-assinar="${esc(p.slug)}">Assinar no app →</button>
+        </div></div>`,
+      )
+      .join("");
+  $("ia-planos").querySelectorAll("[data-assinar]").forEach((b) =>
+    b.addEventListener("click", () => api.abrirNoSite(`/planos?plano=${encodeURIComponent(b.dataset.assinar)}`)),
   );
 }
 
-// --- diagnóstico do chat ---
+// ===========================================================================
+// NOVA VERSÃO
+// ===========================================================================
 
-$("btn-ensaiar").addEventListener("click", async () => {
-  recadoDoChat("Testando na aba da live…");
-  const chegou = await falarComALive({ tipo: "ensaiar_envio" });
-  if (!chegou) recadoDoChat("A página da sua live não está aberta nesta janela do Chrome.");
-});
+let versaoDispensada = "";
+function vcmp(a, b) {
+  const pa = String(a || "0").split(".").map((x) => Number.parseInt(x, 10) || 0);
+  const pb = String(b || "0").split(".").map((x) => Number.parseInt(x, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    if ((pa[i] || 0) !== (pb[i] || 0)) return (pa[i] || 0) > (pb[i] || 0) ? 1 : -1;
+  }
+  return 0;
+}
 
-$("btn-ensinar-enviar").addEventListener("click", (evento) =>
-  void ensinar(evento.currentTarget.dataset.ancora),
-);
-
-$("btn-enviar-teste").addEventListener("click", async () => {
-  recadoDoChat("Enviando…");
-  const chegou = await falarComALive({
-    tipo: "enviar_teste",
-    texto: $("texto-teste").value,
+function checarVersao() {
+  const v = licenca.versaoPublicada;
+  if (!v || vcmp(v, minhaVersao) <= 0 || versaoDispensada === v || $("atualizacao")) return;
+  const ov = document.createElement("div");
+  ov.id = "atualizacao";
+  ov.innerHTML = `<div class="at-fundo"></div><div class="at-card">
+    <div class="at-ic">🆕</div>
+    <div class="at-h">Nova versão disponível</div>
+    <div class="at-v">v${esc(v)}</div>
+    ${licenca.notas ? `<div class="at-n">${esc(licenca.notas)}</div>` : ""}
+    <a class="at-btn" href="#" id="atBaixar">⬇️ Baixar a nova versão</a>
+    <details class="at-ajuda"><summary>Como instalar</summary><ol>
+      <li>Baixe e <b>extraia</b> o ZIP numa pasta fixa (não apague ela depois).</li>
+      <li>Abra <b>chrome://extensions</b> e ligue o <b>Modo do desenvolvedor</b>.</li>
+      <li>Remova a Shopia antiga (botão Remover).</li>
+      <li><b>Carregar sem compactação</b> → escolha a pasta que você extraiu.</li>
+    </ol></details>
+    ${licenca.atualizacaoObrigatoria ? "" : '<button class="at-x" id="atX">Agora não</button>'}
+  </div>`;
+  document.body.appendChild(ov);
+  $("atBaixar").addEventListener("click", (e) => {
+    e.preventDefault();
+    api.abrirNoSite("/extensao");
   });
-  if (!chegou) recadoDoChat("A página da sua live não está aberta nesta janela do Chrome.");
+  $("atX")?.addEventListener("click", () => {
+    versaoDispensada = v;
+    ov.remove();
+  });
+}
+
+// ===========================================================================
+// LIGAÇÕES
+// ===========================================================================
+
+function ligarEventos() {
+  // Acesso
+  $("acessoBtn").addEventListener("click", fazerLogin);
+  $("acessoSenha").addEventListener("keydown", (e) => e.key === "Enter" && fazerLogin());
+  $("acessoLogin").addEventListener("keydown", (e) => e.key === "Enter" && $("acessoSenha").focus());
+  $("acessoCadastro").addEventListener("click", (e) => (e.preventDefault(), api.abrirNoSite("/cadastro")));
+  $("acessoAssinar").addEventListener("click", () => api.abrirNoSite("/planos"));
+  $("acessoRechecar").addEventListener("click", (e) => (e.preventDefault(), conferirAcesso()));
+  $("acessoSair").addEventListener("click", async (e) => {
+    e.preventDefault();
+    await enviar({ tipo: "sair" });
+    telaAcesso("entrar");
+  });
+
+  // Abas
+  document.querySelectorAll("[data-aba]").forEach((b) =>
+    b.addEventListener("click", () => {
+      document.querySelectorAll("[data-aba]").forEach((x) => x.classList.toggle("active", x === b));
+      document.querySelectorAll(".tab-pane").forEach((p) => p.classList.toggle("active", p.id === `pane-${b.dataset.aba}`));
+      try { localStorage.setItem("shopia_aba", b.dataset.aba); } catch { /* sem storage */ }
+    }),
+  );
+
+  // Cards recolhíveis (clique no cabeçalho, fora dos botões)
+  document.querySelectorAll(".card > .ch").forEach((ch) =>
+    ch.addEventListener("click", (e) => {
+      if (e.target.closest("button")) return;
+      ch.parentElement.classList.toggle("open");
+    }),
+  );
+
+  // Cabeçalho
+  $("btnIA").addEventListener("click", abrirIa);
+  $("iaFechar").addEventListener("click", () => ($("iaPainel").hidden = true));
+  document.querySelectorAll("[data-iaaba]").forEach((b) => b.addEventListener("click", () => iaMostrar(b.dataset.iaaba)));
+  $("btnReset").addEventListener("click", async () => {
+    if (!confirm("Resetar todas as configurações para o padrão? A extensão será desligada.")) return;
+    await enviar({ tipo: "reset" });
+    await recarregarTudo();
+    toast("Configurações resetadas.");
+  });
+  $("btnPowerLive").addEventListener("click", async () => {
+    if (!confirm("Encerrar a LIVE agora?")) return;
+    await enviar({ tipo: "encerrar_live", motivo: "botão ⏻ do painel" });
+    await recarregarTudo();
+  });
+
+  // Ciclo e timer
+  $("btnCiclo").addEventListener("click", alternarCiclo);
+  document.querySelectorAll("[data-dur]").forEach((b) =>
+    b.addEventListener("click", () => salvarCfg({ duracaoMinutos: Number(b.dataset.dur) })),
+  );
+  $("duracaoMinutos").addEventListener("change", (e) =>
+    salvarCfg({ duracaoMinutos: Math.min(Math.max(Number(e.target.value) || 60, 1), 1440) }),
+  );
+  $("btnPausarTimer").addEventListener("click", async () => {
+    await enviar({ tipo: ciclo.pausadoRestanteMs != null ? "timer_retomar" : "timer_pausar" });
+    await recarregarTudo();
+  });
+  $("btnCancelarTimer").addEventListener("click", async () => {
+    await enviar({ tipo: "ciclo_parar", motivo: "timer cancelado" });
+    await recarregarTudo();
+  });
+
+  // Fixar e cupom
+  $("btnFixar").addEventListener("click", async () => {
+    const r = await enviar({ tipo: "fixar_agora" });
+    if (!r?.r) toast("Abra a página da sua live no TikTok para fixar.");
+  });
+  $("togFixar").addEventListener("click", () => salvarAuto({ fixar: !auto.fixar }));
+  $("togCupom").addEventListener("click", () => salvarAuto({ cupom: !auto.cupom }));
+
+  // Violação
+  $("vbtnEncerrar").addEventListener("click", () => salvarCfg({ modoViolacao: "encerrar" }));
+  $("vbtnContinuar").addEventListener("click", () => salvarCfg({ modoViolacao: "continuar" }));
+  document.querySelectorAll("[data-vmin]").forEach((b) =>
+    b.addEventListener("click", () => salvarCfg({ minutosViolacao: Number(b.dataset.vmin) })),
+  );
+  $("minutosViolacao").addEventListener("change", (e) =>
+    salvarCfg({ minutosViolacao: Math.min(Math.max(Number(e.target.value) || 20, 1), 999) }),
+  );
+  $("btnEncerrarViolacao").addEventListener("click", () => enviar({ tipo: "encerrar_live", motivo: "violação — encerrada no painel" }));
+
+  // Comentários automáticos
+  const salvarComentarios = (extra = {}) =>
+    salvarAuto({
+      comentarios: {
+        mensagens: linhas($("listaComentarios").value).map((l) => l.slice(0, 150)).slice(0, 100),
+        min: Number($("comentarioMin").value),
+        max: Math.max(Number($("comentarioMax").value), Number($("comentarioMin").value)),
+        ...extra,
+      },
+    });
+  $("listaComentarios").addEventListener("change", () => salvarComentarios());
+  for (const id of ["comentarioMin", "comentarioMax"]) {
+    $(id).addEventListener("input", (e) => ($(`${id}Val`).textContent = `${e.target.value}s`));
+    $(id).addEventListener("change", () => salvarComentarios());
+  }
+  $("btnComentarIniciar").addEventListener("click", async () => {
+    if (!linhas($("listaComentarios").value).length) return toast("Escreva ao menos uma mensagem (uma por linha).");
+    await salvarComentarios({ ativo: true });
+    $("comentarioLog").textContent = "▶ Iniciado — o primeiro sai agora.";
+    if (!(await haAbaDoTikTok())) toast("Abra a página da sua live no TikTok neste Chrome.");
+  });
+  $("btnComentarParar").addEventListener("click", async () => {
+    await salvarComentarios({ ativo: false });
+    clearInterval(contagemComentario);
+    $("comentarioLog").textContent = "■ Parado.";
+  });
+
+  // Bloqueio por nome
+  $("palavrasBloqueio").addEventListener("change", () =>
+    salvarAuto({ bloqueio: { palavras: linhas($("palavrasBloqueio").value).slice(0, 200) } }),
+  );
+  $("togBloqueio").addEventListener("click", async () => {
+    const palavras = linhas($("palavrasBloqueio").value).slice(0, 200);
+    if (!auto.bloqueio?.ativo && !palavras.length) return toast("Escreva ao menos uma palavra (uma por linha).");
+    await salvarAuto({ bloqueio: { ativo: !auto.bloqueio?.ativo, palavras } });
+  });
+  $("btnBaixarBloqueados").addEventListener("click", async () => {
+    const lista = (await api.lerLocal(api.CHAVES.bloqueados)) ?? [];
+    const texto = lista.map((b) => `${b.hora}\t${b.usuario}\t${b.palavra}`).join("\n");
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(new Blob([texto], { type: "text/plain" }));
+    const d = new Date();
+    a.download = `bloqueados_${pad(d.getDate())}-${pad(d.getMonth() + 1)}-${d.getFullYear()}.txt`;
+    a.click();
+  });
+
+  // Log
+  $("btnLimparLog").addEventListener("click", async () => {
+    await chrome.storage.session.remove("shopia_log").catch(() => {});
+    await carregarLog();
+  });
+
+  // Central
+  $("threshold").addEventListener("change", (e) => salvarCfg({ threshold: Math.min(Math.max(Number(e.target.value) || 50, 1), 999) }));
+  $("intervalo").addEventListener("change", (e) => salvarCfg({ intervalo: Math.min(Math.max(Number(e.target.value) || 8, 8), 60) }));
+  $("togSom").addEventListener("click", async () => {
+    const ligar = !auto.som;
+    await salvarAuto({ som: ligar });
+    if (ligar) tocarConfirmacao();
+  });
+  const INSTRUCAO = {
+    "produto.lista": "Na live, clique na LISTA de produtos (a área que contém todos eles).",
+    "produto.item": "Agora clique em UM produto da lista (o cartão dele, não o botão).",
+    "produto.fixar": "Agora clique no botão FIXAR de um produto.",
+  };
+  document.querySelectorAll("[data-ensinar]").forEach((b) =>
+    b.addEventListener("click", async () => {
+      $("ensinarStatus").textContent = "Vá para a aba da live e clique no que foi pedido (Esc cancela).";
+      await enviar({ tipo: "ensinar", ancora: b.dataset.ensinar, instrucao: INSTRUCAO[b.dataset.ensinar] });
+    }),
+  );
+  $("btnAbrirNotificacoes").addEventListener("click", () => api.abrirNoSite("/notificacoes"));
+  $("btnLimparHist").addEventListener("click", async () => {
+    await chrome.storage.local.remove(api.CHAVES.historico);
+    pintarHistorico([]);
+  });
+
+  // Guia
+  const ov = $("guiaOverlay");
+  const fecharGuia = () => {
+    ov.classList.remove("on");
+    try { localStorage.setItem("shopia_guia_v1", "1"); } catch { /* sem storage */ }
+  };
+  $("guiaBtn").addEventListener("click", () => ov.classList.add("on"));
+  $("guiaX").addEventListener("click", fecharGuia);
+  $("guiaOk").addEventListener("click", fecharGuia);
+  ov.addEventListener("click", (e) => e.target === ov && fecharGuia());
+  $("guiaApp").addEventListener("click", (e) => (e.preventDefault(), api.abrirNoSite("/inicio")));
+}
+
+// Mensagens do service worker e da aba
+chrome.runtime.onMessage.addListener((m) => {
+  switch (m?.tipo) {
+    case "ciclo":
+      ciclo = m.ciclo;
+      restanteMs = m.restanteMs;
+      restanteEm = Date.now();
+      pintarCiclo();
+      break;
+    case "metricas":
+      ciclo = { ...ciclo, ...m.ciclo };
+      break;
+    case "log":
+      linhaDeLog(m.linha);
+      break;
+    case "estado":
+      licenca = m.estado;
+      pintarServidor();
+      if (["token_invalido", "revogada"].includes(licenca.motivo)) void conferirAcesso();
+      break;
+    case "relatorio":
+      void chrome.storage.local.get(api.CHAVES.historico).then((r) => pintarHistorico(r[api.CHAVES.historico] ?? []));
+      break;
+    case "bloqueados":
+      pintarBloqueados(m.lista ?? []);
+      break;
+    case "comentario_log":
+      if (m.agendado) mostrarContagemComentario(m.emMs ?? 0);
+      else $("comentarioLog").textContent = m.ok ? `✓ ${new Date().toLocaleTimeString("pt-BR")} — ${m.texto}` : `✗ Não saiu: ${m.motivo}`;
+      break;
+    case "aviso":
+      toast(m.texto);
+      break;
+    case "chat_status":
+      estadoChat = m.estado;
+      pintarIaLerTela();
+      break;
+    case "chat_lidos":
+      lidos += m.quantidade ?? 0;
+      pintarIaLerTela();
+      break;
+    case "lido":
+      ultimoLido = String(m.texto ?? "").slice(0, 40);
+      pintarIaLerTela();
+      break;
+    case "aprendeu":
+      $("ensinarStatus").textContent = m.cancelado
+        ? "Cancelado."
+        : m.cascata?.length
+          ? `✓ Anotado: ${m.ancora}. ${m.ancora === "produto.fixar" ? "Pronto — o fixar usa o que você ensinou." : "Siga para o próximo."}`
+          : "Não consegui descrever esse elemento. Tente de novo.";
+      break;
+    default:
+      break;
+  }
 });
 
-$("btn-sair").addEventListener("click", async () => {
-  await encerrar("desconectado");
-  await api.esquecerToken();
-  mostrar("entrar");
-});
-
-chrome.runtime.onMessage.addListener((mensagem) => {
-  if (mensagem?.tipo === "estado") pintarLicenca(mensagem.estado);
-  if (mensagem?.tipo === "parar") void encerrar(mensagem.motivo ?? "suspensa");
-  if (mensagem?.tipo === "chat_status") pintarChat(mensagem.estado);
-  if (mensagem?.tipo === "chat") {
-    comentariosLidos += mensagem.quantidade ?? 0;
-    $("m-chat").textContent = String(comentariosLidos);
-  }
-  if (mensagem?.tipo === "respondeu") {
-    respostasDadas += 1;
-    $("m-resposta").textContent = String(respostasDadas);
-  }
-
-  if (mensagem?.tipo === "aprendeu") {
-    if (mensagem.cancelado) {
-      recadoDoChat("Cancelado.");
-    } else if (Array.isArray(mensagem.cascata) && mensagem.cascata.length > 0) {
-      ancorasLocais = { ...ancorasLocais, [mensagem.ancora]: mensagem.cascata };
-      recadoDoChat("Anotado. Testando de novo com o botão que você apontou…");
-      void falarComALive({ tipo: "ensaiar_envio" });
-    } else {
-      recadoDoChat("Não consegui descrever o que você clicou. Tente clicar no botão em si.");
-    }
-  }
-  if (mensagem?.tipo === "loja") {
-    if (mensagem.qual === "venda") {
-      vendas += 1;
-      $("m-venda").textContent = String(vendas);
-      if (estadoLicenca?.sinoAtivo !== false) tocarSino();
-    } else if (mensagem.qual === "carrinho") {
-      carrinhos += 1;
-      $("m-carrinho").textContent = String(carrinhos);
-    }
-  }
-
-  if (mensagem?.tipo === "ensaio") pintarEnsaio(mensagem);
-
-  if (mensagem?.tipo === "teste_enviado") {
-    recadoDoChat(
-      mensagem.ok
-        ? `Enviou pela ${CAMINHO_ENVIO[mensagem.por] ?? mensagem.por}` +
-            `, com o texto entrando por ${TECNICA[mensagem.tecnica] ?? mensagem.tecnica}. ` +
-            "A mensagem está na sua live."
-        : (MOTIVO_ENVIO[mensagem.motivo] ?? "Não deu para enviar."),
-    );
-    if (!mensagem.ok) $("ensinar-envio").hidden = false;
-  }
-
-  if (mensagem?.tipo === "envio_falhou") {
-    recadoDoChat(
-      `Uma resposta não saiu: ${MOTIVO_ENVIO[mensagem.motivo] ?? mensagem.motivo}. ` +
-        "Abra “Ela não está respondendo?” acima.",
-    );
-    $("diagnostico").open = true;
-  }
-
-});
-
-// A aba da live abriu, fechou ou trocou de página: o estado do chat muda junto.
-chrome.tabs.onUpdated.addListener((_id, mudanca) => {
-  if (mudanca.status === "complete" || mudanca.url) void conferirChat();
-});
-chrome.tabs.onRemoved.addListener(() => void conferirChat());
-
-// Fechar o painel NÃO derruba a live, de propósito: quem lê o chat é o content
-// script e quem bate a sessão é o service worker. É o comportamento que a
-// pessoa espera de algo que ela deixou ligado — e é por isso que "Encerrar"
-// existe como botão.
-
-void iniciar();
+// Partida
+ligarEventos();
+$("dominioApp").textContent = new URL(api.SERVIDOR).host;
+try {
+  const aba = localStorage.getItem("shopia_aba");
+  if (aba) document.querySelector(`[data-aba="${aba}"]`)?.click();
+  if (localStorage.getItem("shopia_guia_v1") !== "1") setTimeout(() => $("guiaOverlay").classList.add("on"), 500);
+} catch { /* sem storage */ }
+await carregarLog();
+await recarregarTudo();
+await conferirAcesso();
+setInterval(pintarRelogios, 1000);
+setInterval(() => void conferirAcesso(), 120000);

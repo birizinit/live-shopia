@@ -1,55 +1,60 @@
 {
   "manifest_version": 3,
-  "name": "Shopia — moderação de live no TikTok",
-  "version": "2.3.0",
-  "description": "Modera a sua live no TikTok: responde os comentários pelo manual que você cadastrou, dá boas-vindas pelo nome e fixa produtos.",
-
-  "permissions": ["storage", "alarms", "sidePanel", "tabs"],
-
+  "name": "Shopia — Assistente de Live para TikTok Shop",
+  "version": "3.0.0",
+  "description": "Liga e cuida da sua live no TikTok Shop: timer de encerramento, proteção contra violação, fixar produto, comentários automáticos, bloqueio por nome, aviso de venda e respostas no chat.",
+  "permissions": [
+    "storage",
+    "alarms",
+    "sidePanel",
+    "tabs"
+  ],
   "host_permissions": [
     "*://*.tiktok.com/*",
     "https://liveshopia.up.railway.app/*"
   ],
-
   "background": {
     "service_worker": "fundo.js",
     "type": "module"
   },
-
   "side_panel": {
     "default_path": "painel.html"
   },
-
   "action": {
-    "default_title": "Shopia — abrir painel",
+    "default_title": "Shopia",
     "default_icon": {
       "16": "icones/16.png",
       "48": "icones/48.png",
       "128": "icones/128.png"
     }
   },
-
   "icons": {
     "16": "icones/16.png",
     "48": "icones/48.png",
     "128": "icones/128.png"
   },
-
   "content_scripts": [
     {
-      "matches": ["*://*.tiktok.com/*"],
-      "js": ["conteudo.js"],
+      "matches": [
+        "*://*.tiktok.com/*"
+      ],
+      "js": [
+        "conteudo.js"
+      ],
       "run_at": "document_idle",
       "all_frames": false
     }
   ],
-
   "web_accessible_resources": [
     {
-      "resources": ["seletores.js", "produtos.js"],
-      "matches": ["*://*.tiktok.com/*"]
+      "resources": [
+        "seletores.js",
+        "produtos.js"
+      ],
+      "matches": [
+        "*://*.tiktok.com/*"
+      ]
     }
   ],
-
   "minimum_chrome_version": "116"
 }

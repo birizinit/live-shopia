@@ -40,6 +40,19 @@ export const CHAVES = {
    * painel de vez em quando.
    */
   inicioNoAr: "shopia_inicio_no_ar",
+
+  // --- painel no formato LiveFox ---
+  /** Configuração do ciclo: threshold, intervalo, duração e modo de violação. */
+  cfg: "shopia_cfg",
+  /** Estado do ciclo (timer, scans, alertas, violação). Sobrevive ao worker morrer. */
+  ciclo: "shopia_ciclo",
+  /** Interruptores que o content script obedece: fixar, cupom, som, comentários, bloqueio, ler a tela. */
+  auto: "shopia_auto",
+  /** A aba do TikTok que age. Só uma, senão cada aba postaria a mesma mensagem. */
+  abaAlvo: "shopia_aba_alvo",
+  historico: "shopia_historico",
+  bloqueados: "shopia_bloqueados",
+  usuario: "shopia_usuario",
 };
 
 /** Abre uma página do painel da Shopia numa aba nova. */
@@ -102,7 +115,7 @@ function sistema() {
 
 async function chamar(caminho, { metodo = "GET", corpo = null, query = null } = {}) {
   const chave = await token();
-  if (!chave) throw new ErroApi("sem_token", 401, "Entre com o código do painel.");
+  if (!chave) throw new ErroApi("sem_token", 401, "Faça login primeiro.");
 
   const url = new URL(SERVIDOR + caminho);
   for (const [k, v] of Object.entries(query ?? {})) {
@@ -281,5 +294,54 @@ export async function relatarQuebra(falhas) {
     });
   } catch {
     /* silêncio proposital */
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Login direto no painel lateral e o overlay "IA de vendas"
+// ---------------------------------------------------------------------------
+
+/**
+ * Troca e-mail/usuário + senha por um token de licença novo.
+ *
+ * Não passa por `chamar` porque ainda não há token. A senha não é guardada:
+ * vai, volta como token e é esquecida.
+ */
+export async function entrar(login, senha) {
+  let resposta;
+  try {
+    resposta = await fetch(`${SERVIDOR}/api/ext/entrar`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ login, senha }),
+      credentials: "omit",
+      cache: "no-store",
+    });
+  } catch {
+    throw new ErroApi("rede", 0, "Sem conexão com o servidor.");
+  }
+  const dados = await resposta.json().catch(() => null);
+  if (!resposta.ok || !dados?.ok) {
+    throw new ErroApi(dados?.erro || "falhou", resposta.status, dados?.detalhe || "Não foi possível entrar.");
+  }
+  return dados;
+}
+
+/** Plano, créditos, contas TikTok e vitrine de planos. */
+export async function conta() {
+  return chamar("/api/ext/conta");
+}
+
+/** { acao: "adicionar", usuario } | { acao: "remover", id } */
+export async function alterarConta(corpo) {
+  return chamar("/api/ext/conta", { metodo: "POST", corpo });
+}
+
+/** Aviso de venda no celular do próprio vendedor. Não lança. */
+export async function avisarVenda(dados) {
+  try {
+    await chamar("/api/ext/venda", { metodo: "POST", corpo: dados });
+  } catch {
+    /* aviso perdido não derruba a live */
   }
 }
