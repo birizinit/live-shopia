@@ -58,7 +58,7 @@ const PASSOS: Passo[] = [
   {
     titulo: "Entre com a sua conta",
     texto:
-      "Abra a extensão e cole o token da licença. É o mesmo token da seção Licença, mais acima nesta página — ele aparece uma vez só, na hora em que você gera.",
+      "Clique no ícone da Shopia e entre com o mesmo e-mail e senha do app. Entrar numa máquina desconecta a anterior: 1 conta = 1 dispositivo.",
   },
 ];
 

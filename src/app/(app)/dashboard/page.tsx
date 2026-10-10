@@ -143,14 +143,14 @@ export default async function DashboardPage(props: PageProps<"/dashboard">) {
           className="mt-4"
           icone={ChartColumn}
           titulo="Nenhuma venda registrada ainda"
-          texto="Quem escreve nesta tela é a extensão do Chrome: é ela que lê as vendas da sala do TikTok e envia para cá. Enquanto ela não estiver instalada e no ar, o painel fica assim — zerado de verdade, sem número inventado."
+          texto="Aqui só entra venda com origem verificável. A venda que a extensão lê na tela da live vira notificação no seu celular e fica no Histórico da extensão, mas não é registrada no dashboard — por isso ele pode estar zerado de verdade, sem número inventado."
           acao={
             <>
               <Link
-                href="/extensao"
+                href="/notificacoes"
                 className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-medium text-primary-fg hover:bg-primary-hover"
               >
-                Instalar a extensão
+                Aviso de venda no celular
               </Link>
               <Link
                 href="/live"

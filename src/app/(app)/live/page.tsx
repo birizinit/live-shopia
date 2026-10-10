@@ -105,8 +105,9 @@ export default async function LivePage() {
                 <div className="min-w-0">
                   <CardTitulo>Transmissão</CardTitulo>
                   <CardDescricao>
-                    Subir a live abre a sessão aqui; quem entra no ar de fato é a
-                    extensão, dentro do LIVE Studio.
+                    A sessão abre sozinha quando você liga a extensão (ou o “Ler a
+                    tela”). Quem transmite é você, pelo TikTok; a extensão cuida da live
+                    aberta no Chrome.
                   </CardDescricao>
                 </div>
                 <Indicador estado={marcador.estado} texto={marcador.texto} />
@@ -154,7 +155,6 @@ export default async function LivePage() {
               <div className="mt-5 space-y-3">
                 <Transmissao
                   sessao={sessao}
-                  contaId={config.contaId}
                   bloqueios={pendencias.map((item) => item.rotulo.toLowerCase())}
                 />
               </div>
@@ -260,8 +260,9 @@ export default async function LivePage() {
                 <Puzzle className="size-4 text-fg-subtle" aria-hidden />
               </div>
               <CardDescricao>
-                É ela que toca o áudio no LIVE Studio e lê o chat. Sem sinal dela,
-                a live não existe do lado do TikTok.
+                É ela que lê o chat e as vendas na página da sua live, fixa produto e
+                encerra a live por timer ou violação. A transmissão é sua: sem sinal
+                dela, a live continua, só sem a Shopia.
               </CardDescricao>
 
               <Propriedades className="mt-3">
@@ -305,8 +306,13 @@ export default async function LivePage() {
                 href="/extensao"
                 className="mt-4 inline-flex h-9 items-center rounded-md border border-border px-4 text-sm font-medium hover:bg-surface-hover"
               >
-                Abrir a extensão
+                Instalar / atualizar a extensão
               </Link>
+              <p className="mt-2 text-xs text-fg-subtle">
+                Para abrir: clique no ícone da Shopia na barra do Chrome. Vendas e GMV de
+                cada live ficam no Histórico da extensão (aba Central); aqui fica a sessão
+                de respostas.
+              </p>
             </Card>
           </aside>
         </div>

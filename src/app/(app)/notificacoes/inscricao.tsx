@@ -452,20 +452,20 @@ export function FormPreferencias({
         <Interruptor
           ligado={venda}
           aoMudar={setVenda}
-          rotulo="Venda confirmada"
-          descricao="Cada pedido fechado durante a live, com valor e quantidade."
+          rotulo="Venda na live"
+          descricao="Cada venda que a extensão lê na tela da sua live (com “Ligar a extensão” ativo): valor, total de vendas e GMV. Não entra no dashboard nem no ranking."
         />
         <Interruptor
           ligado={queda}
           aoMudar={setQueda}
           rotulo="Queda da live"
-          descricao="A extensão parou de responder e a transmissão saiu do ar."
+          descricao="A extensão parou de mandar sinal (navegador fechado, computador dormiu ou sem internet)."
         />
         <Interruptor
           ligado={creditos}
           aoMudar={setCreditos}
           rotulo="Crédito acabando"
-          descricao="Aviso antes de faltar áudio no meio de uma transmissão."
+          descricao="Aviso quando o saldo de créditos ficar baixo."
         />
       </div>
 

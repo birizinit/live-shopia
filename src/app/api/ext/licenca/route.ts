@@ -6,6 +6,7 @@ import {
   dentroDoLimite,
   origemDaRequisicao,
   paradaForcada,
+  planoVigente,
   registrarContato,
   renovarSeAssinaturaAtiva,
   tokenDoCabecalho,
@@ -13,7 +14,6 @@ import {
 } from "@/lib/dados/extensao";
 import { configuracao } from "@/lib/dados/comum";
 import { revisaoDoManual } from "@/lib/dados/ext-live";
-import { configAutomacoes } from "@/lib/dados/automacoes";
 import { ErroDominio } from "@/lib/dados/erros";
 import { modoDemo } from "@/lib/env";
 
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
 
     if (licenca.estado === "revogada") {
       return NextResponse.json(
-        { ok: false, erro: "revogada", motivo: licenca.revogadaMotivo },
+        { ok: false, erro: "revogada", motivo: licenca.revogadaMotivo, detalhe: licenca.revogadaMotivo },
         { status: 403 },
       );
     }
@@ -139,9 +139,9 @@ export async function GET(request: NextRequest) {
           })
         : null;
 
-    const [protecao, automacoes] = await Promise.all([
+    const [protecao, plano] = await Promise.all([
       revisaoDoManual(licenca.perfilId),
-      configAutomacoes(licenca.perfilId),
+      planoVigente(licenca.perfilId),
     ]);
 
     return NextResponse.json(
@@ -159,16 +159,17 @@ export async function GET(request: NextRequest) {
           ...licenca.recursos,
           // Dois freios independentes (PLANO.md §6): por conta, na licença; na
           // base inteira, em `configuracoes`.
-          chat: licenca.chat && licenca.recursos.chat && !chatDesligado,
+          // Sem plano vigente o chat não responde — a mesma regra que tranca o
+          // painel lateral da extensão.
+          chat: plano && licenca.chat && licenca.recursos.chat && !chatDesligado,
           chatDesligadoNaBase: chatDesligado,
         },
         // Viaja no batimento, e não numa rota própria: a extensão já chama esta
         // a cada dois minutos, e a revisão é um aviso, não uma consulta que
         // alguém faz de propósito.
         protecao,
-        // O sino toca no painel lateral, que é quem tem contexto de áudio. A
-        // extensão precisa saber se está ligado sem perguntar de novo.
-        automacoes: { sinoAtivo: automacoes.sinoAtivo },
+        // A extensão tranca e desliga as automações locais sem plano vigente.
+        plano: { ativo: plano },
         versao: versao
           ? {
               publicada: versao.versao,

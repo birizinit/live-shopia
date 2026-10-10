@@ -218,7 +218,7 @@ export function ListaProdutos({
         <div className="mb-5 flex flex-wrap items-center gap-2 rounded-md border border-primary-border bg-primary-soft px-3 py-2 text-sm text-primary-soft-fg">
           <Pin className="size-4 shrink-0" aria-hidden />
           <span className="min-w-0">
-            Fixado na live: <strong className="font-semibold">{fixado.nome}</strong>
+            Em destaque nas respostas: <strong className="font-semibold">{fixado.nome}</strong>
           </span>
           <button
             type="button"
@@ -250,10 +250,10 @@ export function ListaProdutos({
                 aoExcluir={() => pedirExclusao(produto)}
                 aoFixar={() =>
                   executar(() => alternarFixado(produto.id, !produto.fixado), {
-                    titulo: produto.fixado ? "Produto desafixado" : "Produto fixado na live",
+                    titulo: produto.fixado ? "Destaque removido" : "Produto em destaque",
                     texto: produto.fixado
                       ? undefined
-                      : "É ele que a live destaca enquanto estiver no ar.",
+                      : "É sobre ele que as respostas do manual falam. Quem fixa na tela do TikTok é a extensão (“Fixar produto”).",
                   })
                 }
                 aoArquivar={() =>
@@ -427,7 +427,7 @@ function CartaoProduto({
         {produto.fixado && (
           <Badge tom="marca">
             <Pin className="mr-1 size-3" aria-hidden />
-            Fixado na live
+            Em destaque
           </Badge>
         )}
         {arquivado && <Badge tom="alerta">Arquivado</Badge>}
@@ -469,7 +469,7 @@ function CartaoProduto({
 
           {!arquivado && (
             <AcaoIcone
-              rotulo={produto.fixado ? `Desafixar ${produto.nome}` : `Fixar ${produto.nome} na live`}
+              rotulo={produto.fixado ? `Tirar ${produto.nome} do destaque` : `Pôr ${produto.nome} em destaque`}
               icone={produto.fixado ? PinOff : Pin}
               ativo={produto.fixado}
               desabilitado={ocupado}
@@ -638,8 +638,8 @@ function Vazio({
       icone={PackageOpen}
       titulo="Comece pelo produto"
       texto={
-        "O produto é o ponto de partida da live: é ele que a Shopia fixa na tela e " +
-        "é sobre ele que ela responde no chat. Cadastre nome, preço, cupom e link — " +
+        "O produto é o ponto de partida da live: é sobre ele que a Shopia responde " +
+        "no chat (quem fixa na tela do TikTok é a extensão). Cadastre nome, preço, cupom e link — " +
         "é o que a audiência mais pergunta e você não vai querer procurar ao vivo."
       }
       acao={

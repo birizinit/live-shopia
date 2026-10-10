@@ -1,4 +1,14 @@
-import { HandHeart, MessagesSquare, MonitorCheck, Pin, ShieldCheck } from "lucide-react";
+import {
+  BellRing,
+  MessageSquareText,
+  MessagesSquare,
+  MonitorCheck,
+  Pin,
+  ShieldAlert,
+  ShieldCheck,
+  Timer,
+  UserX,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import type { RecursosExtensao } from "@/lib/dados/extensao";
@@ -37,43 +47,66 @@ type Recurso = {
 
 const RECURSOS: Recurso[] = [
   {
-    icone: MessagesSquare,
-    titulo: "Responde o chat pelo manual",
+    icone: Timer,
+    titulo: "Timer de encerramento",
     texto:
-      "Casa o comentário com uma linha do manual e devolve a resposta que você escreveu, sem mudar uma palavra. Pergunta que não está no manual ela deixa passar — e anota, para você cadastrar depois.",
-    chave: "chat",
+      "Você escolhe a duração (1h a 8h, ou os minutos que quiser) e ela encerra a live sozinha quando zerar. Dá para pausar e retomar no meio.",
   },
   {
-    icone: HandHeart,
-    titulo: "Dá boas-vindas por nome",
+    icone: ShieldAlert,
+    titulo: "Proteção contra violação",
     texto:
-      "Quem entra é cumprimentado pelo apelido que aparece no chat, não por um “olá, pessoal” genérico que todo mundo já aprendeu a ignorar.",
-    chave: "chat",
+      "Vigia a tela da live e, se o TikTok mostrar aviso de violação, encerra na hora — ou continua pelo tempo que você escolher e então encerra.",
   },
   {
     icone: Pin,
     titulo: "Fixa o produto na tela",
     texto:
-      "Fixa o produto que você escolher no LIVE Studio, e pode rodar entre eles sozinha durante a live. Na primeira vez você aponta os botões na sua tela — o painel de produtos muda de conta para conta, e a Shopia prefere perguntar a arriscar clicar no lugar errado.",
+      "Na página da sua live: agora, ou automático a cada 18–30 s. Com “Tem cupom na lista”, pula o card do cupom e fixa o produto de baixo. Se a sua conta tiver um layout diferente, você ensina o botão uma vez.",
+  },
+  {
+    icone: MessageSquareText,
+    titulo: "Comentários automáticos",
+    texto:
+      "Uma mensagem por linha, postadas em rodízio no chat com intervalo aleatório entre o mínimo e o máximo que você definir.",
+  },
+  {
+    icone: UserX,
+    titulo: "Bloqueio por nome",
+    texto:
+      "Quem entra na live com uma palavra da sua lista no nome (“sorteio”, “promo”, “link”) é bloqueado na hora. A lista dos bloqueados fica para baixar.",
+  },
+  {
+    icone: BellRing,
+    titulo: "Aviso de venda no celular",
+    texto:
+      "Cada venda que aparece na tela da live vira notificação no app Shopia do seu celular, com som de caixa registradora no computador.",
+  },
+  {
+    icone: MessagesSquare,
+    titulo: "Responde o chat pelo manual",
+    texto:
+      "Com “Ler a tela” ligado, cada comentário vai ao servidor, que escolhe a resposta no seu manual — sem mudar uma palavra — e dá boas-vindas pelo nome. Pergunta fora do manual ela deixa passar e anota.",
+    chave: "chat",
   },
   {
     icone: ShieldCheck,
     titulo: "Revisa o manual antes da live",
     texto:
-      "Procura no manual as frases que costumam fazer o TikTok restringir a live — mandar para o WhatsApp, pedir Pix por fora, prometer resultado — e aponta qual resposta corrigir. Ela avisa; quem decide é você.",
+      "Procura no manual as frases que costumam fazer o TikTok restringir a live — mandar para o WhatsApp, pedir Pix por fora, prometer resultado — e aponta qual resposta corrigir.",
   },
   {
     icone: MonitorCheck,
     titulo: "Roda só no navegador",
     texto:
-      "Nada de driver, cabo de áudio ou programa instalado no sistema. O Chrome aberto com a sua live e o LIVE Studio é tudo de que ela precisa.",
+      "Nada de driver, cabo de áudio ou programa instalado no sistema. O Chrome com a página da sua live aberta é tudo de que ela precisa.",
   },
 ];
 
 export type RecursosProps = {
   /** Sem arquivo servível, nada disto está em pé — e o cartão precisa dizer. */
   temPacote: boolean;
-  /** Nulo enquanto não houver token emitido: aí o plano ainda é desconhecido. */
+  /** Nulo enquanto a extensão não entrou na conta: aí o plano ainda é desconhecido. */
   recursos: RecursosExtensao | null;
   chatDesligadoNaBase: boolean;
 };

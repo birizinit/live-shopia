@@ -2,8 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import {
-  dentroDoLimite,
-  emitirLicenca,
   esquecerInstalacao,
   revogarLicenca,
 } from "@/lib/dados/extensao";
@@ -16,51 +14,14 @@ import { exigirUsuario } from "@/lib/sessao";
  * Mutações da tela da extensão.
  *
  * Nenhuma delas gasta crédito, então nenhuma passa por `debitarEEnfileirar` —
- * licença é direito do plano, não geração paga. O que precisa de trava aqui é
- * outro: emitir token é barato para nós e caro para o cliente (o token anterior
- * morre no mesmo UPDATE), então o teto existe para que clique repetido não vire
- * uma fila de tokens mortos.
+ * licença é direito do plano, não geração paga. Emitir o token não mora mais
+ * aqui: desde a 3.0 quem emite é o login da própria extensão (/api/ext/entrar).
  */
 
 const ROTA = "/extensao";
 
-export type EstadoTokenForm = {
-  erro?: string;
-  /** O token cru. Chega até aqui uma vez e não fica em lugar nenhum depois. */
-  token?: string;
-  /** true quando substituiu um token que já existia. */
-  rotacionado?: boolean;
-};
-
 const RECADO_DEMO =
-  "Modo demonstração: não há banco, então nenhuma licença é emitida de verdade.";
-
-export async function emitirTokenAcao(
-  _anterior: EstadoTokenForm,
-  formData: FormData,
-): Promise<EstadoTokenForm> {
-  const usuario = await exigirUsuario(ROTA);
-
-  if (modoDemo) return { erro: RECADO_DEMO };
-
-  // `jaTinha` vem do formulário porque só o render sabia o estado anterior — e
-  // depois do upsert essa informação já não existe na linha.
-  const jaTinha = formData.get("jaTinha") === "1";
-
-  try {
-    if (!(await dentroDoLimite(`ext:emitir:${usuario.id}`, 5, 3600))) {
-      return {
-        erro: "Você gerou tokens demais na última hora. Tente de novo daqui a pouco.",
-      };
-    }
-
-    const { token } = await emitirLicenca(usuario.id);
-    revalidatePath(ROTA);
-    return { token, rotacionado: jaTinha };
-  } catch (erro) {
-    return { erro: mensagem(erro) };
-  }
-}
+  "Modo demonstração: não há banco, então nada é desconectado de verdade.";
 
 export async function revogarLicencaAcao(): Promise<ResultadoAcao> {
   const usuario = await exigirUsuario(ROTA);
@@ -72,7 +33,7 @@ export async function revogarLicencaAcao(): Promise<ResultadoAcao> {
     revalidatePath(ROTA);
     return revogou
       ? { ok: true, dado: undefined }
-      : { ok: false, erro: "Não havia licença ativa para revogar." };
+      : { ok: false, erro: "Não havia extensão conectada." };
   } catch (erro) {
     return { ok: false, erro: mensagem(erro) };
   }

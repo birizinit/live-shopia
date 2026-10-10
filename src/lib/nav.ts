@@ -54,7 +54,7 @@ export const FERRAMENTAS: readonly GrupoNav[] = [
   {
     titulo: "A sua live",
     itens: [
-      { href: "/produtos", rotulo: "Produtos", icone: Package, descricao: "Cadastrar, editar e fixar o que é vendido na live" },
+      { href: "/produtos", rotulo: "Produtos", icone: Package, descricao: "Cadastrar e editar o que é vendido na live" },
       { href: "/manual", rotulo: "Manual", icone: BookOpenCheck, descricao: "As perguntas que a Shopia sabe responder no chat" },
       { href: "/painel", rotulo: "Painel ao vivo", icone: SlidersHorizontal, descricao: "Chat e respostas enquanto a live roda" },
       { href: "/ranking", rotulo: "Ranking", icone: Trophy, descricao: "Placar de vendedores por período" },
@@ -93,7 +93,7 @@ export const NAVEGACAO: readonly GrupoNav[] = [
         href: "/automacoes",
         rotulo: "Automações",
         icone: Zap,
-        descricao: "O que a Shopia faz sozinha: refixar o produto, avisos e reação a venda",
+        descricao: "Avisos programados e reação a carrinho e venda (o resto fica na extensão)",
       },
       { href: "/extensao", rotulo: "Extensão", icone: Puzzle, descricao: "Instalar, conectar e atualizar" },
       { href: "/live", rotulo: "Ao vivo", icone: Radio, inclui: ["/painel"], descricao: "Se a live está no ar e o que ela está fazendo" },

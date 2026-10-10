@@ -42,7 +42,8 @@ export default function ErroPainel({
           <div className="min-w-0">
             <CardTitulo>O painel não carregou — a live não parou</CardTitulo>
             <CardDescricao>
-              Quem transmite é a extensão no seu navegador. Esta tela só observa,
+              Quem transmite é você, pelo TikTok; a extensão segue cuidando da live no
+              Chrome. Esta tela só observa,
               então a falha dela não tira nada do ar. Recarregue para voltar a
               acompanhar; se quiser realmente parar, use a sala de live.
             </CardDescricao>

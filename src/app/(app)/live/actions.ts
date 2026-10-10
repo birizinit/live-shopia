@@ -8,7 +8,6 @@ import {
   ajustarModulosExtensao,
   configuracaoLive,
   desvincularConta,
-  iniciarLive,
   pararLive,
   pararTudo,
   salvarConfiguracaoLive,
@@ -167,22 +166,6 @@ export async function aceitarRiscoAcao(
   }
 }
 
-export async function iniciarLiveAcao(
-  _anterior: EstadoAcao = INICIAL,
-  formData: FormData,
-): Promise<EstadoAcao> {
-  const usuario = await exigirUsuario("/live");
-
-  try {
-    await iniciarLive(usuario.id, { contaId: texto(formData, "contaId") || null });
-
-    revalidarLive();
-    return { ok: true, mensagem: "Sessão aberta. A extensão assume em seguida." };
-  } catch (erro) {
-    return falhar(erro);
-  }
-}
-
 export async function pararLiveAcao(
   _anterior: EstadoAcao = INICIAL,
   formData: FormData,
@@ -192,7 +175,7 @@ export async function pararLiveAcao(
   try {
     await pararLive(usuario.id, texto(formData, "sessaoId"));
     revalidarLive();
-    return { ok: true, mensagem: "Live encerrada." };
+    return { ok: true, mensagem: "Sessão fechada. A extensão desliga no próximo contato." };
   } catch (erro) {
     return falhar(erro);
   }
@@ -232,7 +215,7 @@ export async function pararTudoAcao(
   try {
     await pararTudo(usuario.id);
     revalidarLive();
-    return { ok: true, mensagem: "Tudo parado: mixer, chat e a sessão da live." };
+    return { ok: true, mensagem: "Tudo parado: chat desligado e a extensão desliga no próximo contato." };
   } catch (erro) {
     return falhar(erro);
   }

@@ -1,4 +1,4 @@
-# Extensão Shopia (3.0)
+# Extensão Shopia (3.0.1)
 
 Painel lateral no formato da extensão de referência (LiveFox), com a paleta
 verde da Shopia. Liga e cuida da live no TikTok Shop: timer de encerramento,
@@ -52,6 +52,16 @@ notificações no celular e o histórico das últimas 30 sessões.
 | `conteudo.js` | Na aba do TikTok: detecta live e violação, encerra a live, fixa, comenta, bloqueia, lê vendas e o chat, barra de status na página |
 | `api.js` | Cliente da API, autenticado por token de licença |
 | `seletores.js` / `produtos.js` | Mapa remoto de seletores e âncoras aprendidas apontando na tela |
+
+**Na página da live**, com a extensão ligada: uma barra fina no topo
+(estado, aba, live, timer, scans, proteção) e um aviso arrastável com
+espectadores e vendas, 🛡 e ↻ para atualizar os números.
+
+**Desligar é desligar.** "Desligar a extensão" (ou o timer, a violação, o app)
+desliga também comentários automáticos, bloqueio, fixar automático e "Ler a
+tela". E comentar, bloquear e fixar sozinho só rodam com a extensão ligada. Se
+a extensão for desativada, removida ou recarregada no Chrome, o script que
+ficou na aba percebe em até 2 s e para tudo — antes ele seguia comentando.
 
 **Uma aba só age.** O service worker escolhe a aba do TikTok
 (`shopia_aba_alvo`); as outras ficam quietas. Duas abas comentando seria a

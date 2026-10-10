@@ -561,9 +561,11 @@ export function KillSwitch({
     <Card>
       <CardTitulo>Extensão e parada de emergência</CardTitulo>
       <CardDescricao>
-        Vale para esta conta, na hora — a extensão obedece no próximo contato.
-        Desligar aqui é mais rápido do que desinstalar, e é o que você usa se a
-        Shopia responder algo que não devia.
+        Vale para esta conta, na hora. O interruptor cala as respostas do servidor
+        (manual, boas-vindas, avisos). “Parar tudo” também fecha a sessão, e a
+        extensão desliga tudo no próximo contato (até 1 minuto) — inclusive timer,
+        fixar, comentários e bloqueio. A transmissão no TikTok continua: para
+        encerrá-la, use ⏻ no painel da extensão.
       </CardDescricao>
 
       <dl className="mt-4 flex flex-wrap gap-x-8 gap-y-2 text-sm">
@@ -606,7 +608,7 @@ export function KillSwitch({
           ligado={chat}
           aoMudar={alternar}
           rotulo="Automação de chat"
-          descricao="Lê os comentários e responde pelo manual, com a cadência configurada."
+          descricao="Com “Ler a tela” ligado na extensão, responde pelo manual, com a cadência configurada."
           desabilitado={!licenciada || pendente}
         />
       </div>
@@ -622,7 +624,7 @@ export function KillSwitch({
           Parar tudo agora
         </Button>
         <p className="mt-2 text-xs text-fg-subtle">
-          Desliga a automação do chat e encerra a sessão da live numa ação só.
+          Desliga as respostas e a extensão inteira numa ação só.
         </p>
       </div>
 
@@ -633,11 +635,11 @@ export function KillSwitch({
         rotuloConfirmar="Parar tudo"
         texto="Use quando algo estiver saindo errado no ar. É reversível: religar é um clique nos interruptores."
         perdas={[
-          "A Shopia para de responder imediatamente",
-          "As respostas automáticas no chat param",
+          "As respostas pelo manual param imediatamente",
           temSessao
-            ? "A sessão da live é encerrada e entra no histórico"
-            : "Nenhuma sessão aberta para encerrar",
+            ? "A extensão desliga no próximo contato: timer, fixar, comentários e bloqueio"
+            : "Nenhuma sessão aberta — a extensão não está ligada agora",
+          "A transmissão no TikTok continua (encerre pelo ⏻ da extensão)",
         ]}
         aoConfirmar={() => {
           pararTudo();

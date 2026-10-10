@@ -262,6 +262,16 @@ Nada disso bloqueia as fases 1 e 2:
 
 ## 10. O que está no ar e o que ainda não roda de verdade
 
+> **Atualização — extensão 3.0.0.** O áudio saiu do produto (migração 0026): a
+> extensão não injeta áudio no LIVE Studio, não usa cabo virtual e não inicia a
+> transmissão. Ela cuida da live aberta no Chrome — timer de encerramento,
+> proteção contra violação, fixar produto (com modo cupom), comentários
+> automáticos, bloqueio por nome, aviso de venda no celular e respostas pelo
+> manual ("Ler a tela"). Login por e-mail e senha, 1 conta = 1 dispositivo. A
+> extensão é a fonte da regra de negócio; a migração 0030 alinhou o banco a ela.
+> O que este documento diz sobre áudio, voz e LIVE Studio (§1, §4 e abaixo) é
+> histórico da decisão original, revertida na 0026.
+
 ### Atualização de 27/09/2026 — o que mudou desde o texto abaixo
 
 - **A extensão existe e está publicada** (1.0.2, 1.1.0 e 1.1.1 em `ext_versoes`;

@@ -25,7 +25,7 @@ export default async function BemVindoPage() {
     <>
       <PageHeader
         titulo={`Boas-vindas, ${primeiroNome}`}
-        descricao="Alguns minutos para entender por que a ferramenta funciona assim — principalmente o que faz o seu crédito durar o mês inteiro."
+        descricao="Alguns minutos para entender por que a ferramenta funciona assim — principalmente por que ela só responde o que está no seu manual."
       />
 
       {tour.passos.length === 0 ? (

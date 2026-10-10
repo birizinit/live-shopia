@@ -61,10 +61,12 @@ export function abrirNoSite(caminho) {
 }
 
 export class ErroApi extends Error {
-  constructor(codigo, status, detalhe) {
+  constructor(codigo, status, detalhe, dados = null) {
     super(detalhe || codigo);
     this.codigo = codigo;
     this.status = status;
+    /** O corpo inteiro da resposta (ex.: `pelo` em sessao_encerrada). */
+    this.dados = dados;
   }
 }
 
@@ -150,7 +152,7 @@ async function chamar(caminho, { metodo = "GET", corpo = null, query = null } = 
   const dados = await resposta.json().catch(() => null);
 
   if (!resposta.ok || dados?.ok === false) {
-    throw new ErroApi(dados?.erro || "falhou", resposta.status, dados?.detalhe);
+    throw new ErroApi(dados?.erro || "falhou", resposta.status, dados?.detalhe, dados);
   }
 
   return dados;
@@ -178,21 +180,6 @@ export async function seletores(versaoConhecida) {
   return chamar("/api/ext/seletores", { query: { versao: versaoConhecida } });
 }
 
-/** URL de um bloco. Não passa por `chamar` porque o corpo é áudio, não JSON. */
-export async function urlDoBloco(arquivoId) {
-  return `${SERVIDOR}/api/ext/bloco?id=${encodeURIComponent(arquivoId)}`;
-}
-
-export async function baixarBloco(arquivoId) {
-  const chave = await token();
-  const resposta = await fetch(await urlDoBloco(arquivoId), {
-    headers: { authorization: `Bearer ${chave}` },
-    credentials: "omit",
-  });
-  if (!resposta.ok) throw new ErroApi("bloco", resposta.status, "bloco não veio");
-  return resposta.blob();
-}
-
 export async function abrirSessao({ contaTikTokId }) {
   return chamar("/api/ext/sessao", {
     metodo: "POST",
@@ -207,10 +194,11 @@ export async function baterSessao(sessaoId, espectadores) {
   });
 }
 
-export async function fecharSessao(sessaoId, erro = null) {
+/** `motivo` é como a live acabou (timer, violação, desligada) — não é erro. */
+export async function fecharSessao(sessaoId, erro = null, motivo = null) {
   return chamar("/api/ext/sessao", {
     metodo: "POST",
-    corpo: { acao: "fechar", sessaoId, erro },
+    corpo: { acao: "fechar", sessaoId, erro, motivo },
   });
 }
 
@@ -265,18 +253,6 @@ export async function confirmarRefixada(sessaoId) {
     metodo: "POST",
     corpo: { acao: "refixou", sessaoId },
   });
-}
-
-/**
- * Os interruptores das automações.
- *
- * Ler e alternar passa pelo servidor sempre, nunca por cópia local: a mesma
- * conta pode ter o painel do site aberto noutra janela, e dois lugares
- * guardando o mesmo interruptor é a receita de um desligar o que o outro
- * acabou de ligar. Aqui a extensão é tela, não fonte.
- */
-export async function automacoes(corpo) {
-  return chamar("/api/ext/automacoes", { metodo: "POST", corpo });
 }
 
 /**

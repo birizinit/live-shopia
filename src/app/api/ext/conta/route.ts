@@ -60,7 +60,11 @@ async function retrato(perfilId: string) {
     listarPlanos(),
   ]);
 
-  const ativa = assinatura?.status === "ativa";
+  // Vigente = ativa E dentro do prazo: cortesia e plano gravam `fim`, e nada
+  // muda o status quando ele passa.
+  const ativa =
+    assinatura?.status === "ativa" &&
+    (!assinatura.fim || new Date(assinatura.fim).getTime() > Date.now());
   const diasRestantes =
     ativa && assinatura?.fim
       ? Math.max(0, Math.ceil((new Date(assinatura.fim).getTime() - Date.now()) / 86_400_000))

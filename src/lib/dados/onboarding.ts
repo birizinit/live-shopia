@@ -346,7 +346,7 @@ function exemploDoTour(): EstadoTour {
       chave: "boas-vindas",
       titulo: "O que a Shopia faz",
       corpo:
-        "A Shopia cuida do chat da sua live no TikTok Shop: responde quem pergunta, dá boas-vindas pelo nome e fixa o produto na tela, enquanto você apresenta. Ela usa só o que você cadastrou — quando não sabe responder, cala e te avisa depois.",
+        "A Shopia cuida da sua live no TikTok Shop pelo Chrome: encerra no horário que você marcar ou quando o TikTok mandar aviso de violação, fixa o produto, posta comentários automáticos, bloqueia nomes suspeitos, avisa cada venda no seu celular e responde o chat só com o que está no seu manual. A transmissão continua sendo sua.",
       rotaAlvo: "/inicio",
       ordem: 10,
       obrigatorio: false,

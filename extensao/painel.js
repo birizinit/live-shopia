@@ -590,10 +590,10 @@ function checarVersao() {
     ${licenca.notas ? `<div class="at-n">${esc(licenca.notas)}</div>` : ""}
     <a class="at-btn" href="#" id="atBaixar">⬇️ Baixar a nova versão</a>
     <details class="at-ajuda"><summary>Como instalar</summary><ol>
-      <li>Baixe e <b>extraia</b> o ZIP numa pasta fixa (não apague ela depois).</li>
-      <li>Abra <b>chrome://extensions</b> e ligue o <b>Modo do desenvolvedor</b>.</li>
-      <li>Remova a Shopia antiga (botão Remover).</li>
-      <li><b>Carregar sem compactação</b> → escolha a pasta que você extraiu.</li>
+      <li>Baixe e <b>extraia</b> o ZIP.</li>
+      <li>Copie o conteúdo da pasta <b>shopia-extensao</b> por cima da pasta de sempre (a que o Chrome já usa).</li>
+      <li>Abra <b>chrome://extensions</b> e clique em <b>↻</b> na Shopia.</li>
+      <li>Pronto — você continua conectada, sem entrar de novo.</li>
     </ol></details>
     ${licenca.atualizacaoObrigatoria ? "" : '<button class="at-x" id="atX">Agora não</button>'}
   </div>`;
@@ -681,7 +681,10 @@ function ligarEventos() {
     const r = await enviar({ tipo: "fixar_agora" });
     if (!r?.r) toast("Abra a página da sua live no TikTok para fixar.");
   });
-  $("togFixar").addEventListener("click", () => salvarAuto({ fixar: !auto.fixar }));
+  $("togFixar").addEventListener("click", () => {
+    if (!auto.fixar && !ciclo.ativo) return toast("Ligue a extensão primeiro — o fixar automático roda com ela ligada.");
+    return salvarAuto({ fixar: !auto.fixar });
+  });
   $("togCupom").addEventListener("click", () => salvarAuto({ cupom: !auto.cupom }));
 
   // Violação
@@ -711,6 +714,7 @@ function ligarEventos() {
     $(id).addEventListener("change", () => salvarComentarios());
   }
   $("btnComentarIniciar").addEventListener("click", async () => {
+    if (!ciclo.ativo) return toast("Ligue a extensão primeiro — os comentários rodam com ela ligada.");
     if (!linhas($("listaComentarios").value).length) return toast("Escreva ao menos uma mensagem (uma por linha).");
     await salvarComentarios({ ativo: true });
     $("comentarioLog").textContent = "▶ Iniciado — o primeiro sai agora.";
@@ -729,6 +733,7 @@ function ligarEventos() {
   $("togBloqueio").addEventListener("click", async () => {
     const palavras = linhas($("palavrasBloqueio").value).slice(0, 200);
     if (!auto.bloqueio?.ativo && !palavras.length) return toast("Escreva ao menos uma palavra (uma por linha).");
+    if (!auto.bloqueio?.ativo && !ciclo.ativo) return toast("Ligue a extensão primeiro — o bloqueio roda com ela ligada.");
     await salvarAuto({ bloqueio: { ativo: !auto.bloqueio?.ativo, palavras } });
   });
   $("btnBaixarBloqueados").addEventListener("click", async () => {

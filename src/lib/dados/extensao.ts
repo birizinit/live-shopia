@@ -323,6 +323,7 @@ export async function estadoExtensao(perfilId: string): Promise<EstadoExtensao> 
                exists (
                  select 1 from assinaturas
                   where perfil_id = ${perfilId} and status = 'ativa'
+                    and (fim is null or fim > now())
                ) as assinatura
       `,
       configuracao("ext.heartbeat_segundos", 120),
@@ -548,6 +549,24 @@ export type LicencaEmitida = {
  * Não passa por `debitarEEnfileirar` porque não há gasto de crédito aqui —
  * licença é direito do plano, não geração paga.
  */
+/**
+ * A assinatura está valendo AGORA?
+ *
+ * `status = 'ativa'` sozinho não basta: cortesia e plano pago gravam `fim`, e
+ * nada muda o status quando ele passa. A extensão tranca sem plano vigente, e
+ * o servidor precisa dizer a mesma coisa que ela.
+ */
+export async function planoVigente(perfilId: string): Promise<boolean> {
+  const linhas = await bd()<{ ok: boolean }[]>`
+    select exists (
+      select 1 from assinaturas
+       where perfil_id = ${perfilId} and status = 'ativa'
+         and (fim is null or fim > now())
+    ) as ok
+  `;
+  return linhas[0]?.ok === true;
+}
+
 export async function emitirLicenca(perfilId: string): Promise<LicencaEmitida> {
   return comTraducao(async () => {
     const sql = bd();
@@ -557,9 +576,18 @@ export async function emitirLicenca(perfilId: string): Promise<LicencaEmitida> {
         from assinaturas a
         join planos pl on pl.id = a.plano_id
        where a.perfil_id = ${perfilId} and a.status = 'ativa'
+         and (a.fim is null or a.fim > now())
        order by a.criado_em desc
        limit 1
     `;
+
+    // O que já existia: o hash vira "anterior" (a máquina antiga passa a ouvir
+    // "entrou em outro dispositivo" em vez de "token inválido"), e o freio do
+    // chat posto pelo painel ("Parar tudo") sobrevive ao login novo.
+    const atuais = await sql<{ token_hash: Buffer; chat: boolean }[]>`
+      select token_hash, chat from ext_licencas where perfil_id = ${perfilId}
+    `;
+    const atual = atuais[0] ?? null;
 
     const recursos = recursosDoPlano(planos[0] ?? null);
     const dias = Math.round(await configuracao("ext.licenca_graca_dias", 7));
@@ -573,7 +601,7 @@ export async function emitirLicenca(perfilId: string): Promise<LicencaEmitida> {
           ${hashDoToken(token)},
           ${token.slice(-4)},
           ${planos[0]?.id ?? null},
-          ${recursos.chat},
+          ${atual ? atual.chat : recursos.chat},
           ${comoJson(recursos)},
           ${dias}
         )
@@ -581,6 +609,13 @@ export async function emitirLicenca(perfilId: string): Promise<LicencaEmitida> {
 
     const linha = linhas[0];
     if (!linha) throw new ErroDominio("desconhecido", "A licença não foi emitida.");
+
+    if (atual) {
+      await sql`
+        update ext_licencas set token_hash_anterior = ${atual.token_hash}
+         where perfil_id = ${perfilId}
+      `;
+    }
 
     return { token, licenca: montarLicenca(linha) };
   });
@@ -623,7 +658,7 @@ export async function autenticarLicenca(
   `;
 
   const linha = linhas[0];
-  if (!linha) return null;
+  if (!linha) return substituida(token);
 
   const licenca = montarLicenca(linha);
   return {
@@ -635,6 +670,36 @@ export async function autenticarLicenca(
     recursos: licenca.recursos,
     expiraEm: licenca.expiraEm,
     revogadaMotivo: licenca.revogadaMotivo,
+  };
+}
+
+export const MOTIVO_SUBSTITUIDA = "Esta conta entrou em outro dispositivo.";
+
+/**
+ * O token acabou de ser trocado por um login em outra máquina.
+ *
+ * Responder "token inválido" deixava a máquina antiga rodando as automações
+ * locais; "revogada" é o que a extensão entende como PARAR.
+ */
+async function substituida(token: string): Promise<LicencaAutenticada | null> {
+  const linhas = await bd()<(LinhaLicenca & { perfil_id: string })[]>`
+    select id, perfil_id, token_dica, canal, chat, recursos,
+           emitida_em, rotacionada_em, expira_em, revogada_em, revogada_motivo
+      from ext_licencas
+     where token_hash_anterior = ${hashDoToken(token)}
+  `;
+  const linha = linhas[0];
+  if (!linha) return null;
+  const licenca = montarLicenca(linha);
+  return {
+    licencaId: licenca.id,
+    perfilId: linha.perfil_id,
+    estado: "revogada",
+    canal: licenca.canal,
+    chat: false,
+    recursos: licenca.recursos,
+    expiraEm: licenca.expiraEm,
+    revogadaMotivo: MOTIVO_SUBSTITUIDA,
   };
 }
 
@@ -656,6 +721,7 @@ export async function renovarSeAssinaturaAtiva(
     select renovar_licenca_ext(a.perfil_id, ${Math.round(dias)}) as expira_em
       from assinaturas a
      where a.perfil_id = ${perfilId} and a.status = 'ativa'
+       and (a.fim is null or a.fim > now())
      limit 1
   `;
   return linhas[0]?.expira_em?.toISOString() ?? null;

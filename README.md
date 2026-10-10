@@ -1,8 +1,15 @@
 # Shopia
 
-Plataforma de live commerce com IA: gera o roteiro de vendas, sintetiza a voz da
-apresentadora e monta o áudio contínuo da live — com acompanhamento de vendas em
-tempo real.
+Plataforma de live commerce para o TikTok Shop: app web (produtos, manual de
+respostas, planos) + extensão do Chrome ([`extensao/`](extensao/LEIA-ME.md),
+v3.0.0) que cuida da live — timer de encerramento, proteção contra violação,
+fixar produto, comentários automáticos, bloqueio por nome, aviso de venda no
+celular e respostas no chat pelo manual.
+
+**A extensão é a fonte da regra de negócio.** O app existe para prepará-la
+(produto, manual, conta, plano) e para obedecer o que ela faz: sem plano vigente
+ela tranca; a sessão de live é aberta por ela ("Ligar a extensão" / "Ler a
+tela"); "Desligar" e "Parar tudo" no app desligam a extensão no próximo contato.
 
 Identidade visual em **verde**, com **tema claro e escuro** desde a fundação.
 
@@ -30,12 +37,11 @@ caracteres) para ver cada papel. Para ligar no banco de verdade, copie
 
 ## Estado
 
-**Fases 0 a 7 construídas, extensão publicada (1.1.1; a 1.2.0 está pronta em
-`extensao/`).** O caminho do usuário é o assistente `/criar`: o que vender →
-roteiro escrito pela IA e voz → áudio, que entra sozinho na montagem que a
-extensão toca. O menu tem 7 itens; as telas de ajuste fino ficam em
-`/ferramentas`. 61 tabelas, fila de jobs em Postgres, worker no próprio
-processo, Claude e ElevenLabs integrados.
+**Fases 0 a 7 construídas; extensão 3.0.0 em `extensao/`** (login por e-mail e
+senha, sem código de licença). O download sai da própria pasta do deploy, em
+`/extensao`. O caminho do usuário é o assistente `/criar`: produto → manual →
+extensão. O menu tem 7 itens; as telas de ajuste fino ficam em `/ferramentas`.
+Fila de jobs em Postgres e worker no próprio processo.
 
 O que **não** está pronto para cobrar de um cliente, dito sem rodeio:
 a corrente de pagamento não existe (não há adaptador de gateway, rota de
@@ -51,7 +57,8 @@ registra venda, por decisão de segurança; e os seletores do chat do TikTok
 | [`docs/DESIGN-SYSTEM.md`](docs/DESIGN-SYSTEM.md) | Paleta verde, claro/escuro, contraste verificado |
 | [`design/tokens.css`](design/tokens.css) | Tokens em duas camadas |
 | [`db/`](db/README.md) | Migrações e as decisões fixadas no schema |
-| [`docs/referencia-livefox.md`](docs/referencia-livefox.md) | Mapeamento do concorrente, usado como spec |
+| [`extensao/LEIA-ME.md`](extensao/LEIA-ME.md) | A extensão 3.0: o que ela faz e as rotas que usa |
+| [`docs/referencia-livefox.md`](docs/referencia-livefox.md) | Mapeamento do concorrente (histórico; câmera virtual, áudio/cabo virtual e LIVE Studio NÃO fazem parte da Shopia) |
 
 ## Stack
 
@@ -105,9 +112,7 @@ Três coisas que valem saber antes de mexer:
   enfileiramento acontecem no mesmo commit, e a chave de idempotência nasce no
   render do formulário — não dentro da action, senão o duplo clique cobra duas
   vezes.
-- **O áudio de 3h não existe como arquivo.** São ~45 blocos de ~2 MB tocados em
-  ordem. Repetir a lista em laço não gasta crédito, e é isso que sustenta a
-  margem do produto.
+
 
 ## Segurança — o que foi feito diferente do original
 

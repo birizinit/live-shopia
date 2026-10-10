@@ -37,10 +37,10 @@ import { numero } from "@/lib/utils";
 export const metadata: Metadata = { title: "Extensão" };
 
 const ROTULO_ESTADO: Record<EstadoLicenca, string> = {
-  sem_licenca: "Sem licença",
-  ativa: "Licença ativa",
-  expirada: "Licença expirada",
-  revogada: "Licença revogada",
+  sem_licenca: "Não conectada",
+  ativa: "Conectada",
+  expirada: "Conexão expirada",
+  revogada: "Desconectada",
 };
 
 const INDICADOR: Record<EstadoLicenca, EstadoIndicador> = {
@@ -55,12 +55,7 @@ const DO_PLANO: { chave: keyof RecursosExtensao; rotulo: string; resumo: string 
   {
     chave: "chat",
     rotulo: "Respostas no chat",
-    resumo: "Lê os comentários e responde pelo manual, com cadência humana.",
-  },
-  {
-    chave: "analise_live",
-    rotulo: "Análise da live",
-    resumo: "Manda para o painel o que aconteceu durante a transmissão.",
+    resumo: "Com “Ler a tela” ligado, responde pelo manual, com cadência humana.",
   },
 ];
 
@@ -168,16 +163,27 @@ export default async function ExtensaoPage() {
 
       {estadoLicenca === "revogada" && (
         <Alerta tom="erro" className="mb-4">
-          <strong>Licença revogada.</strong>{" "}
-          {licenca?.revogadaMotivo ?? "Fale com o suporte para reativar."} Gerar um token
-          novo reativa a licença.
+          <strong>Extensão desconectada.</strong>{" "}
+          {licenca?.revogadaMotivo ?? ""} Para voltar, entre de novo com e-mail e senha no
+          painel da extensão.
         </Alerta>
       )}
 
       {estado.chatDesligadoNaBase && (
         <Alerta tom="info" className="mb-4">
           As respostas automáticas no chat estão desligadas para toda a base neste momento.
-          Boas-vindas e produto fixado continuam funcionando normalmente.
+          Timer, proteção contra violação, fixar produto, comentários automáticos e bloqueio
+          por nome continuam funcionando.
+        </Alerta>
+      )}
+
+      {!estado.assinaturaAtiva && (
+        <Alerta tom="erro" className="mb-4">
+          <strong>A extensão só funciona com plano ativo.</strong> Sem ele, o painel dela
+          fica trancado na tela “Assinar / Renovar plano”.{" "}
+          <Link href="/planos" className="font-medium underline underline-offset-2">
+            Ver planos
+          </Link>
         </Alerta>
       )}
 
@@ -200,18 +206,18 @@ export default async function ExtensaoPage() {
       {/* 3 — Licença, plano e máquinas: o que já operava antes desta reescrita. */}
       <Secao
         id="licenca"
-        titulo="Licença e instalações"
-        descricao="O token que prova quem você é, o que o seu plano libera e as máquinas que já se apresentaram."
+        titulo="Conta conectada e máquina"
+        descricao="Sua conta na extensão, o que o seu plano libera e a máquina conectada."
       >
         <div className="grid gap-4 lg:grid-cols-[1fr_340px] lg:items-start">
           <div className="space-y-4">
             <Card>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <CardTitulo>Licença</CardTitulo>
+                  <CardTitulo>Conta na extensão</CardTitulo>
                   <CardDescricao>
-                    A extensão prova quem é apresentando um token. Guardamos só um resumo
-                    criptográfico dele, como fazemos com a sua sessão.
+                    A extensão entra com o seu e-mail e senha. 1 conta = 1 dispositivo:
+                    entrar em outra máquina desconecta esta.
                   </CardDescricao>
                 </div>
                 <Indicador
@@ -222,18 +228,6 @@ export default async function ExtensaoPage() {
 
               {licenca && (
                 <Propriedades className="mt-4" colunas={2}>
-                  <Propriedade
-                    rotulo="Token"
-                    valor={
-                      licenca.dica ? (
-                        <span className="font-[family-name:var(--font-mono)]">
-                          shpx_…{licenca.dica}
-                        </span>
-                      ) : (
-                        "—"
-                      )
-                    }
-                  />
                   <Propriedade
                     rotulo="Canal"
                     valor={licenca.canal === "canario" ? "Canário" : "Estável"}
@@ -278,8 +272,9 @@ export default async function ExtensaoPage() {
             <Card>
               <CardTitulo>Recursos liberados</CardTitulo>
               <CardDescricao>
-                O retrato do plano no momento em que o token foi emitido. Mudar de plano
-                exige gerar um token novo para a extensão enxergar a diferença.
+                O retrato do plano no momento em que a extensão entrou. Mudou de plano?
+                No painel da extensão, saia e entre de novo (ou toque em “Já paguei —
+                verificar”).
               </CardDescricao>
 
               {licenca ? (
@@ -327,7 +322,7 @@ export default async function ExtensaoPage() {
                 </ul>
               ) : (
                 <p className="mt-4 text-sm text-fg-muted">
-                  Gere o token acima para ver o que o seu plano libera.
+                  Entre na extensão com sua conta para ver o que o seu plano libera.
                 </p>
               )}
 
@@ -367,7 +362,7 @@ export default async function ExtensaoPage() {
                   <EstadoVazio
                     icone={MonitorSmartphone}
                     titulo="Nenhuma máquina conectada"
-                    texto="Depois de instalar a extensão e colar o token, a máquina aparece aqui em até dois minutos."
+                    texto="Depois de instalar e entrar com e-mail e senha, a máquina aparece aqui em até dois minutos."
                   />
                 ) : (
                   <TabelaInstalacoes
@@ -412,7 +407,7 @@ export default async function ExtensaoPage() {
       {/* 5 — O que acontece a cada live, já com a extensão conectada. */}
       <Secao
         id="no-ar"
-        titulo="Entrar no ar, na prática"
+        titulo="Ligar a extensão, na prática"
         descricao="Com a extensão instalada e conectada, é isto a cada live."
       >
         <Card>
@@ -460,13 +455,14 @@ function AvisoDeRisco({ aceito }: { aceito: boolean }) {
             <h3
               className={`text-base font-semibold ${aceito ? "text-fg" : "text-danger"}`}
             >
-              Automatizar o LIVE Studio pode custar a sua conta do TikTok
+              Automatizar a sua live pode custar a sua conta do TikTok
             </h3>
             {aceito && <Badge tom="sucesso">Aceite registrado</Badge>}
           </div>
 
           <p className="mt-2 text-sm text-fg-muted">
-            Não existe modo oficial de automatizar o LIVE Studio. Fazer isso tende a violar
+            Não existe modo oficial de automatizar ações na live (comentar, fixar,
+            bloquear, encerrar). Fazer isso tende a violar
             os Termos de Serviço do TikTok, e a consequência — restrição de alcance,
             suspensão da live ou bloqueio da conta — recai sobre{" "}
             <strong className="font-semibold text-fg">a sua conta</strong>, não sobre a

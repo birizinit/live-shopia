@@ -38,7 +38,7 @@ export default async function ManualPage() {
     <>
       <PageHeader
         titulo="Manual do produto"
-        descricao="O que a Shopia responde no chat. Ela nunca inventa: se a pergunta não estiver aqui, ela cala e te avisa."
+        descricao="O que a Shopia responde no chat — com “Ler a tela” ligado no ✦ IA da extensão. Ela nunca inventa: se a pergunta não estiver aqui, ela cala e te avisa."
       />
 
       {criados > 0 && (
