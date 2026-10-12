@@ -1,9 +1,9 @@
-# Extensão Shopia (3.1.0)
+# Extensão Shopia (3.2.0)
 
 Painel lateral no formato da extensão de referência (LiveFox), com a paleta
 verde da Shopia. Liga e cuida da live no TikTok Shop: timer de encerramento,
 proteção contra violação, fixar produto (com modo cupom), comentários
-automáticos, bloqueio por nome, aviso de venda no celular e respostas no chat
+automáticos, moderação do chat, bloqueio por nome, aviso de venda no celular e respostas no chat
 pelo manual.
 
 Só precisa do navegador. Nada é instalado no sistema operacional.
@@ -21,8 +21,11 @@ Quando sair versão nova, o painel mostra o aviso com o link para baixar.
 
 ## O painel
 
-**Cabeçalho:** `✦ IA` (sua conta, créditos, "Ler a tela", contas TikTok e
-planos), `↺` (reset), `⏻` (encerrar a live agora) e o selo ATIVO/INATIVO.
+**Cabeçalho:** **IA** (sua conta, créditos, "Ler a tela", contas TikTok e
+planos), reset, encerrar a live agora (botão vermelho) e o selo ATIVO/INATIVO.
+
+Os ícones são SVG de traço (sprite no `painel.html`, o mesmo desenho na
+barra e nos avisos da página) — nenhum emoji na interface.
 
 **Aba Início**
 
@@ -36,6 +39,7 @@ planos), `↺` (reset), `⏻` (encerrar a live agora) e o selo ATIVO/INATIVO.
 | Tem cupom na lista | Pula o 1º item (o card do cupom) e fixa o de baixo |
 | Proteção Contra Violação | Ao ver o aviso do TikTok: encerra na hora, ou continua por N minutos e encerra |
 | Comentários Automáticos | Uma mensagem por linha, em rodízio, com intervalo aleatório entre mín. e máx. |
+| Moderação do Chat | Modo seguro: ninguém é silenciado nem bloqueado pelo texto. **Alertar reclamações** ("não chegou", "golpe"…): som, aviso na página e na lista do painel, para você responder. **Avisar no chat**: link, telefone ou palavra proibida recebe um aviso educado (`{nome}`), uma vez por pessoa na live e no máximo um a cada 20 s. Lista "Nunca moderar"; mensagens com tag Host/moderador e o que a própria Shopia escreveu são ignoradas |
 | Bloqueio por Nome | Bloqueia quem entra com palavra da lista no nome (palavra inteira) |
 | Carrinho e Cliques | No painel de produtos da live: avisa quem adicionou ao carrinho (pela Atividade, com o nome) e quando os cliques/carrinhos de um produto sobem (pelos contadores do cartão). Opcional: comentar no chat com `{nome}` e `{produto}`, com intervalo mínimo |
 | Log de Eventos | Tudo que aconteceu, em tempo real |
@@ -56,11 +60,11 @@ notificações no celular e o histórico das últimas 30 sessões.
 
 **Na página da live**, com a extensão ligada: uma barra fina no topo
 (estado, aba, live, timer, scans, proteção) e um aviso arrastável com
-espectadores e vendas, 🛡 e ↻ para atualizar os números.
+espectadores e vendas, o escudo da proteção e o botão de atualizar os números.
 
 **Desligar é desligar.** "Desligar a extensão" (ou o timer, a violação, o app)
-desliga também comentários automáticos, bloqueio, fixar automático e "Ler a
-tela". E comentar, bloquear e fixar sozinho só rodam com a extensão ligada. Se
+desliga também comentários automáticos, bloqueio, carrinho, moderação, fixar
+automático e "Ler a tela". E comentar, bloquear e fixar sozinho só rodam com a extensão ligada. Se
 a extensão for desativada, removida ou recarregada no Chrome, o script que
 ficou na aba percebe em até 2 s e para tudo — antes ele seguia comentando.
 
