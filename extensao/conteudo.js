@@ -327,18 +327,54 @@
   // LIVE ATIVA? e VIOLAÇÃO
   // =========================================================================
 
+  // Pistas de que a live está no ar, em português, inglês e espanhol: o painel
+  // de produtos da live (shop.tiktok.com/streamer/live/...) abre no idioma da
+  // região da loja, e não tem o botão "Encerrar" — esse fica no LIVE Studio.
+  const BOTAO_ENCERRAR = /^(encerrar|finalizar|end|stop|parar|terminar)\b.{0,20}(live|transmiss|stream|en vivo)|^(end|encerrar) ?live$/i;
+  const TEXTO_AO_VIVO =
+    /\b(ao vivo|live agora|transmitindo|você está ao vivo|live now|you'?re live|on air|streaming now|en vivo|en directo|live duration|duração da live|tempo de live|live time)\b/i;
+  const SELO_AO_VIVO = /^(live|ao vivo|en vivo|on air)$/i;
+  const METRICA_DA_LIVE = /\b(espectadores|viewers|watching|assistindo|gmv|visualiza|espectadores atuais|current viewers)\b/i;
+  const ehPainelDaLive = () => /\/streamer\/live|live_studio|\/live\b/i.test(location.pathname);
+
+  let ultimoMotivoLive = null;
+
+  /**
+   * A live está no ar? Qualquer uma destas basta:
+   *   1. botão de encerrar a live na tela;
+   *   2. produto FIXADO (botão "Desafixar/Unpin"): só existe produto fixado
+   *      durante a live — é a pista mais firme do painel de produtos;
+   *   3. selo/texto "ao vivo" junto de um número da live (espectadores, GMV);
+   *   4. no painel da live, números da live junto dos botões de fixar.
+   */
   function verificarLiveAtiva() {
-    const botoes = [...document.querySelectorAll("button")];
-    const temEncerrar = botoes.some((b) => /encerrar|end live|parar live/i.test(textoDe(b)));
-    const temEspectadores = Boolean(
-      document.querySelector('[data-e2e="person-count"],[class*="viewer" i],[class*="spectator" i],[class*="audience" i]'),
+    const botoes = [...document.querySelectorAll('button,[role="button"]')].filter(visivel);
+    const textos = botoes.map((b) => textoDe(b).toLowerCase()).filter((t) => t && t.length < 40);
+
+    const temEncerrar = textos.some((t) => BOTAO_ENCERRAR.test(t));
+    const temDesafixar = textos.some(ehDesafixar);
+    const temFixar = textos.some(ehFixar);
+
+    const corpo = document.body?.innerText || "";
+    const temTextoAoVivo = TEXTO_AO_VIVO.test(corpo);
+    const temSelo = [...document.querySelectorAll("span,div,p")].some(
+      (el) => el.children.length === 0 && SELO_AO_VIVO.test((el.textContent || "").trim()) && visivel(el),
     );
-    let temAoVivo = false;
-    if (!temEncerrar) {
-      const corpo = (document.body?.innerText || "").toLowerCase();
-      temAoVivo = /ao vivo|live agora|transmitindo/.test(corpo);
+    const temMetrica =
+      METRICA_DA_LIVE.test(corpo) ||
+      Boolean(document.querySelector('[data-e2e="person-count"],[class*="viewer" i],[class*="audience" i]'));
+
+    let motivo = null;
+    if (temEncerrar) motivo = "botão de encerrar";
+    else if (temDesafixar) motivo = "produto fixado";
+    else if ((temTextoAoVivo || temSelo) && temMetrica) motivo = "selo ao vivo + números da live";
+    else if (ehPainelDaLive() && temMetrica && temFixar) motivo = "painel da live com números e produtos";
+
+    if (motivo !== ultimoMotivoLive) {
+      ultimoMotivoLive = motivo;
+      registrar(motivo ? `LIVE detectada (${motivo})` : "LIVE não detectada nesta página", motivo ? "ok" : "warn");
     }
-    return { liveAtiva: temEncerrar || (temAoVivo && temEspectadores), abaConectada: true };
+    return { liveAtiva: Boolean(motivo), abaConectada: true, motivo };
   }
 
   /**
