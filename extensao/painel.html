@@ -250,6 +250,48 @@
       </div>
     </div>
 
+    <!-- CARRINHO E CLIQUES -->
+    <div class="card open" id="cCarrinho">
+      <div class="ch">
+        <span class="ch-ico">🛒</span>
+        <div class="ch-info"><div class="ch-title">Carrinho e Cliques</div><div class="ch-sub">Avisa quem adiciona ao carrinho e quando clicam no produto</div></div>
+        <span class="cbadge boff" id="bCarrinho">Inativo</span>
+        <span class="cchev">▼</span>
+      </div>
+      <div class="cb">
+        <div class="frow">
+          <span class="fdesc">Monitorar carrinho e cliques<br><span class="dica">Lê o painel de produtos da live (Atividade e contadores de cada produto)</span></span>
+          <button class="tog" id="togCarrinho" aria-pressed="false"></button>
+        </div>
+        <div class="contadores">
+          <div><b id="totClique">0</b><span>👆 Cliques</span></div>
+          <div><b id="totCarrinho">0</b><span>🛒 Carrinho</span></div>
+          <div><b id="totCompra">0</b><span>💰 Compras</span></div>
+        </div>
+        <div class="eventos" id="listaEventosCarrinho"><span class="vazio">Nenhum evento ainda...</span></div>
+
+        <div class="sep"></div>
+        <div class="frow">
+          <span class="fdesc"><b>Comentar quando adicionarem ao carrinho</b></span>
+          <button class="tog" id="togComentarCarrinho" aria-pressed="false"></button>
+        </div>
+        <textarea id="textoCarrinho" class="baixo" maxlength="150" placeholder="{nome}, vi que você colocou no carrinho! 🛒"></textarea>
+        <div class="frow">
+          <span class="fdesc"><b>Comentar quando clicarem no produto</b></span>
+          <button class="tog" id="togComentarClique" aria-pressed="false"></button>
+        </div>
+        <textarea id="textoClique" class="baixo" maxlength="150" placeholder="Tem gente de olho no {produto}! 👀"></textarea>
+        <div class="frow">
+          <span class="fdesc">Intervalo mínimo entre comentários</span>
+          <div class="frow-fim">
+            <input type="number" class="isml" id="intervaloCarrinho" value="60" min="15" max="3600">
+            <span class="unid">seg</span>
+          </div>
+        </div>
+        <div class="fdesc">Use <b>{nome}</b> para o nome de quem fez e <b>{produto}</b> para o produto. Com {nome}, só comenta quando a Atividade mostra quem foi.</div>
+      </div>
+    </div>
+
     <div class="slabel">Log &amp; Diagnóstico</div>
 
     <!-- LOG -->

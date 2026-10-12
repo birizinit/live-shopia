@@ -541,3 +541,18 @@ input[type=range] { width: 80px; accent-color: var(--primary); }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition-duration: .01ms !important; }
 }
+
+/* CARRINHO E CLIQUES */
+.dica { font-size: 9px; color: var(--muted); opacity: .85; }
+.contadores { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.contadores > div {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 4px;
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+}
+.contadores b { font-size: 16px; font-family: var(--mono); color: var(--primary); font-variant-numeric: tabular-nums; }
+.contadores span { font-size: 9px; color: var(--muted); }
+.eventos {
+  max-height: 120px; overflow-y: auto; background: var(--bg); border: 1px solid var(--border);
+  border-radius: 7px; padding: 6px 9px; font-size: 10px; display: flex; flex-direction: column; gap: 3px; color: var(--sub);
+}
+textarea.baixo { height: 44px; }
