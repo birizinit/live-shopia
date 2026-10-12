@@ -1,4 +1,4 @@
-# Extensão Shopia (3.1.0)
+# Extensão Shopia (3.1.1)
 
 Painel lateral no formato da extensão de referência (LiveFox), com a paleta
 verde da Shopia. Liga e cuida da live no TikTok Shop: timer de encerramento,

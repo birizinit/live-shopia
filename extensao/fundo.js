@@ -213,7 +213,7 @@ export const AUTO_PADRAO = {
   carrinho: {
     ativo: false,
     comentarCarrinho: false,
-    textoCarrinho: "{nome}, vi que você colocou no carrinho! Finaliza agora que o estoque voa 🛒",
+    textoCarrinho: "Alguém colocou o {produto} no carrinho! 🛒 Finaliza agora que o estoque voa",
     comentarClique: false,
     textoClique: "Tem gente de olho no {produto}! 👀 Toca na sacolinha e garante o seu",
     intervalo: 60,

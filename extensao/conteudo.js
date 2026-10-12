@@ -1003,10 +1003,18 @@
   // filtro da atividade não mostra aquele tipo de evento.
   // =========================================================================
 
+  // O tipo vem marcado no próprio item (div[type="add_to_cart_filter"]); o
+  // texto é a reserva. Na página real: "1 pessoa adicionou o produto nº 1 ao
+  // carrinho" e "1 pessoa está vendo o produto nº 1" — sem o nome de quem foi.
+  const TIPO_POR_ATRIBUTO = [
+    { tipo: "carrinho", re: /cart|carrinho/i },
+    { tipo: "compra", re: /order|purchase|pay|pedido|compra/i },
+    { tipo: "clique", re: /product_detail|open_product|click|view_product/i },
+  ];
   const ACOES_DA_ATIVIDADE = [
-    { tipo: "carrinho", re: /adicionou (ao|no) carrinho|colocou no carrinho|adicionar ao carrinho|added (it |this )?to (the )?cart|add(ed)? to cart|agreg[óo] al carrito/i },
-    { tipo: "compra", re: /comprou|fez (um )?pedido|purchased|bought|placed an order|realiz[óo] un pedido/i },
-    { tipo: "clique", re: /clicou|tocou no produto|est[áa] (vendo|olhando)|viu o produto|visualizou o produto|is viewing|viewed the product|clicked|tapped|est[áa] viendo/i },
+    { tipo: "carrinho", re: /adicion(ou|aram)\b.{0,50}\bcarrinho|colocou .{0,50}carrinho|added .{0,50}to (the )?cart|add(ed)? to cart|agreg[óo] .{0,50}al carrito/i },
+    { tipo: "compra", re: /comprou|compraram|fez (um )?pedido|fizeram .{0,20}pedido|purchased|bought|placed an order|realiz[óo] un pedido/i },
+    { tipo: "clique", re: /clicou|tocou no produto|est[áa]o? (vendo|olhando)|viu o produto|visualizou o produto|is viewing|are viewing|viewed the product|clicked|tapped|est[áa]n? viendo/i },
   ];
   const ROTULO_CLIQUES = /^(cliques|clicks|clics)$/i;
   const ROTULO_CARRINHO = /^(adicionado ao carrinho|adicionados ao carrinho|added to cart|add to cart|agregado al carrito)$/i;
@@ -1033,8 +1041,40 @@
     const nome = textoDe(nomeEl);
     const tudo = textoDe(el);
     const acao = (nome ? tudo.replace(nome, "") : tudo).trim();
-    const achou = ACOES_DA_ATIVIDADE.find((a) => a.re.test(acao));
-    return achou ? { tipo: achou.tipo, nome: nome || null, acao } : null;
+    const atributo = el.getAttribute("type") || "";
+    const porTexto = ACOES_DA_ATIVIDADE.find((a) => a.re.test(acao))?.tipo;
+    // Entrada ("acabou de entrar") e outros filtros que não interessam aqui.
+    const porAtributo = /view_filter|enter|join/i.test(atributo)
+      ? null
+      : TIPO_POR_ATRIBUTO.find((a) => a.re.test(atributo))?.tipo;
+    const tipo = porAtributo ?? porTexto;
+    if (!tipo) return null;
+    // "3 pessoas adicionaram o produto nº 2 ao carrinho": quantos e qual.
+    const quantos = Number.parseInt(acao.match(/^(\d+)\s+(pessoas?|people|person|personas?)\b/i)?.[1] ?? "1", 10) || 1;
+    const numero = acao.match(/(?:produto|product|producto)\s*(?:n[º°o.]*|#)\s*(\d+)/i)?.[1] ?? null;
+    return { tipo, nome: nome || null, acao, quantos, numero: numero ? Number(numero) : null };
+  }
+
+  /** Os nomes dos produtos na ordem da lista: "produto nº 2" é o segundo. */
+  function nomesDosProdutos() {
+    // Os botões de fixar da LISTA (o banner do produto fixado no topo tem
+    // outro, que bagunçaria a ordem). Sem a marca, qualquer botão de fixar.
+    let botoes = [...document.querySelectorAll('button[data-pin-performance-source="product_card"]')];
+    if (!botoes.length) {
+      botoes = [...document.querySelectorAll("button")].filter((b) => {
+        const t = textoDe(b).toLowerCase();
+        return ehFixar(t) || ehDesafixar(t);
+      });
+    }
+    const nomes = [];
+    for (const b of botoes) {
+      // Sobe até o primeiro ancestral que tenha o nome do produto.
+      let atual = b.parentElement;
+      let nome = null;
+      for (let i = 0; i < 12 && atual && !nome; i++, atual = atual.parentElement) nome = nomeDoProduto(atual);
+      if (nome && !nomes.includes(nome)) nomes.push(nome);
+    }
+    return nomes;
   }
 
   /** O cartão do produto: o ancestral do contador que tem o botão de fixar. */
@@ -1083,24 +1123,24 @@
   }
 
   function preencher(modelo, nome, produto) {
-    return String(modelo || "")
-      .replaceAll("{nome}", nome || "")
-      .replaceAll("{produto}", produto || "o produto")
-      .replace(/\s+/g, " ")
-      .replace(/^[\s,]+/, "")
-      .trim();
+    let texto = String(modelo || "");
+    // Sem nome (o TikTok diz só "1 pessoa…"): "{nome}, vi que…" vira "Vi que…".
+    texto = nome ? texto.replaceAll("{nome}", nome) : texto.replace(/\{nome\}\s*[,!.:-]?\s*/g, "");
+    texto = texto.replaceAll("{produto}", produto || "o produto").replace(/\s+/g, " ").replace(/^[\s,]+/, "").trim();
+    return texto.charAt(0).toUpperCase() + texto.slice(1);
   }
 
   async function reagir(evento) {
     const c = auto.carrinho ?? {};
     totais[evento.tipo] = (totais[evento.tipo] ?? 0) + (evento.quantos ?? 1);
-    const quem = evento.nome ? `${evento.nome} ` : "";
+    const n = evento.quantos ?? 1;
+    const doProduto = evento.produto ? `: ${evento.produto}` : "";
     const frase =
       evento.tipo === "carrinho"
-        ? `🛒 ${quem || "Alguém "}adicionou ao carrinho${evento.produto ? `: ${evento.produto}` : ""}`
+        ? `🛒 ${evento.nome ? `${evento.nome} adicionou` : n > 1 ? `${n} pessoas adicionaram` : "Alguém adicionou"} ao carrinho${doProduto}`
         : evento.tipo === "compra"
-          ? `💰 ${quem || "Alguém "}comprou${evento.produto ? `: ${evento.produto}` : ""}`
-          : `👆 ${quem || ""}${quem ? "clicou" : "Clique"} no produto${evento.produto ? `: ${evento.produto}` : ""}`;
+          ? `💰 ${evento.nome ? `${evento.nome} comprou` : n > 1 ? `${n} compras` : "Alguém comprou"}${doProduto}`
+          : `👆 ${evento.nome ? `${evento.nome} clicou no produto` : n > 1 ? `${n} cliques no produto` : "Clique no produto"}${doProduto}`;
     avisoNaTela(frase, evento.tipo === "clique" ? "info" : "ok", 3500);
     if (evento.tipo !== "clique") caixaRegistradora();
     void pedir({ tipo: "carrinho_evento", evento: { ...evento, frase }, totais: { ...totais } });
@@ -1110,14 +1150,12 @@
     const agora = Date.now();
     const intervalo = Math.max(15, Number(c.intervalo) || 60) * 1000;
     if (evento.tipo === "carrinho" && c.comentarCarrinho && c.textoCarrinho && agora - ultimoComentarioCarrinho > intervalo) {
-      if (c.textoCarrinho.includes("{nome}") && !evento.nome) return;
       ultimoComentarioCarrinho = agora;
       const texto = preencher(c.textoCarrinho, evento.nome, evento.produto);
       const r = await escreverNoChat(texto.slice(0, 150));
       void pedir({ tipo: "comentario_feito", ok: r.ok, motivo: r.motivo ?? null, texto });
     }
     if (evento.tipo === "clique" && c.comentarClique && c.textoClique && agora - ultimoComentarioClique > intervalo) {
-      if (c.textoClique.includes("{nome}") && !evento.nome) return;
       ultimoComentarioClique = agora;
       const texto = preencher(c.textoClique, evento.nome, evento.produto);
       const r = await escreverNoChat(texto.slice(0, 150));
@@ -1130,18 +1168,32 @@
     const agora = Date.now();
     recentesComNome = recentesComNome.filter((e) => agora - e.em < 20000);
 
-    // 1. A atividade: quem fez o quê.
+    // 1. A atividade. O mesmo texto pode repetir e ser OUTRO evento ("1 pessoa
+    // adicionou o produto nº 1 ao carrinho" duas vezes = dois carrinhos):
+    // conta quantas vezes cada texto aparece e reage só ao que aumentou.
+    const contagem = new Map();
+    const itens = [];
     for (const el of itensDaAtividade()) {
       const item = lerItemDaAtividade(el);
       if (!item) continue;
       const chave = `${item.tipo}|${item.nome}|${item.acao}`;
-      const visto = vistosAtividade.get(chave);
-      vistosAtividade.set(chave, agora);
-      // O que já estava na tela quando ligou não é novidade; e o mesmo item
-      // na lista virtual não é evento novo antes de 10 minutos.
-      if (!atividadePronta || (visto && agora - visto < 600000)) continue;
-      recentesComNome.push({ tipo: item.tipo, em: agora });
-      void reagir(item);
+      contagem.set(chave, (contagem.get(chave) ?? 0) + 1);
+      itens.push([chave, item]);
+    }
+    const nomes = itens.length ? nomesDosProdutos() : [];
+    const tratados = new Set();
+    for (const [chave, item] of itens) {
+      if (tratados.has(chave)) continue;
+      tratados.add(chave);
+      const agoraN = contagem.get(chave);
+      const antesN = vistosAtividade.get(chave) ?? 0;
+      vistosAtividade.set(chave, agoraN);
+      // O que já estava na tela quando ligou não é novidade.
+      if (!atividadePronta || agoraN <= antesN) continue;
+      const vezes = agoraN - antesN;
+      const produto = item.numero ? (nomes[item.numero - 1] ?? `produto nº ${item.numero}`) : null;
+      for (let i = 0; i < vezes; i++) recentesComNome.push({ tipo: item.tipo, em: agora, quantos: item.quantos });
+      void reagir({ ...item, produto, quantos: item.quantos * vezes });
     }
     atividadePronta = true;
     if (vistosAtividade.size > 2000) vistosAtividade.clear();
@@ -1157,8 +1209,11 @@
       while (quantos > 0) {
         const i = recentesComNome.findIndex((e) => e.tipo === atual.tipo);
         if (i === -1) break;
-        recentesComNome.splice(i, 1);
-        quantos--;
+        const e = recentesComNome[i];
+        const usa = Math.min(quantos, e.quantos ?? 1);
+        quantos -= usa;
+        e.quantos = (e.quantos ?? 1) - usa;
+        if (e.quantos <= 0) recentesComNome.splice(i, 1);
       }
       if (quantos <= 0) continue;
       void reagir({ tipo: atual.tipo, nome: null, produto: atual.produto, quantos });
