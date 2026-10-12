@@ -82,6 +82,24 @@
   // =========================================================================
 
   const COR = { ok: "#32D583", warn: "#FDB022", err: "#F04438", info: "#84CAFF" };
+
+  // Ícones de traço (24×24), os mesmos do painel. Texto fixo nosso — nada
+  // vindo da página entra aqui.
+  const ICONE = {
+    "check": '<path d="M20 6 9 17l-5-5"/>',
+    "alert": '<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+    "info": '<circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>',
+    "eye": '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+    "cart": '<circle cx="8" cy="21" r="1"/><circle cx="19" cy="21" r="1"/><path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"/>',
+    "shield": '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+    "refresh": '<path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M3 21v-5h5"/>',
+    "x": '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
+    "timer": '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M9 2h6"/>',
+    "shield-alert": '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 8v4"/><path d="M12 16h.01"/>',
+  };
+  const svg = (nome, px = 14) =>
+    `<svg viewBox="0 0 24 24" width="${px}" height="${px}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;display:block">${ICONE[nome] ?? ""}</svg>`;
+  const ICONE_DO_TOM = { ok: "check", warn: "alert", err: "shield-alert", info: "info" };
   const FONTE = "600 12px/1.4 system-ui,-apple-system,'Segoe UI',sans-serif";
 
   let hud = null;
@@ -98,8 +116,10 @@
   function avisoNaTela(texto, tom = "ok", ms = 4000) {
     const caixa = caixaDeAvisos();
     const el = document.createElement("div");
-    el.textContent = texto;
-    el.style.cssText = `background:#0A100D;color:#F6FAF7;border-radius:8px;padding:8px 12px;font:${FONTE};font-size:11px;box-shadow:0 4px 20px rgba(0,0,0,.5);border-left:3px solid ${COR[tom] ?? COR.ok};min-width:160px;max-width:300px;`;
+    const cor = COR[tom] ?? COR.ok;
+    el.innerHTML = `<span style="color:${cor};margin-top:1px">${svg(ICONE_DO_TOM[tom] ?? "check")}</span><span></span>`;
+    el.lastElementChild.textContent = texto;
+    el.style.cssText = `display:flex;gap:8px;align-items:flex-start;background:rgba(10,16,13,.96);color:#F6FAF7;border-radius:10px;padding:9px 12px;font:${FONTE};font-size:11.5px;box-shadow:0 6px 24px rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.08);border-left:3px solid ${cor};min-width:180px;max-width:320px;`;
     caixa.appendChild(el);
     setTimeout(() => el.remove(), ms);
   }
@@ -127,6 +147,8 @@
       #shopia-pop .ponto{width:8px;height:8px;border-radius:50%;background:#32D583;box-shadow:0 0 8px #32D583;animation:shopiaPisca .8s infinite}
       #shopia-pop .ponto.off{background:#90A699;box-shadow:none;animation:none}
       #shopia-pop .sep{width:1px;height:14px;background:rgba(255,255,255,.14)}
+      #shopia-pop .ico{color:#90A699;display:flex}
+      #shopia-sb .rot svg{display:inline-block;vertical-align:middle}
       #shopia-pop .num{font-size:12px;font-weight:800;font-family:ui-monospace,Menlo,monospace;color:#6CE9A6}
       #shopia-pop button{width:24px;height:24px;border-radius:50%;border:1px solid rgba(50,213,131,.35);background:rgba(50,213,131,.12);color:#F6FAF7;cursor:pointer;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center}
       #shopia-pop button.cinza{border-color:rgba(255,255,255,.15);background:rgba(255,255,255,.06)}
@@ -151,9 +173,9 @@
         <div style="display:flex;align-items:center;gap:5px"><div class="ponto"></div><span data-c="st" style="color:#32D583;letter-spacing:.5px">MONITORANDO</span></div>
         <div class="sep"></div><span class="rot">ABA TIKTOK</span><span data-c="aba"></span>
         <div class="sep"></div><span class="rot">LIVE</span><span data-c="live"></span>
-        <div class="sep"></div><span class="rot">⏱</span><span data-c="timer" class="mono" style="color:#6CE9A6"></span>
+        <div class="sep"></div><span class="rot">${svg("timer", 12)}</span><span data-c="timer" class="mono" style="color:#6CE9A6"></span>
         <div class="sep"></div><span data-c="scan" class="rot"></span>
-        <div class="sep"></div><span data-c="prot"></span>`;
+        <div class="sep"></div><span style="display:flex;align-items:center;gap:5px"><span data-c="prot-ico">${svg("shield", 12)}</span><span data-c="prot"></span></span>`;
       document.documentElement.appendChild(barra);
     }
     const c = (k) => barra.querySelector(`[data-c="${k}"]`);
@@ -166,8 +188,8 @@
     c("live").style.color = ciclo.liveAtiva ? COR.ok : "#888";
     c("timer").textContent = relogio();
     c("scan").textContent = `Scan: ${ciclo.scanN ?? 0}`;
-    c("prot").textContent = ciclo.violacao?.ativa ? "🛡 ALERTA DE VIOLAÇÃO" : "🛡 Proteção ativa";
-    c("prot").style.color = ciclo.violacao?.ativa ? COR.err : COR.ok;
+    c("prot").textContent = ciclo.violacao?.ativa ? "ALERTA DE VIOLAÇÃO" : "Proteção ativa";
+    c("prot").style.color = c("prot-ico").style.color = ciclo.violacao?.ativa ? COR.err : COR.ok;
   }
 
   let pop = null;
@@ -216,22 +238,22 @@
         <div class="ponto" data-c="ponto"></div>
         <div data-c="txt"></div>
         <div class="sep"></div>
-        <span title="Espectadores">👁</span><span class="num" data-c="viewers">—</span>
+        <span class="ico" title="Espectadores">${svg("eye")}</span><span class="num" data-c="viewers">—</span>
         <div class="sep"></div>
-        <span title="Vendas">🛒</span><span class="num" data-c="vendas">—</span>
+        <span class="ico" title="Vendas">${svg("cart")}</span><span class="num" data-c="vendas">—</span>
         <div class="sep"></div>
-        <button data-c="prot" title="Proteção ativa">🛡</button>
-        <button data-c="ref" class="cinza" title="Atualizar">↻</button>`;
+        <button data-c="prot" title="Proteção ativa">${svg("shield", 13)}</button>
+        <button data-c="ref" class="cinza" title="Atualizar">${svg("refresh", 13)}</button>`;
       document.documentElement.appendChild(pop);
       posicionar(pop, posPop);
       tornarArrastavel(pop);
       pop.querySelector('[data-c="ref"]').addEventListener("click", () => {
         lerMetricas();
-        avisoNaTela("↻ Números atualizados", "info", 2000);
+        avisoNaTela("Números atualizados", "info", 2000);
       });
       pop.querySelector('[data-c="prot"]').addEventListener("click", () => {
         avisoNaTela(
-          ciclo.violacao?.ativa ? "🔴 Aviso de violação detectado" : "🛡 Proteção ativa — vigiando avisos do TikTok",
+          ciclo.violacao?.ativa ? "Aviso de violação detectado" : "Proteção ativa — vigiando avisos do TikTok",
           ciclo.violacao?.ativa ? "err" : "ok",
           3000,
         );
@@ -267,24 +289,27 @@
     clearInterval(pilulaTimer);
     pilula = document.createElement("div");
     pilula.style.cssText = `position:fixed;left:16px;bottom:155px;z-index:2147483647;background:#1a0a0d;border:1px solid #F04438;color:#FDA29B;border-radius:999px;padding:8px 14px;font:${FONTE};display:flex;gap:10px;align-items:center;box-shadow:0 6px 24px rgba(0,0,0,.5);`;
+    const ico = document.createElement("span");
+    ico.innerHTML = svg("shield-alert", 14);
+    ico.style.cssText = "color:#F04438;display:flex";
     const txt = document.createElement("span");
     const x = document.createElement("button");
-    x.textContent = "✕";
+    x.innerHTML = svg("x", 12);
     x.title = "Encerrar a live agora";
-    x.style.cssText = "background:#F04438;color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;";
+    x.style.cssText = "background:#F04438;color:#fff;border:none;border-radius:50%;width:20px;height:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;";
     x.onclick = () => {
       void pedir({ tipo: "encerrar_live", motivo: "encerrada pela pílula de violação" });
       pilula?.remove();
     };
-    pilula.append(txt, x);
+    pilula.append(ico, txt, x);
     document.documentElement.appendChild(pilula);
     const pintar = () => {
       if (encerrando || !fimEm) {
-        txt.textContent = "🔴 Violação · encerrando a live";
+        txt.textContent = "Violação · encerrando a live";
         return;
       }
       const s = Math.max(0, Math.round((fimEm - Date.now()) / 1000));
-      txt.textContent = `🔴 Violação · encerra em ${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+      txt.textContent = `Violação · encerra em ${String(Math.floor(s / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
       if (s <= 0) clearInterval(pilulaTimer);
     };
     pintar();
@@ -447,7 +472,7 @@
       clicarConfirmacao(/confirmar|sim|encerrar agora/i);
       return { ok: true, por: "texto" };
     }
-    avisoNaTela("⚠️ Botão encerrar não encontrado", "warn");
+    avisoNaTela("Botão encerrar não encontrado", "warn");
     return { ok: false };
   }
 
@@ -509,10 +534,10 @@
   async function fixarEContar(origem) {
     const r = await fixarProduto();
     if (r.ok) {
-      avisoNaTela("📌 Produto fixado!", "ok");
-      registrar(`📌 Produto fixado (${origem})`, "ok");
+      avisoNaTela("Produto fixado", "ok");
+      registrar(`Produto fixado (${origem})`, "ok");
     } else {
-      avisoNaTela("⚠️ Não consegui fixar", "warn");
+      avisoNaTela("Não consegui fixar", "warn");
       registrar(`Fixar falhou: ${MOTIVO_FIXAR[r.motivo] ?? r.motivo}`, "warn");
     }
     return r;
@@ -810,6 +835,8 @@
     for (const caminho of caminhos) {
       if (!caminho.agir()) continue;
       if (await esvaziou(campo)) {
+        escritosPorMim.push({ texto, em: Date.now() });
+        if (escritosPorMim.length > 30) escritosPorMim.shift();
         return { ok: true, por: caminho.nome, tecnica: digitou.tecnica, cortado: digitou.cortado };
       }
     }
@@ -959,7 +986,7 @@
     bloqueadosAqui.push(usuario.toLowerCase());
     if (bloqueadosAqui.length > 100) bloqueadosAqui.shift();
     void pedir({ tipo: "bloqueou", dados: { usuario, palavra, hora: new Date().toLocaleTimeString("pt-BR") } });
-    avisoNaTela(`🚫 Bloqueado: ${usuario}`, "warn");
+    avisoNaTela(`Bloqueado: ${usuario}`, "warn");
     return true;
   }
 
@@ -1137,10 +1164,10 @@
     const doProduto = evento.produto ? `: ${evento.produto}` : "";
     const frase =
       evento.tipo === "carrinho"
-        ? `🛒 ${evento.nome ? `${evento.nome} adicionou` : n > 1 ? `${n} pessoas adicionaram` : "Alguém adicionou"} ao carrinho${doProduto}`
+        ? `${evento.nome ? `${evento.nome} adicionou` : n > 1 ? `${n} pessoas adicionaram` : "Alguém adicionou"} ao carrinho${doProduto}`
         : evento.tipo === "compra"
-          ? `💰 ${evento.nome ? `${evento.nome} comprou` : n > 1 ? `${n} compras` : "Alguém comprou"}${doProduto}`
-          : `👆 ${evento.nome ? `${evento.nome} clicou no produto` : n > 1 ? `${n} cliques no produto` : "Clique no produto"}${doProduto}`;
+          ? `${evento.nome ? `${evento.nome} comprou` : n > 1 ? `${n} compras` : "Alguém comprou"}${doProduto}`
+          : `${evento.nome ? `${evento.nome} clicou no produto` : n > 1 ? `${n} cliques no produto` : "Clique no produto"}${doProduto}`;
     avisoNaTela(frase, evento.tipo === "clique" ? "info" : "ok", 3500);
     if (evento.tipo !== "clique") caixaRegistradora();
     void pedir({ tipo: "carrinho_evento", evento: { ...evento, frase }, totais: { ...totais } });
@@ -1236,6 +1263,215 @@
   }
 
   // =========================================================================
+  // MODERAÇÃO SEGURA
+  //
+  // Só duas coisas, as duas reversíveis:
+  //   1. reclamação no chat ("não chegou", "golpe"…) → ALERTA para você
+  //      responder. Nada é feito com a pessoa.
+  //   2. link, telefone ou palavra proibida → UM aviso educado no chat,
+  //      no máximo uma vez por pessoa na live.
+  // Ninguém é silenciado nem bloqueado pelo texto: um "me chama no zap pra
+  // comprar mais" é cliente, e errar ali custa a venda.
+  //
+  // Lê o chat do painel da live (shop.tiktok.com/streamer — cada mensagem é
+  // avatar + nome + tag "Host" opcional e o texto embaixo) e o do tiktok.com
+  // (pelo mapa de seletores). Não depende do "Ler a tela".
+  // =========================================================================
+
+  const RE_LINK = /(https?:\/\/|www\.|\bwa\.me\b|\bbit\.ly\b|\b[a-z0-9-]{2,}\.(com|net|org|br|io|ly|me|site|shop|store|link|app)\b)/i;
+  // 8+ dígitos seguidos (com espaço, ponto, traço ou parênteses no meio).
+  const RE_TELEFONE = /(?:\+?\d[\s().-]{0,2}){8,}/;
+  // Quem fala pela loja não é moderado.
+  const RE_TAG_DA_LOJA = /^(host|anfitri[ãa]o|apresentador|moderador(a)?|moderator|mod|admin)$/i;
+  const INTERVALO_AVISO_MS = 20000;
+
+  const vistosChat = new Map();
+  let chatPronto = false;
+  let lacoModeracao = null;
+  let ultimoAvisoChat = 0;
+  const avisados = new Set();
+  const totaisModeracao = { reclamacao: 0, aviso: 0 };
+  /** O que a própria extensão escreveu: o eco no chat não é moderado. */
+  const escritosPorMim = [];
+
+  const normalizar = (t) =>
+    String(t ?? "")
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/[^a-z0-9@]+/g, " ")
+      .trim();
+
+  /** A primeira expressão da lista que aparece inteira no texto. */
+  function expressaoNoTexto(texto, lista) {
+    const t = ` ${normalizar(texto)} `;
+    for (const p of lista ?? []) {
+      const n = normalizar(p);
+      if (n && t.includes(` ${n} `)) return String(p).trim();
+    }
+    return null;
+  }
+
+  /** Mensagens do chat do painel da live: avatar, nome, tag e texto. */
+  function mensagensDoPainel() {
+    const lidas = [];
+    for (const avatar of document.querySelectorAll('[data-tid="m4b_avatar"]')) {
+      const topo = avatar.parentElement;
+      const corpo = topo?.nextElementSibling;
+      // Os itens da Atividade ("1 pessoa adicionou…") têm avatar mas são div[type].
+      if (!topo || !corpo || avatar.closest("div[type]")) continue;
+      const nome = textoDe(topo.querySelector(".truncate") ?? topo).slice(0, 80);
+      const tag = textoDe(topo.querySelector('[data-tid="m4b_tag"]'));
+      const texto = textoDe(corpo).slice(0, 500);
+      if (nome && texto) lidas.push({ nome, tag, texto });
+    }
+    return lidas;
+  }
+
+  function mensagensDoTikTok() {
+    const lidas = [];
+    for (const no of mapa.todos("chat.item") ?? []) {
+      const lido = lerComentario(no);
+      if (lido?.texto) lidas.push({ nome: lido.apelido ?? "", tag: "", texto: lido.texto });
+    }
+    return lidas;
+  }
+
+  function ehDaLoja(msg) {
+    if (msg.tag && RE_TAG_DA_LOJA.test(msg.tag.trim())) return true;
+    const t = normalizar(msg.texto);
+    return escritosPorMim.some((e) => normalizar(e.texto) === t);
+  }
+
+  function ehExcecao(nome, excecoes) {
+    const n = normalizar(nome);
+    return Boolean(n) && (excecoes ?? []).some((e) => {
+      const x = normalizar(e);
+      return x && (n === x || n.includes(x));
+    });
+  }
+
+  function somDeAlerta() {
+    if (!auto.som) return;
+    try {
+      audioCtx ??= new AudioContext();
+      const t = audioCtx.currentTime;
+      [[660, 0], [520, 0.18]].forEach(([f, d]) => {
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.type = "sine";
+        o.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, t + d);
+        g.gain.exponentialRampToValueAtTime(0.3, t + d + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.3);
+        o.connect(g).connect(audioCtx.destination);
+        o.start(t + d);
+        o.stop(t + d + 0.35);
+      });
+    } catch { /* navegador sem áudio liberado */ }
+  }
+
+  /** O que fazer com uma mensagem nova. Puro: decide, não age. */
+  function julgar(msg, m) {
+    if (ehDaLoja(msg) || ehExcecao(msg.nome, m.excecoes)) return null;
+    if (m.avisar) {
+      let motivo = null;
+      if (m.links && RE_LINK.test(msg.texto)) motivo = "link";
+      else if (m.telefones && RE_TELEFONE.test(msg.texto)) motivo = "telefone";
+      else {
+        const p = expressaoNoTexto(msg.texto, m.proibidas);
+        if (p) motivo = `"${p}"`;
+      }
+      if (motivo) return { tipo: "aviso", motivo };
+    }
+    if (m.alertar) {
+      const p = expressaoNoTexto(msg.texto, m.reclamacoes);
+      if (p) return { tipo: "reclamacao", motivo: `"${p}"` };
+    }
+    return null;
+  }
+
+  async function agirNaModeracao(msg, decisao, m) {
+    totaisModeracao[decisao.tipo] += 1;
+    const quem = msg.nome || "Alguém";
+    const trecho = msg.texto.length > 70 ? `${msg.texto.slice(0, 70)}…` : msg.texto;
+    let respondeu = false;
+    let motivoFalha = null;
+
+    if (decisao.tipo === "aviso") {
+      const chave = normalizar(msg.nome) || `?${normalizar(msg.texto)}`;
+      const agora = Date.now();
+      // Uma vez por pessoa na live, e no máximo um aviso a cada 20 s.
+      if (m.textoAviso && !avisados.has(chave) && agora - ultimoAvisoChat >= INTERVALO_AVISO_MS) {
+        avisados.add(chave);
+        ultimoAvisoChat = agora;
+        const texto = msg.nome
+          ? m.textoAviso.replaceAll("{nome}", msg.nome)
+          : preencher(m.textoAviso.replace(/@?\{nome\}/g, "{nome}"), null, null);
+        const r = await escreverNoChat(texto.slice(0, 150));
+        respondeu = r.ok;
+        motivoFalha = r.ok ? null : r.motivo;
+        void pedir({ tipo: "comentario_feito", ok: r.ok, motivo: r.motivo ?? null, texto });
+      }
+    }
+
+    const frase =
+      decisao.tipo === "reclamacao"
+        ? `Reclamação de ${quem} (${decisao.motivo}): ${trecho}`
+        : `${quem} mandou ${decisao.motivo} no chat${respondeu ? " — aviso enviado" : ""}: ${trecho}`;
+    avisoNaTela(frase, "warn", decisao.tipo === "reclamacao" ? 8000 : 5000);
+    if (decisao.tipo === "reclamacao") somDeAlerta();
+    void pedir({
+      tipo: "moderacao_evento",
+      evento: { tipo: decisao.tipo, nome: msg.nome || null, texto: trecho, motivo: decisao.motivo, respondeu, motivoFalha, frase, em: Date.now() },
+      totais: { ...totaisModeracao },
+    });
+  }
+
+  function voltaDaModeracao() {
+    const m = auto.moderacao ?? {};
+    if (!(m.alertar || m.avisar) || !podeAgir()) return;
+    const msgs = [...mensagensDoPainel(), ...mensagensDoTikTok()];
+    // Igual à Atividade: a mesma frase pode repetir e ser OUTRA mensagem.
+    const contagem = new Map();
+    for (const msg of msgs) {
+      const chave = `${msg.nome}|${msg.texto}`;
+      contagem.set(chave, (contagem.get(chave) ?? 0) + 1);
+    }
+    const tratados = new Set();
+    for (const msg of msgs) {
+      const chave = `${msg.nome}|${msg.texto}`;
+      if (tratados.has(chave)) continue;
+      tratados.add(chave);
+      const agoraN = contagem.get(chave);
+      const antesN = vistosChat.get(chave) ?? 0;
+      vistosChat.set(chave, agoraN);
+      // O que já estava no chat quando ligou não é novidade.
+      if (!chatPronto || agoraN <= antesN) continue;
+      const decisao = julgar(msg, m);
+      if (decisao) void agirNaModeracao(msg, decisao, m);
+    }
+    chatPronto = true;
+    if (vistosChat.size > 3000) vistosChat.clear();
+  }
+
+  function sincronizarModeracao() {
+    const m = auto.moderacao ?? {};
+    const ligado = (m.alertar || m.avisar) && podeAgir();
+    if (ligado && !lacoModeracao) {
+      chatPronto = false;
+      voltaDaModeracao();
+      lacoModeracao = setInterval(voltaDaModeracao, 2000);
+    }
+    if (!ligado && lacoModeracao) {
+      clearInterval(lacoModeracao);
+      lacoModeracao = null;
+    }
+    // Nova live, nova chance: quem foi avisado numa não fica marcado na outra.
+    if (!ciclo?.ativo) avisados.clear();
+  }
+
+  // =========================================================================
   // VENDAS E MÉTRICAS DA TELA
   // =========================================================================
 
@@ -1308,10 +1544,10 @@
     if (Number.isFinite(nova) && Number.isFinite(antes) && nova > antes && antes > 0) {
       const diff = Math.min(nova - antes, 3);
       for (let i = 0; i < diff; i++) setTimeout(caixaRegistradora, i * 700);
-      avisoNaTela(`🛒 +${nova - antes} venda(s)!`, "ok");
+      avisoNaTela(`+${nova - antes} venda(s)!`, "ok");
     } else if (novaVendaAtividade) {
       caixaRegistradora();
-      avisoNaTela(`🛒 Nova venda!${ultimoValor ? ` ${ultimoValor}` : ""}`, "ok");
+      avisoNaTela(`Nova venda!${ultimoValor ? ` ${ultimoValor}` : ""}`, "ok");
     }
     if (vendas !== null) ultimasVendas = vendas;
     else if (ultimasVendas === null) ultimasVendas = "";
@@ -1543,6 +1779,7 @@
     sincronizarComentarios();
     sincronizarBloqueio();
     sincronizarCarrinho();
+    sincronizarModeracao();
     if (morto) return;
     if (auto.fixar && podeAgir() && !lacoFixar) agendarFixar(true);
     if ((!auto.fixar || !podeAgir()) && lacoFixar) {
@@ -1582,10 +1819,10 @@
         return true;
       case "violacao":
         mostrarPilulaViolacao(mensagem.fimEm ?? null, Boolean(mensagem.encerrando));
-        avisoNaTela("🔴 Violação detectada!", "err", 6000);
+        avisoNaTela("Violação detectada!", "err", 6000);
         return;
       case "ciclo_on":
-        avisoNaTela("🟢 Shopia ligada — monitorando a live", "ok");
+        avisoNaTela("Shopia ligada — monitorando a live", "ok");
         return;
       case "ciclo_off":
         pilula?.remove();
@@ -1654,7 +1891,7 @@
   function desmontar() {
     if (morto) return;
     morto = true;
-    for (const t of [lacoBarra, lacoLeitura, lacoDespejo, lacoBloqueio, lacoMetricas, lacoCarrinho, pilulaTimer, lacoVida]) {
+    for (const t of [lacoBarra, lacoLeitura, lacoDespejo, lacoBloqueio, lacoMetricas, lacoCarrinho, lacoModeracao, pilulaTimer, lacoVida]) {
       clearInterval(t);
     }
     clearTimeout(lacoFixar);

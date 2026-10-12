@@ -17,6 +17,10 @@ const hms = (ms) => {
   return `${pad(Math.floor(s / 3600))}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`;
 };
 const minhaVersao = chrome.runtime.getManifest().version;
+/** Ícone do sprite do painel.html. */
+const ic = (nome) => `<svg class="ic"><use href="#i-${nome}"/></svg>`;
+/** Botão com ícone e rótulo. */
+const rotulo = (nome, texto) => `${ic(nome)}<span>${esc(texto)}</span>`;
 
 let ciclo = {};
 let restanteMs = null;
@@ -176,7 +180,7 @@ function pintarCiclo() {
 
   const btn = $("btnCiclo");
   btn.className = `btn-main ${ativo ? "btn-stop" : "btn-start"}`;
-  btn.innerHTML = ativo ? "⏹ &nbsp;Desligar a extensão" : "🟢 &nbsp;Ligar a extensão";
+  btn.innerHTML = ativo ? rotulo("stop", "Desligar a extensão") : rotulo("power", "Ligar a extensão");
 
   $("lsAba").textContent = ativo ? (ciclo.abaConectada ? "Conectada" : "Procurando…") : "—";
   $("lsAba").className = `ls-val ${ativo && ciclo.abaConectada ? "on" : ""}`;
@@ -192,7 +196,7 @@ function pintarCiclo() {
 
   const pausa = $("btnPausarTimer");
   pausa.classList.toggle("pausado", pausado);
-  pausa.innerHTML = pausado ? "▶ &nbsp;Retomar Timer" : "⏸ &nbsp;Pausar Timer";
+  pausa.innerHTML = pausado ? rotulo("play", "Retomar Timer") : rotulo("pause", "Pausar Timer");
   pausa.disabled = !ativo;
   $("btnCancelarTimer").disabled = !ativo;
 
@@ -273,6 +277,18 @@ function pintarAuto() {
   if (document.activeElement !== $("intervaloCarrinho")) $("intervaloCarrinho").value = k.intervalo ?? 60;
   badge("bCarrinho", k.ativo ? "Ativo" : "Inativo", k.ativo ? "bon" : "boff");
 
+  const m = auto.moderacao ?? {};
+  interruptor("togAlertar", m.alertar);
+  interruptor("togAvisar", m.avisar);
+  $("chkLinks").checked = m.links !== false;
+  $("chkTelefones").checked = m.telefones !== false;
+  for (const [id, lista] of [["palavrasReclamacao", m.reclamacoes], ["palavrasProibidas", m.proibidas], ["excecoesModeracao", m.excecoes]]) {
+    if (document.activeElement !== $(id)) $(id).value = (lista ?? []).join("\n");
+  }
+  if (document.activeElement !== $("textoAviso")) $("textoAviso").value = m.textoAviso ?? "";
+  const moderando = m.alertar || m.avisar;
+  badge("bModeracao", moderando ? (m.alertar && m.avisar ? "Ativo" : m.alertar ? "Alertas" : "Avisos") : "Inativo", moderando ? "bon" : "boff");
+
   pintarIaLerTela();
 }
 
@@ -284,9 +300,29 @@ function pintarEventoCarrinho(evento, totais) {
   }
   const lista = $("listaEventosCarrinho");
   lista.querySelector(".vazio")?.remove();
+  const icone = { carrinho: "cart", compra: "coins", clique: "click" }[evento.tipo] ?? "activity";
+  lista.prepend(linhaDeEvento(icone, evento.frase ?? evento.tipo));
+  while (lista.children.length > 40) lista.lastChild.remove();
+}
+
+function linhaDeEvento(icone, texto, classe = "") {
   const linha = document.createElement("div");
-  linha.textContent = `${new Date().toLocaleTimeString("pt-BR")} · ${evento.frase ?? evento.tipo}`;
-  lista.prepend(linha);
+  linha.className = `ev ${classe}`;
+  linha.innerHTML = `${ic(icone)}<span><small>${esc(new Date().toLocaleTimeString("pt-BR"))}</small> ${esc(texto)}</span>`;
+  return linha;
+}
+
+function pintarEventoModeracao(evento, totais) {
+  if (totais) {
+    $("totReclamacao").textContent = totais.reclamacao ?? 0;
+    $("totAviso").textContent = totais.aviso ?? 0;
+  }
+  const lista = $("listaEventosModeracao");
+  lista.querySelector(".vazio")?.remove();
+  const reclamacao = evento.tipo === "reclamacao";
+  let texto = evento.frase ?? evento.tipo;
+  if (!reclamacao && evento.motivoFalha) texto += ` (aviso não saiu: ${evento.motivoFalha})`;
+  lista.prepend(linhaDeEvento(reclamacao ? "message-alert" : "link", texto, "alerta"));
   while (lista.children.length > 40) lista.lastChild.remove();
 }
 
@@ -302,7 +338,7 @@ function pintarBloqueados(lista) {
   box.innerHTML = lista
     .slice()
     .reverse()
-    .map((b) => `<div>🚫 <b>${esc(b.usuario)}</b> · "${esc(b.palavra)}" · ${esc(b.hora)}</div>`)
+    .map((b) => `<div class="ev ruim">${ic("user-x")}<span><b>${esc(b.usuario)}</b> · "${esc(b.palavra)}" · ${esc(b.hora)}</span></div>`)
     .join("");
   $("bloqueadosBox").hidden = false;
 }
@@ -318,7 +354,7 @@ function pintarHistorico(hist) {
     .map(
       (h) => `<div class="hitem">
         <div class="htop"><span class="hdate">${esc(h.data)} · ${esc(h.inicio)} → ${esc(h.fim)}</span><span class="hdur">${esc(h.horas)}h</span></div>
-        <div class="hmeta">${esc(h.minutos)} min · ${esc(h.scans)} scans · ${esc(h.alertas)} alertas · 👀 ${esc(h.viewers)} · 🛒 ${esc(h.vendas)}</div>
+        <div class="hmeta"><span>${ic("timer")}${esc(h.minutos)} min</span><span>${ic("activity")}${esc(h.scans)} scans</span><span>${ic("bell")}${esc(h.alertas)} alertas</span><span>${ic("eye")}${esc(h.viewers)}</span><span>${ic("cart")}${esc(h.vendas)}</span></div>
       </div>`,
     )
     .join("");
@@ -477,11 +513,11 @@ function pintarIaConfig(d) {
       <div class="frow"><span class="fdesc">Plano</span>
         <b style="color:${ativo ? "var(--ok)" : "var(--red)"}">${ativo ? esc(d.plano.nome || "ativo") : "sem plano ativo"}</b></div>
       ${ativo && d.plano.diasRestantes != null ? `<div class="frow"><span class="fdesc">Dias restantes</span><b>${d.plano.diasRestantes}</b></div>` : ""}
-      <div class="frow"><span class="fdesc">⚡ Créditos de IA</span><b style="color:var(--primary)">${numero(saldo)}</b></div>
+      <div class="frow"><span class="fdesc com-ico">${ic("zap")}Créditos de IA</span><b style="color:var(--primary)">${numero(saldo)}</b></div>
       <div class="medidor"><div style="width:${pct}%"></div></div>
       <div class="fdesc">${cota ? `${numero(saldo)} de ${numero(cota)} do mês` : `${numero(saldo)} caracteres`} · gasta só quando a IA gera algo novo</div>
       ${ativo
-        ? '<button class="btn bghost" id="ia-comprar">➕ Comprar créditos / gerenciar plano</button>'
+        ? `<button class="btn bghost" id="ia-comprar">${rotulo("plus", "Comprar créditos / gerenciar plano")}</button>`
         : '<button class="btn bgreen" id="ia-assinar">Assinar / Renovar no app</button>'}
     </div></div>
 
@@ -490,13 +526,13 @@ function pintarIaConfig(d) {
       <div class="fdesc">
         A extensão <b>lê os comentários</b> da sua live e manda pro servidor.
         <b>Quem escolhe a resposta é o servidor</b>, a partir do <b>manual</b> que você cadastrou no app — e ela sai escrita no chat.
-        <br><br>1️⃣ No <b>app</b>, monte o manual e aceite o aviso de automação.
-        <br>2️⃣ Aqui, clique <b>“Ler a tela”</b>.
-        <br>3️⃣ Deixe a <b>aba da live aberta</b> — é dela que a extensão lê o chat.
+        <br><br>1. No <b>app</b>, monte o manual e aceite o aviso de automação.
+        <br>2. Aqui, clique <b>“Ler a tela”</b>.
+        <br>3. Deixe a <b>aba da live aberta</b> — é dela que a extensão lê o chat.
       </div>
-      <button class="btn-main btn-start" id="ia-ler">📖 Ler a tela</button>
+      <button class="btn-main btn-start" id="ia-ler">${rotulo("book", "Ler a tela")}</button>
       <div class="fdesc" id="ia-ler-status"></div>
-      <button class="btn bghost" id="ia-abrir-app">⚙️ Configurar minha live no app</button>
+      <button class="btn bghost" id="ia-abrir-app">${rotulo("settings", "Configurar minha live no app")}</button>
     </div></div>`;
   $("ia-assinar")?.addEventListener("click", () => api.abrirNoSite("/planos"));
   $("ia-comprar")?.addEventListener("click", () => api.abrirNoSite("/creditos"));
@@ -513,23 +549,23 @@ function pintarIaConfig(d) {
 }
 
 const ESTADO_CHAT = {
-  lendo: "🟢 Lendo o chat da live",
+  lendo: "Lendo o chat da live",
   procurando: "Procurando o chat na página…",
-  sem_chat: "⚠️ Não achei o chat nesta página. Abra a página da live.",
+  sem_chat: "Não achei o chat nesta página. Abra a página da live.",
   fora_da_live: "Abra a página da sua live no TikTok.",
   desligado: "Desligado — clique pra começar a ler os comentários.",
-  suspenso: "⛔ Pausado pelo servidor.",
+  suspenso: "Pausado pelo servidor.",
 };
 let estadoChat = null;
 
 function pintarIaLerTela() {
   const btn = $("ia-ler");
   if (!btn) return;
-  btn.innerHTML = auto.lerTela ? "⏹️ Parar leitura" : "📖 Ler a tela";
+  btn.innerHTML = auto.lerTela ? rotulo("stop", "Parar leitura") : rotulo("book", "Ler a tela");
   btn.className = `btn-main ${auto.lerTela ? "btn-stop" : "btn-start"}`;
   const st = $("ia-ler-status");
   if (!auto.lerTela) st.textContent = ESTADO_CHAT.desligado;
-  else if (lidos) st.textContent = `👂 ${lidos} lidos${ultimoLido ? ` · última resposta: ${ultimoLido}` : ""}`;
+  else if (lidos) st.textContent = `${lidos} lidos${ultimoLido ? ` · última resposta: ${ultimoLido}` : ""}`;
   else st.textContent = ESTADO_CHAT[estadoChat] ?? "Ligando…";
 }
 
@@ -576,9 +612,9 @@ function pintarIaPlanos(d) {
           <div class="plano-nome">${esc(p.nome)}</div>
           <div class="plano-preco">${reais(p.precoCentavos)} <small>/ ${PERIODO[p.meses] ?? `${p.meses} meses`}</small></div>
           ${p.meses > 1 ? `<div class="fdesc">${reais(p.precoMensalCentavos)} por mês</div>` : ""}
-          <div class="recurso">📱 ${p.contasTiktok} conta(s) TikTok</div>
-          ${(p.recursos ?? []).map((r) => `<div class="recurso">✓ ${esc(r)}</div>`).join("")}
-          <button class="btn bgreen" data-assinar="${esc(p.slug)}">Assinar no app →</button>
+          <div class="recurso com-ico">${ic("phone")}${p.contasTiktok} conta(s) TikTok</div>
+          ${(p.recursos ?? []).map((r) => `<div class="recurso com-ico">${ic("check")}${esc(r)}</div>`).join("")}
+          <button class="btn bgreen" data-assinar="${esc(p.slug)}">${rotulo("arrow", "Assinar no app")}</button>
         </div></div>`,
       )
       .join("");
@@ -607,15 +643,15 @@ function checarVersao() {
   const ov = document.createElement("div");
   ov.id = "atualizacao";
   ov.innerHTML = `<div class="at-fundo"></div><div class="at-card">
-    <div class="at-ic">🆕</div>
+    <div class="at-ic">${ic("download")}</div>
     <div class="at-h">Nova versão disponível</div>
     <div class="at-v">v${esc(v)}</div>
     ${licenca.notas ? `<div class="at-n">${esc(licenca.notas)}</div>` : ""}
-    <a class="at-btn" href="#" id="atBaixar">⬇️ Baixar a nova versão</a>
+    <a class="at-btn" href="#" id="atBaixar">${rotulo("download", "Baixar a nova versão")}</a>
     <details class="at-ajuda"><summary>Como instalar</summary><ol>
       <li>Baixe e <b>extraia</b> o ZIP.</li>
       <li>Copie o conteúdo da pasta <b>shopia-extensao</b> por cima da pasta de sempre (a que o Chrome já usa).</li>
-      <li>Abra <b>chrome://extensions</b> e clique em <b>↻</b> na Shopia.</li>
+      <li>Abra <b>chrome://extensions</b> e clique em <b>recarregar</b> na Shopia.</li>
       <li>Pronto — você continua conectada, sem entrar de novo.</li>
     </ol></details>
     ${licenca.atualizacaoObrigatoria ? "" : '<button class="at-x" id="atX">Agora não</button>'}
@@ -678,7 +714,7 @@ function ligarEventos() {
   });
   $("btnPowerLive").addEventListener("click", async () => {
     if (!confirm("Encerrar a LIVE agora?")) return;
-    await enviar({ tipo: "encerrar_live", motivo: "botão ⏻ do painel" });
+    await enviar({ tipo: "encerrar_live", motivo: "botão de encerrar do painel" });
     await recarregarTudo();
   });
 
@@ -740,13 +776,13 @@ function ligarEventos() {
     if (!ciclo.ativo) return toast("Ligue a extensão primeiro — os comentários rodam com ela ligada.");
     if (!linhas($("listaComentarios").value).length) return toast("Escreva ao menos uma mensagem (uma por linha).");
     await salvarComentarios({ ativo: true });
-    $("comentarioLog").textContent = "▶ Iniciado — o primeiro sai agora.";
+    $("comentarioLog").textContent = "Iniciado — o primeiro sai agora.";
     if (!(await haAbaDoTikTok())) toast("Abra a página da sua live no TikTok neste Chrome.");
   });
   $("btnComentarParar").addEventListener("click", async () => {
     await salvarComentarios({ ativo: false });
     clearInterval(contagemComentario);
-    $("comentarioLog").textContent = "■ Parado.";
+    $("comentarioLog").textContent = "Parado.";
   });
 
   // Bloqueio por nome
@@ -785,6 +821,29 @@ function ligarEventos() {
   $("intervaloCarrinho").addEventListener("change", (e) =>
     salvarAuto({ carrinho: { intervalo: Math.min(Math.max(Number(e.target.value) || 60, 15), 3600) } }),
   );
+
+  // Moderação (segura: alerta e avisa, nunca silencia nem bloqueia)
+  const listaDe = (id, max = 100) => linhas($(id).value).map((l) => l.slice(0, 60)).slice(0, max);
+  $("togAlertar").addEventListener("click", () => {
+    const ligar = !auto.moderacao?.alertar;
+    if (ligar && !ciclo.ativo) return toast("Ligue a extensão primeiro — a moderação roda com ela ligada.");
+    if (ligar && !listaDe("palavrasReclamacao").length) return toast("Escreva ao menos uma expressão (uma por linha).");
+    return salvarAuto({ moderacao: { alertar: ligar, reclamacoes: listaDe("palavrasReclamacao") } });
+  });
+  $("togAvisar").addEventListener("click", () => {
+    const ligar = !auto.moderacao?.avisar;
+    if (ligar && !ciclo.ativo) return toast("Ligue a extensão primeiro — a moderação roda com ela ligada.");
+    if (ligar && !$("textoAviso").value.trim()) return toast("Escreva o texto do aviso.");
+    return salvarAuto({
+      moderacao: { avisar: ligar, proibidas: listaDe("palavrasProibidas"), textoAviso: $("textoAviso").value.trim().slice(0, 150) },
+    });
+  });
+  $("palavrasReclamacao").addEventListener("change", () => salvarAuto({ moderacao: { reclamacoes: listaDe("palavrasReclamacao") } }));
+  $("palavrasProibidas").addEventListener("change", () => salvarAuto({ moderacao: { proibidas: listaDe("palavrasProibidas") } }));
+  $("excecoesModeracao").addEventListener("change", () => salvarAuto({ moderacao: { excecoes: listaDe("excecoesModeracao", 200) } }));
+  $("textoAviso").addEventListener("change", (e) => salvarAuto({ moderacao: { textoAviso: e.target.value.trim().slice(0, 150) } }));
+  $("chkLinks").addEventListener("change", (e) => salvarAuto({ moderacao: { links: e.target.checked } }));
+  $("chkTelefones").addEventListener("change", (e) => salvarAuto({ moderacao: { telefones: e.target.checked } }));
 
   // Log
   $("btnLimparLog").addEventListener("click", async () => {
@@ -856,12 +915,15 @@ chrome.runtime.onMessage.addListener((m) => {
     case "carrinho_aviso":
       pintarEventoCarrinho(m.evento ?? {}, m.totais);
       break;
+    case "moderacao_aviso":
+      pintarEventoModeracao(m.evento ?? {}, m.totais);
+      break;
     case "bloqueados":
       pintarBloqueados(m.lista ?? []);
       break;
     case "comentario_log":
       if (m.agendado) mostrarContagemComentario(m.emMs ?? 0);
-      else $("comentarioLog").textContent = m.ok ? `✓ ${new Date().toLocaleTimeString("pt-BR")} — ${m.texto}` : `✗ Não saiu: ${m.motivo}`;
+      else $("comentarioLog").textContent = m.ok ? `Enviado ${new Date().toLocaleTimeString("pt-BR")} — ${m.texto}` : `Não saiu: ${m.motivo}`;
       break;
     case "aviso":
       toast(m.texto);
@@ -882,7 +944,7 @@ chrome.runtime.onMessage.addListener((m) => {
       $("ensinarStatus").textContent = m.cancelado
         ? "Cancelado."
         : m.cascata?.length
-          ? `✓ Anotado: ${m.ancora}. ${m.ancora === "produto.fixar" ? "Pronto — o fixar usa o que você ensinou." : "Siga para o próximo."}`
+          ? `Anotado: ${m.ancora}. ${m.ancora === "produto.fixar" ? "Pronto — o fixar usa o que você ensinou." : "Siga para o próximo."}`
           : "Não consegui descrever esse elemento. Tente de novo.";
       break;
     default:

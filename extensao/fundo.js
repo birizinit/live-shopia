@@ -144,7 +144,7 @@ async function baterLicenca() {
       // Kill switch: vale para a versão que está rodando agora.
       await avisarTodos({ tipo: "parar", motivo: estado.pararMotivo });
       await pararCiclo("O servidor mandou parar a extensão.");
-      await gravarAuto({ lerTela: false, comentarios: { ativo: false }, bloqueio: { ativo: false } });
+      await gravarAuto({ lerTela: false, comentarios: { ativo: false }, bloqueio: { ativo: false }, moderacao: { avisar: false } });
     }
   } catch (erro) {
     if (erro.codigo === "rede") {
@@ -218,7 +218,24 @@ export const AUTO_PADRAO = {
     textoClique: "Tem gente de olho no {produto}! 👀 Toca na sacolinha e garante o seu",
     intervalo: 60,
   },
+  // Moderação segura: só alerta e avisa no chat. Não silencia nem bloqueia
+  // ninguém por conta do texto — errar ali custa um cliente.
+  moderacao: {
+    alertar: false,
+    reclamacoes: [
+      "não chegou", "não recebi", "reembolso", "golpe", "fraude",
+      "veio errado", "veio quebrado", "quebrado", "cancelar", "devolução", "demora", "enganação",
+    ],
+    avisar: false,
+    proibidas: ["whatsapp", "zap", "wpp", "chama no", "me chama", "pix por fora", "telegram"],
+    links: true,
+    telefones: true,
+    textoAviso: "@{nome}, por favor não compartilhe links ou contatos no chat. Dúvidas? Pergunta aqui mesmo!",
+    excecoes: [],
+  },
 };
+
+const moderando = (auto) => Boolean(auto.moderacao?.alertar || auto.moderacao?.avisar);
 
 async function lerAuto() {
   const a = (await api.lerLocal(api.CHAVES.auto)) ?? {};
@@ -228,6 +245,7 @@ async function lerAuto() {
     comentarios: { ...AUTO_PADRAO.comentarios, ...(a.comentarios ?? {}) },
     bloqueio: { ...AUTO_PADRAO.bloqueio, ...(a.bloqueio ?? {}) },
     carrinho: { ...AUTO_PADRAO.carrinho, ...(a.carrinho ?? {}) },
+    moderacao: { ...AUTO_PADRAO.moderacao, ...(a.moderacao ?? {}) },
   };
 }
 
@@ -246,6 +264,7 @@ async function gravarAutoAgora(parcial) {
     comentarios: { ...atual.comentarios, ...(parcial.comentarios ?? {}) },
     bloqueio: { ...atual.bloqueio, ...(parcial.bloqueio ?? {}) },
     carrinho: { ...atual.carrinho, ...(parcial.carrinho ?? {}) },
+    moderacao: { ...atual.moderacao, ...(parcial.moderacao ?? {}) },
   };
   await api.gravarLocal({ [api.CHAVES.auto]: novo });
   await escolherAbaAlvo();
@@ -374,13 +393,14 @@ async function sessaoFechadaLaFora(erro) {
 async function desligarTudo(motivo) {
   await pararCiclo(motivo);
   const auto = await lerAuto();
-  if (auto.lerTela || auto.comentarios.ativo || auto.bloqueio.ativo || auto.fixar || auto.carrinho.ativo) {
+  if (auto.lerTela || auto.comentarios.ativo || auto.bloqueio.ativo || auto.fixar || auto.carrinho.ativo || moderando(auto)) {
     await gravarAuto({
       lerTela: false,
       fixar: false,
       comentarios: { ativo: false },
       bloqueio: { ativo: false },
       carrinho: { ativo: false },
+      moderacao: { alertar: false, avisar: false },
     });
   }
 }
@@ -522,15 +542,16 @@ async function pararCiclo(motivo = null) {
   // live. Antes os comentários automáticos tinham o próprio interruptor e
   // seguiam saindo com a extensão "desligada".
   const auto = await lerAuto();
-  if (auto.lerTela || auto.comentarios.ativo || auto.bloqueio.ativo || auto.fixar || auto.carrinho.ativo) {
+  if (auto.lerTela || auto.comentarios.ativo || auto.bloqueio.ativo || auto.fixar || auto.carrinho.ativo || moderando(auto)) {
     await gravarAuto({
       lerTela: false,
       fixar: false,
       comentarios: { ativo: false },
       bloqueio: { ativo: false },
       carrinho: { ativo: false },
+      moderacao: { alertar: false, avisar: false },
     });
-    await log("Comentários, bloqueio, fixar automático e leitura do chat desligados", "inf");
+    await log("Comentários, bloqueio, carrinho, moderação, fixar automático e leitura do chat desligados", "inf");
   }
   await ajustarSessao();
   await log(motivo ? `Extensão desligada — ${motivo}` : "Extensão desligada", "inf");
@@ -593,7 +614,7 @@ async function tratarViolacao(motivo) {
   const cfg = await lerCfg();
   const minutos = Number.parseInt(cfg.minutosViolacao, 10) || 0;
   await gravarCiclo((c) => ({ alertas: c.alertas + 1 }));
-  await log(`⚠️ Aviso de violação do TikTok detectado${motivo ? ` (${motivo})` : ""}`, "err");
+  await log(`Aviso de violação do TikTok detectado${motivo ? ` (${motivo})` : ""}`, "err");
 
   if (cfg.modoViolacao !== "continuar" || minutos <= 0) {
     await gravarCiclo({ violacao: { ativa: true, fimEm: null, encerrando: true } });
@@ -656,7 +677,7 @@ async function receberMetricas(m) {
   avisarPainel({ tipo: "metricas", ciclo: novo });
 
   if (vendeu) {
-    await log(`🛒 Nova venda${novo.ultimoValor ? ` ${novo.ultimoValor}` : ""}`, "ok");
+    await log(`Nova venda${novo.ultimoValor ? ` ${novo.ultimoValor}` : ""}`, "ok");
     void api.avisarVenda({
       valor: novo.ultimoValor,
       vendas: novo.vendas,
@@ -734,7 +755,7 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
 
       case "sair":
         await pararCiclo("saiu da conta");
-        await gravarAuto({ lerTela: false, comentarios: { ativo: false }, bloqueio: { ativo: false } });
+        await gravarAuto({ lerTela: false, comentarios: { ativo: false }, bloqueio: { ativo: false }, moderacao: { avisar: false } });
         await api.esquecerToken();
         await chrome.storage.local.remove(api.CHAVES.usuario);
         estado = { ...estado, licenciada: false, motivo: "sem_token" };
@@ -843,7 +864,7 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
         const novo = [...lista, mensagem.dados].slice(-500);
         await api.gravarLocal({ [api.CHAVES.bloqueados]: novo });
         avisarPainel({ tipo: "bloqueados", lista: novo });
-        await log(`🚫 Bloqueado: ${mensagem.dados?.usuario} (palavra "${mensagem.dados?.palavra}")`, "warn");
+        await log(`Bloqueado: ${mensagem.dados?.usuario} (palavra "${mensagem.dados?.palavra}")`, "warn");
         responder({ ok: true });
         break;
       }
@@ -852,6 +873,14 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
         const ev = mensagem.evento ?? {};
         avisarPainel({ tipo: "carrinho_aviso", evento: ev, totais: mensagem.totais ?? null });
         await log(ev.frase ?? "Evento de carrinho", ev.tipo === "clique" ? "inf" : "ok");
+        responder({ ok: true });
+        break;
+      }
+
+      case "moderacao_evento": {
+        const ev = mensagem.evento ?? {};
+        avisarPainel({ tipo: "moderacao_aviso", evento: ev, totais: mensagem.totais ?? null });
+        await log(ev.frase ?? "Moderação", "warn");
         responder({ ok: true });
         break;
       }
@@ -946,7 +975,7 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
           await api.confirmarResposta(sessaoId, mensagem.texto ?? "", mensagem.tema ?? null).catch(() => {});
         }
         avisarPainel({ tipo: "lido", ...mensagem });
-        await log(`💬 Respondeu: ${String(mensagem.texto ?? "").slice(0, 60)}`, "ok");
+        await log(`Respondeu: ${String(mensagem.texto ?? "").slice(0, 60)}`, "ok");
         responder({ ok: true });
         break;
       }
