@@ -16,11 +16,13 @@
 
   const { Mapa, descrever, alvoClicavel } = await import(chrome.runtime.getURL("seletores.js"));
   const produtos = await import(chrome.runtime.getURL("produtos.js"));
+  const regras = await import(chrome.runtime.getURL("fluxos.js"));
 
   const CH = {
     auto: "shopia_auto",
     ciclo: "shopia_ciclo",
     abaAlvo: "shopia_aba_alvo",
+    fluxos: "shopia_fluxos",
   };
 
   let mapa = new Mapa({}, null);
@@ -29,6 +31,8 @@
   let alvo = null;
   let auto = {};
   let ciclo = {};
+  /** Fluxos de resposta do app: { lista, tetoPorMinuto, em }. */
+  let fluxosDoApp = { lista: [], tetoPorMinuto: 3 };
   /**
    * A extensão foi desativada, removida ou recarregada no Chrome.
    *
@@ -810,7 +814,17 @@
    * `{ ok: true, por }` — saiu, e por qual caminho.
    * `{ ok: false, motivo }` — não saiu, e o motivo serve para a tela explicar.
    */
-  async function escreverNoChat(texto) {
+  // Uma escrita por vez: comentário automático, fluxo, aviso da moderação e
+  // resposta do manual disputam o MESMO campo. Duas ao mesmo tempo misturam
+  // as letras ou uma apaga a outra antes do Enter.
+  let filaDeEscrita = Promise.resolve();
+  function escreverNoChat(texto) {
+    const vez = filaDeEscrita.then(() => escreverNoChatAgora(texto));
+    filaDeEscrita = vez.catch(() => {});
+    return vez;
+  }
+
+  async function escreverNoChatAgora(texto) {
     if (morto) return { ok: false, motivo: "extensao_desligada" };
     const campo = campoDoChat();
     if (!campo) return { ok: false, motivo: "sem_campo" };
@@ -1428,9 +1442,87 @@
     });
   }
 
+  // -------------------------------------------------------------------------
+  // FLUXOS DE RESPOSTA e PERGUNTAS SEM RESPOSTA
+  //
+  // Os fluxos são montados no app (/fluxos) e chegam pelo storage. A regra do
+  // casamento mora em fluxos.js, a mesma que o app usa na prévia.
+  // -------------------------------------------------------------------------
+
+  const respondidosPorFluxo = new Set();
+  const ultimoEnvioDoFluxo = new Map();
+  let enviosDeFluxo = [];
+  const esperasDeFluxo = new Set();
+  const perguntasAvisadas = new Set();
+
+  /** Casou algum fluxo? Se casou, agenda a resposta (ou explica por que não). */
+  function tentarFluxo(msg) {
+    const achou = regras.fluxoQueCasa(fluxosDoApp.lista ?? [], msg.texto);
+    if (!achou) return false;
+    const f = achou.fluxo;
+    const quem = regras.normalizar(msg.nome);
+    const chavePessoa = `${f.id}|${quem}`;
+    const agora = Date.now();
+    const pular = (motivo) => {
+      registrar(`Fluxo "${f.nome}" casou com ${msg.nome || "alguém"}, mas não respondeu: ${motivo}`, "inf");
+      return true;
+    };
+    if (f.umaVezPorPessoa && quem && respondidosPorFluxo.has(chavePessoa)) return pular("já respondeu essa pessoa nesta live");
+    if (agora - (ultimoEnvioDoFluxo.get(f.id) ?? 0) < (Number(f.intervaloS) || 0) * 1000) return pular("intervalo do fluxo");
+    enviosDeFluxo = enviosDeFluxo.filter((t) => agora - t < 60000);
+    if (enviosDeFluxo.length >= Math.max(1, Number(fluxosDoApp.tetoPorMinuto) || 3)) return pular("teto de mensagens por minuto");
+
+    // Reserva já, antes da espera: dez "frete" no mesmo segundo são UMA resposta.
+    respondidosPorFluxo.add(chavePessoa);
+    ultimoEnvioDoFluxo.set(f.id, agora);
+    enviosDeFluxo.push(agora);
+    const espera = Math.min(Math.max(Number(f.atrasoS) || 0, 0), 300) * 1000;
+    const t = setTimeout(async () => {
+      esperasDeFluxo.delete(t);
+      if (!auto.fluxos?.ativo || !podeAgir()) return;
+      const texto = regras.montarResposta(f, msg.nome);
+      if (!texto) return;
+      const r = await escreverNoChat(texto);
+      if (r.ok) avisoNaTela(`Fluxo "${f.nome}" respondeu ${msg.nome || ""}`.trim(), "ok", 3000);
+      void pedir({
+        tipo: "fluxo_respondeu",
+        dados: { fluxoId: f.id, nome: f.nome, gatilho: achou.gatilho, quem: msg.nome || null, pergunta: msg.texto, texto, ok: r.ok, motivo: r.motivo ?? null },
+      });
+    }, espera);
+    esperasDeFluxo.add(t);
+    return true;
+  }
+
+  function avisarPergunta(msg) {
+    const chave = `${regras.normalizar(msg.nome)}|${regras.normalizar(msg.texto)}`;
+    if (perguntasAvisadas.has(chave)) return;
+    perguntasAvisadas.add(chave);
+    avisoNaTela(`Pergunta sem resposta de ${msg.nome || "alguém"}: ${msg.texto.slice(0, 80)}`, "info", 6000);
+    void pedir({ tipo: "pergunta_sem_resposta", dados: { nome: msg.nome || null, texto: msg.texto.slice(0, 200) } });
+  }
+
+  /** Uma mensagem nova no chat: moderação, depois fluxo, depois pergunta. */
+  function tratarMensagemNova(msg) {
+    const m = auto.moderacao ?? {};
+    if (m.alertar || m.avisar) {
+      const decisao = julgar(msg, m);
+      if (decisao) {
+        void agirNaModeracao(msg, decisao, m);
+        // Quem mandou link já recebeu o aviso; responder o frete junto seria
+        // premiar o spam.
+        if (decisao.tipo === "aviso") return;
+      }
+    }
+    if (!auto.fluxos?.ativo || ehDaLoja(msg)) return;
+    if (tentarFluxo(msg)) return;
+    // Com "Ler a tela" o manual ainda pode responder, e a lista de perguntas
+    // do app já recebe o comentário por lá.
+    if (auto.fluxos.perguntas !== false && !auto.lerTela && regras.parecePergunta(msg.texto)) avisarPergunta(msg);
+  }
+
   function voltaDaModeracao() {
     const m = auto.moderacao ?? {};
-    if (!(m.alertar || m.avisar) || !podeAgir()) return;
+    if (!(m.alertar || m.avisar || auto.fluxos?.ativo) || !podeAgir()) return;
     const msgs = [...mensagensDoPainel(), ...mensagensDoTikTok()];
     // Igual à Atividade: a mesma frase pode repetir e ser OUTRA mensagem.
     const contagem = new Map();
@@ -1448,8 +1540,7 @@
       vistosChat.set(chave, agoraN);
       // O que já estava no chat quando ligou não é novidade.
       if (!chatPronto || agoraN <= antesN) continue;
-      const decisao = julgar(msg, m);
-      if (decisao) void agirNaModeracao(msg, decisao, m);
+      tratarMensagemNova(msg);
     }
     chatPronto = true;
     if (vistosChat.size > 3000) vistosChat.clear();
@@ -1457,7 +1548,7 @@
 
   function sincronizarModeracao() {
     const m = auto.moderacao ?? {};
-    const ligado = (m.alertar || m.avisar) && podeAgir();
+    const ligado = (m.alertar || m.avisar || auto.fluxos?.ativo) && podeAgir();
     if (ligado && !lacoModeracao) {
       chatPronto = false;
       voltaDaModeracao();
@@ -1467,8 +1558,17 @@
       clearInterval(lacoModeracao);
       lacoModeracao = null;
     }
-    // Nova live, nova chance: quem foi avisado numa não fica marcado na outra.
-    if (!ciclo?.ativo) avisados.clear();
+    // Nova live, nova chance: quem foi avisado ou respondido numa não fica
+    // marcado na outra.
+    if (!ciclo?.ativo) {
+      avisados.clear();
+      respondidosPorFluxo.clear();
+      perguntasAvisadas.clear();
+    }
+    if (!ligado) {
+      for (const t of esperasDeFluxo) clearTimeout(t);
+      esperasDeFluxo.clear();
+    }
   }
 
   // =========================================================================
@@ -1634,6 +1734,9 @@
       if (vistos.has(chave)) continue;
       vistos.add(chave);
       novos.push({ tipo: "comentario", apelido: lido.apelido, texto: lido.texto });
+      // Um fluxo casou? Ele responde (pelo leitor do chat); o manual cala.
+      // Ninguém recebe duas respostas para o mesmo comentário.
+      if (auto.fluxos?.ativo && regras.fluxoQueCasa(fluxosDoApp.lista ?? [], lido.texto)) continue;
       void consultarEResponder({ tipo: "comentario", apelido: lido.apelido, texto: lido.texto });
     }
     if (vistos.size > 5000) {
@@ -1705,6 +1808,36 @@
     if (!pendentes.length) return;
     const lote = pendentes.splice(0, 200);
     await pedir({ tipo: "eventos", eventos: lote });
+  }
+
+  /**
+   * "Testar antes da live": o que esta aba consegue fazer, sem publicar nada.
+   * O envio é ensaiado (digita e apaga), nunca enviado.
+   */
+  async function diagnosticar() {
+    const live = verificarLiveAtiva();
+    // Na fila de escrita: ensaiar com outra mensagem saindo apagaria a dela.
+    const vez = filaDeEscrita.then(ensaiarEnvio);
+    filaDeEscrita = vez.catch(() => {});
+    const ensaio = await vez.catch(() => ({ campo: false }));
+    const fixar = [...document.querySelectorAll("button")].filter((b) => {
+      const t = textoDe(b).toLowerCase();
+      return ehFixar(t) || ehDesafixar(t);
+    }).length;
+    return {
+      pagina: ehPaginaDaLive(),
+      endereco: location.host + location.pathname.slice(0, 60),
+      live: live.liveAtiva,
+      motivoLive: live.motivo,
+      campo: Boolean(ensaio.campo),
+      // O campo aceitou o texto. Botão de enviar é opcional: no painel de
+      // produtos não existe, e a mensagem sai pelo Enter.
+      digita: Boolean(ensaio.campo && ensaio.tecnica),
+      botao: ensaio.botao ?? null,
+      fixar,
+      mensagens: mensagensDoPainel().length + mensagensDoTikTok().length,
+      souAlvo: souAlvo(),
+    };
   }
 
   // =========================================================================
@@ -1794,6 +1927,7 @@
     if (mudancas[CH.auto]) auto = mudancas[CH.auto].newValue ?? {};
     if (mudancas[CH.ciclo]) ciclo = mudancas[CH.ciclo].newValue ?? {};
     if (mudancas[CH.abaAlvo]) alvo = mudancas[CH.abaAlvo].newValue ?? null;
+    if (mudancas[CH.fluxos]) fluxosDoApp = mudancas[CH.fluxos].newValue ?? { lista: [] };
     if (mudancas.shopia_ancoras_locais) {
       ancorasLocais = mudancas.shopia_ancoras_locais.newValue ?? {};
       mapa = new Mapa(mapa.mapa, mapa.versao, ancorasLocais);
@@ -1847,7 +1981,7 @@
         if (mensagem.ancora) comecarAAprender(mensagem.ancora, mensagem.instrucao ?? "Clique no botão que você quer ensinar.");
         return;
       case "programado_escrever":
-        if (mensagem.texto) {
+        if (mensagem.texto && podeAgir() && auto.comentarios?.ativo) {
           void escreverNoChat(String(mensagem.texto).slice(0, 150)).then((r) =>
             pedir({
               tipo: "programado_feito",
@@ -1863,6 +1997,9 @@
       case "programado_fixar":
         void fixarProduto().then((r) => pedir({ tipo: "programado_fixou", ...r }));
         return;
+      case "diagnostico":
+        void diagnosticar().then(responder);
+        return true;
       case "ensaiar_envio":
         void ensaiarEnvio().then(responder);
         return true;
@@ -1872,7 +2009,8 @@
   });
 
   // --- partida ---
-  const inicial = await chrome.storage.local.get([CH.auto, CH.ciclo, CH.abaAlvo, "shopia_ancoras_locais"]);
+  const inicial = await chrome.storage.local.get([CH.auto, CH.ciclo, CH.abaAlvo, CH.fluxos, "shopia_ancoras_locais"]);
+  fluxosDoApp = inicial[CH.fluxos] ?? { lista: [] };
   auto = inicial[CH.auto] ?? {};
   ciclo = inicial[CH.ciclo] ?? {};
   alvo = inicial[CH.abaAlvo] ?? null;
@@ -1896,6 +2034,7 @@
     }
     clearTimeout(lacoFixar);
     clearTimeout(lacoComentar);
+    for (const t of esperasDeFluxo) clearTimeout(t);
     observador?.disconnect();
     for (const id of ["shopia-sb", "shopia-pop", "shopia-hud", "shopia-estilo"]) {
       document.getElementById(id)?.remove();

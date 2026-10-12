@@ -56,6 +56,11 @@
   <symbol id="i-user-x" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="m17 8 5 5"/><path d="m22 8-5 5"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
   <symbol id="i-zap" viewBox="0 0 24 24"><path d="M13 2 3 14h9l-1 8 10-12h-9z"/></symbol>
+  <symbol id="i-workflow" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/><path d="M6.5 10v3a2 2 0 0 0 2 2H14"/></symbol>
+  <symbol id="i-clipboard-check" viewBox="0 0 24 24"><rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><path d="m9 14 2 2 4-4"/></symbol>
+  <symbol id="i-message-question" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M9.5 8a2.5 2.5 0 0 1 4.9.7c0 1.6-2.4 2-2.4 3.3"/><path d="M12 14h.01"/></symbol>
+  <symbol id="i-reply" viewBox="0 0 24 24"><path d="M9 17 4 12l5-5"/><path d="M20 18v-2a4 4 0 0 0-4-4H4"/></symbol>
+  <symbol id="i-chart-bar" viewBox="0 0 24 24"><path d="M3 3v18h18"/><rect x="7" y="12" width="3" height="5" rx="1"/><rect x="12" y="8" width="3" height="9" rx="1"/><rect x="17" y="5" width="3" height="12" rx="1"/></symbol>
 </svg>
 
 <!-- TELA DE ACESSO: o painel fica trancado até entrar com a conta do site -->
@@ -174,6 +179,8 @@
 
     <!-- LIGAR -->
     <div class="liga-dica">Abriu sua live na TikTok? <b>Ligue a extensão</b> — ela lê a tela, avisa vendas, fixa produtos e <b>desliga a live se der problema</b>.</div>
+    <button class="btn btn-teste" id="btnDiagnostico"><svg class="ic"><use href="#i-clipboard-check"/></svg><span>Testar antes da live</span></button>
+    <div id="diagBox" class="diag" hidden></div>
     <button class="btn-main btn-start" id="btnCiclo"><svg class="ic"><use href="#i-power"/></svg><span>Ligar a extensão</span></button>
 
     <!-- FIXAR PRODUTO -->
@@ -273,6 +280,39 @@
           <div class="mbar"><div class="mfill" id="comentarioBarra"></div></div>
         </div>
         <div class="linha-log" id="comentarioLog">—</div>
+        <div class="fdesc">Os avisos cadastrados no app (<b>Automações</b>) também só vão ao chat com isto ligado, e o primeiro só sai depois do intervalo dele.</div>
+      </div>
+    </div>
+
+    <!-- FLUXOS DE RESPOSTA -->
+    <div class="card open" id="cFluxos">
+      <div class="ch">
+        <span class="ch-ico"><svg class="ic"><use href="#i-workflow"/></svg></span>
+        <div class="ch-info"><div class="ch-title">Fluxos de Resposta</div><div class="ch-sub">Quando comentarem X, responde Y — montados no app</div></div>
+        <span class="cbadge boff" id="bFluxos">Inativo</span>
+        <span class="cchev"><svg class="ic"><use href="#i-chevron"/></svg></span>
+      </div>
+      <div class="cb">
+        <div class="frow">
+          <span class="fdesc"><b>Responder pelos fluxos</b><br><span class="dica" id="fluxosInfo">Nenhum fluxo carregado ainda.</span></span>
+          <button class="tog" id="togFluxos" aria-pressed="false"></button>
+        </div>
+        <div class="brow">
+          <button class="btn bghost" id="btnEditarFluxos"><svg class="ic"><use href="#i-external"/></svg><span>Criar / editar no app</span></button>
+          <button class="btn bghost" id="btnAtualizarFluxos"><svg class="ic"><use href="#i-refresh"/></svg><span>Atualizar</span></button>
+        </div>
+        <div class="contadores dois">
+          <div><b id="totFluxos">0</b><span><svg class="ic"><use href="#i-reply"/></svg>Respostas</span></div>
+          <div><b id="totPerguntas">0</b><span><svg class="ic"><use href="#i-message-question"/></svg>Sem resposta</span></div>
+        </div>
+        <div class="eventos" id="listaEventosFluxos"><span class="vazio">Nenhuma resposta ainda...</span></div>
+
+        <div class="sep"></div>
+        <div class="frow">
+          <span class="fdesc"><b>Avisar perguntas sem resposta</b><br><span class="dica">Pergunta que nenhum fluxo respondeu aparece aqui e na lista do Manual no app.</span></span>
+          <button class="tog on" id="togPerguntas" aria-pressed="true"></button>
+        </div>
+        <div class="eventos perguntas" id="listaPerguntas"><span class="vazio">Nenhuma pergunta sem resposta.</span></div>
       </div>
     </div>
 

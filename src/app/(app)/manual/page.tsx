@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { CircleHelp } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Card, CardDescricao, CardTitulo } from "@/components/ui/card";
@@ -61,8 +62,9 @@ export default async function ManualPage() {
         <Card>
           <CardTitulo>O que perguntaram e você ainda não respondeu</CardTitulo>
           <CardDescricao>
-            Comentários das suas lives que não casaram com nenhuma linha do manual. Cada um destes
-            é alguém que ficou sem resposta — e uma pergunta que vale cadastrar antes da próxima.
+            Comentários das suas lives que não casaram com nenhuma linha do manual nem com nenhum
+            fluxo. Cada um destes é alguém que ficou sem resposta — cadastre aqui no manual ou toque
+            em <strong>Criar fluxo</strong> para responder do seu jeito na próxima live.
           </CardDescricao>
 
           {semResposta.length === 0 ? (
@@ -78,6 +80,12 @@ export default async function ManualPage() {
                   <span className="num shrink-0 text-xs text-fg-subtle">
                     {numero(p.vezes)}× {p.vezes === 1 ? "vez" : "vezes"}
                   </span>
+                  <Link
+                    href={`/fluxos?gatilho=${encodeURIComponent(p.texto.slice(0, 60))}`}
+                    className="shrink-0 text-xs font-medium text-primary underline-offset-2 hover:underline"
+                  >
+                    Criar fluxo
+                  </Link>
                 </li>
               ))}
             </ul>

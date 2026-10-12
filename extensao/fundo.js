@@ -51,7 +51,33 @@ const CICLO_PADRAO = {
   vendas: null,
   gmv: null,
   ultimoValor: null,
+  /** Contado durante a live, para o relatório do fim. */
+  stats: null,
+  /** As últimas perguntas que ninguém respondeu, para o relatório. */
+  perguntas: [],
 };
+
+const STATS_PADRAO = {
+  cliques: 0,
+  carrinhos: 0,
+  compras: 0,
+  reclamacoes: 0,
+  avisos: 0,
+  comentarios: 0,
+  fluxos: 0,
+  perguntas: 0,
+  picoViewers: 0,
+};
+
+/** Soma no placar da live em curso. Fora de uma live, não conta nada. */
+function somar(parcial) {
+  return gravarCiclo((c) => {
+    if (!c.ativo) return {};
+    const stats = { ...STATS_PADRAO, ...(c.stats ?? {}) };
+    for (const [k, v] of Object.entries(parcial)) stats[k] = (stats[k] ?? 0) + (Number(v) || 0);
+    return { stats };
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Estado da licença
@@ -144,7 +170,7 @@ async function baterLicenca() {
       // Kill switch: vale para a versão que está rodando agora.
       await avisarTodos({ tipo: "parar", motivo: estado.pararMotivo });
       await pararCiclo("O servidor mandou parar a extensão.");
-      await gravarAuto({ lerTela: false, comentarios: { ativo: false }, bloqueio: { ativo: false }, moderacao: { avisar: false } });
+      await gravarAuto({ lerTela: false, comentarios: { ativo: false }, bloqueio: { ativo: false }, moderacao: { avisar: false }, fluxos: { ativo: false } });
     }
   } catch (erro) {
     if (erro.codigo === "rede") {
@@ -233,9 +259,12 @@ export const AUTO_PADRAO = {
     textoAviso: "@{nome}, por favor não compartilhe links ou contatos no chat. Dúvidas? Pergunta aqui mesmo!",
     excecoes: [],
   },
+  // Fluxos de resposta montados no app (/fluxos), executados aqui.
+  fluxos: { ativo: false, perguntas: true },
 };
 
-const moderando = (auto) => Boolean(auto.moderacao?.alertar || auto.moderacao?.avisar);
+const moderando = (auto) =>
+  Boolean(auto.moderacao?.alertar || auto.moderacao?.avisar || auto.fluxos?.ativo);
 
 async function lerAuto() {
   const a = (await api.lerLocal(api.CHAVES.auto)) ?? {};
@@ -246,6 +275,7 @@ async function lerAuto() {
     bloqueio: { ...AUTO_PADRAO.bloqueio, ...(a.bloqueio ?? {}) },
     carrinho: { ...AUTO_PADRAO.carrinho, ...(a.carrinho ?? {}) },
     moderacao: { ...AUTO_PADRAO.moderacao, ...(a.moderacao ?? {}) },
+    fluxos: { ...AUTO_PADRAO.fluxos, ...(a.fluxos ?? {}) },
   };
 }
 
@@ -265,6 +295,7 @@ async function gravarAutoAgora(parcial) {
     bloqueio: { ...atual.bloqueio, ...(parcial.bloqueio ?? {}) },
     carrinho: { ...atual.carrinho, ...(parcial.carrinho ?? {}) },
     moderacao: { ...atual.moderacao, ...(parcial.moderacao ?? {}) },
+    fluxos: { ...atual.fluxos, ...(parcial.fluxos ?? {}) },
   };
   await api.gravarLocal({ [api.CHAVES.auto]: novo });
   await escolherAbaAlvo();
@@ -401,6 +432,7 @@ async function desligarTudo(motivo) {
       bloqueio: { ativo: false },
       carrinho: { ativo: false },
       moderacao: { alertar: false, avisar: false },
+      fluxos: { ativo: false },
     });
   }
 }
@@ -414,10 +446,36 @@ function contarEspectadores(texto) {
   return Number.isFinite(base) ? Math.round(base * mult) : null;
 }
 
+/**
+ * Os fluxos de resposta do app, guardados no storage para a aba ler.
+ *
+ * Busca de novo a cada 2 min com o card ligado (ou na hora, com `forcar`):
+ * o fluxo criado no app no meio da live entra sem recarregar nada.
+ */
+async function atualizarFluxos(forcar = false) {
+  const atual = (await api.lerLocal(api.CHAVES.fluxos)) ?? null;
+  if (!forcar && atual?.em && Date.now() - atual.em < 120000) return atual;
+  try {
+    const r = await api.fluxos();
+    const novo = { lista: r.fluxos ?? [], tetoPorMinuto: Number(r.tetoPorMinuto) || 3, em: Date.now() };
+    await api.gravarLocal({ [api.CHAVES.fluxos]: novo });
+    if (forcar) await log(`Fluxos atualizados: ${novo.lista.length} ligado(s) no app`, "inf");
+    return novo;
+  } catch (erro) {
+    if (forcar) await log(`Não consegui buscar os fluxos: ${erro.message}`, "warn");
+    return atual;
+  }
+}
+
 /** Automações programadas no app (avisos, refixar). Quem conta o tempo é o servidor. */
 async function rodarProgramado() {
   const sessaoId = await api.lerLocal(api.CHAVES.sessao);
   if (!sessaoId) return;
+  // A extensão manda: os avisos cadastrados no app só vão ao chat com a
+  // extensão ligada E "Comentários Automáticos" ligado. Antes eles saíam
+  // sozinhos em toda live, sem nada no painel dizendo de onde vinham.
+  const [ciclo, auto] = await Promise.all([lerCiclo(), lerAuto()]);
+  if (!ciclo.ativo || !auto.comentarios.ativo) return;
   let tarefa;
   try {
     tarefa = await api.proximaTarefa(sessaoId);
@@ -520,6 +578,7 @@ async function iniciarCiclo(cfgNova) {
   await mandarParaAlvo({ tipo: "ciclo_on" });
   await ligarLacos();
   await ajustarSessao();
+  void atualizarFluxos(true);
   await log(`Extensão ligada — encerra em ${hms(minutos * 60)}`, "ok");
   await publicarCiclo(ciclo);
 }
@@ -550,8 +609,9 @@ async function pararCiclo(motivo = null) {
       bloqueio: { ativo: false },
       carrinho: { ativo: false },
       moderacao: { alertar: false, avisar: false },
+      fluxos: { ativo: false },
     });
-    await log("Comentários, bloqueio, carrinho, moderação, fixar automático e leitura do chat desligados", "inf");
+    await log("Comentários, fluxos, bloqueio, carrinho, moderação, fixar automático e leitura do chat desligados", "inf");
   }
   await ajustarSessao();
   await log(motivo ? `Extensão desligada — ${motivo}` : "Extensão desligada", "inf");
@@ -643,10 +703,26 @@ async function gerarRelatorio(ciclo) {
     data: new Date().toLocaleDateString("pt-BR"),
     viewers: ciclo.viewers ?? "—",
     vendas: ciclo.vendas ?? "—",
+    gmv: ciclo.gmv ?? null,
+    stats: { ...STATS_PADRAO, ...(ciclo.stats ?? {}) },
+    perguntas: (ciclo.perguntas ?? []).slice(0, 10),
   };
   const hist = (await api.lerLocal(api.CHAVES.historico)) ?? [];
   await api.gravarLocal({ [api.CHAVES.historico]: [rel, ...hist].slice(0, 30) });
   avisarPainel({ tipo: "relatorio", rel });
+  // Live de menos de 5 minutos é teste: não vale notificação no celular.
+  if (rel.minutos >= 5) {
+    void api.enviarRelatorio({
+      minutos: rel.minutos,
+      vendas: Number.parseInt(ciclo.vendas ?? "0", 10) || rel.stats.compras,
+      carrinhos: rel.stats.carrinhos,
+      cliques: rel.stats.cliques,
+      reclamacoes: rel.stats.reclamacoes,
+      perguntas: rel.stats.perguntas,
+      respostas: rel.stats.fluxos,
+      picoEspectadores: rel.stats.picoViewers,
+    });
+  }
 }
 
 /** O worker renasceu no meio de um ciclo: religa os laços. */
@@ -662,7 +738,13 @@ async function retomarSeAtivo() {
 async function receberMetricas(m) {
   const ciclo = await lerCiclo();
   const parcial = {};
-  if (m.viewers) parcial.viewers = m.viewers;
+  if (m.viewers) {
+    parcial.viewers = m.viewers;
+    const n = contarEspectadores(m.viewers);
+    if (n && n > (ciclo.stats?.picoViewers ?? 0)) {
+      parcial.stats = { ...STATS_PADRAO, ...(ciclo.stats ?? {}), picoViewers: n };
+    }
+  }
   if (m.gmv) parcial.gmv = m.gmv;
   if (m.ultimoValor) parcial.ultimoValor = m.ultimoValor;
 
@@ -710,7 +792,10 @@ chrome.alarms.onAlarm.addListener((alarme) => {
   if (alarme.name === ALARME_LICENCA) void baterLicenca();
   if (alarme.name === ALARME_EVENTOS) void despejarFila();
   if (alarme.name === ALARME_SESSAO) void baterSessaoAberta();
-  if (alarme.name === ALARME_PROGRAMADO) void rodarProgramado();
+  if (alarme.name === ALARME_PROGRAMADO) {
+    void rodarProgramado();
+    void lerAuto().then((a) => a.fluxos.ativo && atualizarFluxos());
+  }
   if (alarme.name === ALARME_PULSO) void retomarSeAtivo().then(tick);
 });
 
@@ -755,7 +840,7 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
 
       case "sair":
         await pararCiclo("saiu da conta");
-        await gravarAuto({ lerTela: false, comentarios: { ativo: false }, bloqueio: { ativo: false }, moderacao: { avisar: false } });
+        await gravarAuto({ lerTela: false, comentarios: { ativo: false }, bloqueio: { ativo: false }, moderacao: { avisar: false }, fluxos: { ativo: false } });
         await api.esquecerToken();
         await chrome.storage.local.remove(api.CHAVES.usuario);
         estado = { ...estado, licenciada: false, motivo: "sem_token" };
@@ -871,6 +956,8 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
 
       case "carrinho_evento": {
         const ev = mensagem.evento ?? {};
+        const chave = { clique: "cliques", carrinho: "carrinhos", compra: "compras" }[ev.tipo];
+        if (chave) await somar({ [chave]: ev.quantos ?? 1 });
         avisarPainel({ tipo: "carrinho_aviso", evento: ev, totais: mensagem.totais ?? null });
         await log(ev.frase ?? "Evento de carrinho", ev.tipo === "clique" ? "inf" : "ok");
         responder({ ok: true });
@@ -879,13 +966,73 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
 
       case "moderacao_evento": {
         const ev = mensagem.evento ?? {};
+        await somar(ev.tipo === "reclamacao" ? { reclamacoes: 1 } : { avisos: 1 });
         avisarPainel({ tipo: "moderacao_aviso", evento: ev, totais: mensagem.totais ?? null });
         await log(ev.frase ?? "Moderação", "warn");
         responder({ ok: true });
         break;
       }
 
+      case "diagnostico": {
+        // "Testar antes da live": servidor, plano, aba e o que a aba consegue
+        // fazer. Nada é publicado — o envio é ensaiado e apagado.
+        await baterLicenca().catch(() => {});
+        const [conta, fl, abas] = await Promise.all([
+          api.conta().catch(() => null),
+          atualizarFluxos(true),
+          chrome.tabs.query({ url: "*://*.tiktok.com/*" }).catch(() => []),
+        ]);
+        const aba = abas.length ? await mandarParaAlvo({ tipo: "diagnostico" }) : null;
+        responder({
+          ok: true,
+          servidor: Boolean(estado.licenciada),
+          motivo: estado.motivo ?? null,
+          plano: conta?.plano?.ativo ?? null,
+          planoNome: conta?.plano?.nome ?? null,
+          chatLiberado: Boolean(estado.recursos?.chat),
+          abasTikTok: abas.length,
+          aba,
+          fluxos: fl?.lista?.length ?? null,
+        });
+        break;
+      }
+
+      case "fluxos_atualizar":
+        responder({ ok: true, fluxos: await atualizarFluxos(true) });
+        break;
+
+      case "fluxo_respondeu": {
+        const f = mensagem.dados ?? {};
+        avisarPainel({ tipo: "fluxo_aviso", dados: f });
+        if (f.ok) {
+          await somar({ fluxos: 1 });
+          await log(`Fluxo "${f.nome}" respondeu ${f.quem ? `@${f.quem}` : ""}: ${String(f.texto ?? "").slice(0, 60)}`, "ok");
+          if (f.fluxoId) void api.usouFluxo(f.fluxoId);
+          const sessaoId = await api.lerLocal(api.CHAVES.sessao);
+          if (sessaoId && f.texto) await api.confirmarResposta(sessaoId, f.texto, "fluxo").catch(() => {});
+        } else {
+          await log(`Fluxo "${f.nome}" não saiu: ${f.motivo}`, "warn");
+        }
+        responder({ ok: true });
+        break;
+      }
+
+      case "pergunta_sem_resposta": {
+        const p = mensagem.dados ?? {};
+        avisarPainel({ tipo: "pergunta_aviso", dados: p });
+        await somar({ perguntas: 1 });
+        await gravarCiclo((c) => (c.ativo ? { perguntas: [{ nome: p.nome ?? null, texto: p.texto }, ...(c.perguntas ?? [])].slice(0, 20) } : {}));
+        // Vai para "Perguntas sem resposta" do Manual no app. Com "Ler a tela"
+        // ligado o comentário já chega por lá — não manda em dobro.
+        if (!(await lerAuto()).lerTela && p.texto) {
+          fila.push({ tipo: "comentario", apelido: p.nome ?? null, texto: p.texto });
+        }
+        responder({ ok: true });
+        break;
+      }
+
       case "comentario_feito": {
+        if (mensagem.ok && !mensagem.agendado) await somar({ comentarios: 1 });
         avisarPainel({ tipo: "comentario_log", ...mensagem });
         if (!mensagem.ok) await log(`Comentário não saiu: ${mensagem.motivo}`, "warn");
         // O comentário automático entra no teto por minuto do servidor: sem
@@ -952,6 +1099,7 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
       }
 
       case "programado_feito": {
+        if (mensagem.ok) await somar({ comentarios: 1 });
         const sessaoId = await api.lerLocal(api.CHAVES.sessao);
         if (sessaoId && mensagem.ok) {
           await api

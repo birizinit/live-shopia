@@ -11,6 +11,8 @@ export const SERVIDOR = "https://liveshopia.up.railway.app";
 
 /** Chaves do chrome.storage.local. Nome em um lugar só evita erro de digitação. */
 export const CHAVES = {
+  /** Fluxos de resposta montados no app: { lista, tetoPorMinuto, em }. */
+  fluxos: "shopia_fluxos",
   token: "shopia_token",
   instalacao: "shopia_instalacao",
   mapa: "shopia_mapa",
@@ -319,5 +321,28 @@ export async function avisarVenda(dados) {
     await chamar("/api/ext/venda", { metodo: "POST", corpo: dados });
   } catch {
     /* aviso perdido não derruba a live */
+  }
+}
+
+/** Fluxos de resposta ligados no app, e o teto por minuto da conta. */
+export async function fluxos() {
+  return chamar("/api/ext/fluxos");
+}
+
+/** Conta que um fluxo respondeu. Não lança. */
+export async function usouFluxo(id) {
+  try {
+    await chamar("/api/ext/fluxos", { metodo: "POST", corpo: { acao: "usou", id } });
+  } catch {
+    /* contagem perdida não derruba a live */
+  }
+}
+
+/** O resumo da live que acabou, como notificação no celular. Não lança. */
+export async function enviarRelatorio(dados) {
+  try {
+    await chamar("/api/ext/relatorio", { metodo: "POST", corpo: dados });
+  } catch {
+    /* resumo perdido não derruba nada */
   }
 }

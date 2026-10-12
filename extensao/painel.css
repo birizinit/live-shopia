@@ -599,7 +599,7 @@ input[type=range] { width: 80px; accent-color: var(--primary); }
 .contadores span { font-size: 9px; color: var(--muted); display: flex; align-items: center; gap: 4px; }
 .contadores span .ic { width: 11px; height: 11px; }
 .contadores.dois { grid-template-columns: repeat(2, 1fr); }
-.contadores.dois > div:first-child b { color: var(--warn); }
+#totReclamacao, #totPerguntas { color: var(--warn); }
 .eventos {
   max-height: 120px; overflow-y: auto; background: var(--bg); border: 1px solid var(--border);
   border-radius: 7px; padding: 6px 9px; font-size: 10px; display: flex; flex-direction: column; gap: 3px; color: var(--sub);
@@ -621,3 +621,50 @@ textarea.baixo { height: 44px; }
 .hmeta { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
 .hmeta span { display: inline-flex; align-items: center; gap: 3px; }
 .hmeta .ic { width: 10px; height: 10px; }
+
+/* TESTAR ANTES DA LIVE */
+.btn-teste { background: var(--card); color: var(--sub); border: 1px dashed var(--border2); padding: 9px; }
+.btn-teste:hover { border-color: var(--primary); color: var(--primary); }
+.btn-teste .ic { color: var(--primary); }
+.diag {
+  background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px;
+  display: flex; flex-direction: column; gap: 6px; box-shadow: var(--sombra);
+}
+.diag-topo { display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: 700; }
+.diag-item { display: flex; gap: 8px; align-items: flex-start; font-size: 10.5px; line-height: 1.45; color: var(--sub); }
+.diag-item .ic { width: 13px; height: 13px; margin-top: 1px; stroke-width: 2.6; }
+.diag-item.ok .ic { color: var(--ok); }
+.diag-item.ruim .ic { color: var(--red); }
+.diag-item.meio .ic { color: var(--warn); }
+.diag-item small { display: block; color: var(--muted); }
+.diag-res { font-size: 10.5px; font-weight: 700; padding: 6px 8px; border-radius: 7px; }
+.diag-res.ok { background: var(--okdim); color: var(--ok); }
+.diag-res.ruim { background: var(--rdim); color: var(--red); }
+
+/* PERGUNTAS SEM RESPOSTA */
+.perguntas .ev { align-items: center; }
+.perguntas .ev > span { flex: 1; min-width: 0; }
+.perguntas .ev button {
+  flex-shrink: 0; font-size: 9px; font-weight: 700; padding: 3px 7px; border-radius: 6px; cursor: pointer;
+  border: 1px solid rgba(var(--primary-rgb), .35); background: var(--pdim); color: var(--primary);
+}
+
+/* RELATÓRIO DA LIVE */
+#relatorio { position: fixed; inset: 0; z-index: 100001; display: flex; align-items: center; justify-content: center; padding: 16px; }
+#relatorio .rl-fundo { position: absolute; inset: 0; background: rgba(4, 10, 7, .8); backdrop-filter: blur(5px); }
+#relatorio .rl-card {
+  position: relative; width: min(340px, 94vw); max-height: 90vh; overflow-y: auto; background: var(--bg2);
+  border: 1px solid var(--border2); border-radius: 16px; padding: 18px; box-shadow: 0 20px 60px rgba(0, 0, 0, .6);
+  display: flex; flex-direction: column; gap: 10px;
+}
+.rl-h { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 800; }
+.rl-h .ic { color: var(--primary); width: 18px; height: 18px; }
+.rl-sub { font-size: 10.5px; color: var(--muted); margin-top: -6px; }
+.rl-grade { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.rl-grade > div { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 8px 4px; text-align: center; }
+.rl-grade b { display: block; font-size: 16px; font-family: var(--mono); color: var(--primary); font-variant-numeric: tabular-nums; }
+.rl-grade span { font-size: 8.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; font-weight: 700; }
+.rl-grade .alerta b { color: var(--warn); }
+.rl-dica { font-size: 10.5px; line-height: 1.5; color: var(--sub); background: var(--pdim); border: 1px solid rgba(var(--primary-rgb), .2); border-radius: 8px; padding: 8px 10px; }
+.hitem .hmeta + .hmeta { margin-top: 3px; }
+.hitem .hver { margin-top: 6px; font-size: 9.5px; color: var(--primary); background: none; border: none; cursor: pointer; padding: 0; font-weight: 700; }

@@ -1,9 +1,9 @@
-# Extensão Shopia (3.2.0)
+# Extensão Shopia (3.3.0)
 
 Painel lateral no formato da extensão de referência (LiveFox), com a paleta
 verde da Shopia. Liga e cuida da live no TikTok Shop: timer de encerramento,
 proteção contra violação, fixar produto (com modo cupom), comentários
-automáticos, moderação do chat, bloqueio por nome, aviso de venda no celular e respostas no chat
+automáticos, fluxos de resposta, moderação do chat, bloqueio por nome, aviso de venda no celular e respostas no chat
 pelo manual.
 
 Só precisa do navegador. Nada é instalado no sistema operacional.
@@ -33,16 +33,24 @@ barra e nos avisos da página) — nenhum emoji na interface.
 |---|---|
 | Status | Aba do TikTok, live detectada, ação atual, conexão com o servidor |
 | Scans · Timer · Alertas | Contadores do ciclo |
+| Testar antes da live | Confere conta, plano, aba, página da live, campo do chat (escreve e apaga, **sem enviar**), botão de fixar, leitura do chat e fluxos carregados. Mostra o que resolver antes de ligar |
 | Timer de Encerramento | 1h–8h ou minutos à mão; pausar/retomar; cancelar desliga |
 | Ligar a extensão | Começa o ciclo: timer, varredura de violação a cada 8 s, checagem da live a cada 10 s, leitura de vendas |
 | Fixar produto | Agora, ou automático (refixa a cada 18–30 s) |
 | Tem cupom na lista | Pula o 1º item (o card do cupom) e fixa o de baixo |
 | Proteção Contra Violação | Ao ver o aviso do TikTok: encerra na hora, ou continua por N minutos e encerra |
-| Comentários Automáticos | Uma mensagem por linha, em rodízio, com intervalo aleatório entre mín. e máx. |
+| Comentários Automáticos | Uma mensagem por linha, em rodízio, com intervalo aleatório entre mín. e máx. Também é a chave dos avisos cadastrados no app (Automações): com isto desligado, eles não saem; ligado, o primeiro de cada um espera o intervalo dele a partir do início da live |
+| Fluxos de Resposta | Executa os fluxos montados no app (**Fluxos**): quando um comentário é exatamente ou contém a palavra/frase, responde depois da espera escolhida, marcando (`@nome`) ou não, uma vez por pessoa e com intervalo por fluxo. Respeita o teto de mensagens por minuto da conta. Quando um fluxo casa, o manual não responde o mesmo comentário. **Perguntas sem resposta**: o que parece pergunta e nenhum fluxo respondeu aparece no painel (com "Criar fluxo") e na lista do Manual no app |
 | Moderação do Chat | Modo seguro: ninguém é silenciado nem bloqueado pelo texto. **Alertar reclamações** ("não chegou", "golpe"…): som, aviso na página e na lista do painel, para você responder. **Avisar no chat**: link, telefone ou palavra proibida recebe um aviso educado (`{nome}`), uma vez por pessoa na live e no máximo um a cada 20 s. Lista "Nunca moderar"; mensagens com tag Host/moderador e o que a própria Shopia escreveu são ignoradas |
 | Bloqueio por Nome | Bloqueia quem entra com palavra da lista no nome (palavra inteira) |
 | Carrinho e Cliques | No painel de produtos da live: avisa quem adicionou ao carrinho (pela Atividade, com o nome) e quando os cliques/carrinhos de um produto sobem (pelos contadores do cartão). Opcional: comentar no chat com `{nome}` e `{produto}`, com intervalo mínimo |
 | Log de Eventos | Tudo que aconteceu, em tempo real |
+
+**Fim da live:** abre o **relatório** — vendas, carrinhos, cliques, pico de
+espectadores, respostas dos fluxos, comentários, perguntas sem resposta,
+reclamações e links barrados — com dicas do que ajustar e "Criar fluxo" para
+cada pergunta. Fica no histórico ("Ver relatório") e, em live de 5 min ou
+mais, chega como notificação no celular (`/api/ext/relatorio`).
 
 **Aba Central:** threshold e intervalo de scan, som de venda, "ensinar" o
 botão de fixar (quando a conta tem um layout diferente), passo a passo das
@@ -57,6 +65,7 @@ notificações no celular e o histórico das últimas 30 sessões.
 | `conteudo.js` | Na aba do TikTok: detecta live e violação, encerra a live, fixa, comenta, bloqueia, lê vendas e o chat, barra de status na página |
 | `api.js` | Cliente da API, autenticado por token de licença |
 | `seletores.js` / `produtos.js` | Mapa remoto de seletores e âncoras aprendidas apontando na tela |
+| `fluxos.js` | A regra dos fluxos (casar exato/contém, montar a resposta). O app usa a mesma regra na prévia — `src/lib/fluxos.test.ts` roda as duas contra os mesmos casos |
 
 **Na página da live**, com a extensão ligada: uma barra fina no topo
 (estado, aba, live, timer, scans, proteção) e um aviso arrastável com
@@ -67,6 +76,10 @@ desliga também comentários automáticos, bloqueio, carrinho, moderação, fixa
 automático e "Ler a tela". E comentar, bloquear e fixar sozinho só rodam com a extensão ligada. Se
 a extensão for desativada, removida ou recarregada no Chrome, o script que
 ficou na aba percebe em até 2 s e para tudo — antes ele seguia comentando.
+
+**Uma escrita por vez.** Comentário automático, fluxo, aviso da moderação e
+resposta do manual passam por uma fila: duas no mesmo instante misturariam
+as letras no campo do chat.
 
 **Uma aba só age.** O service worker escolhe a aba do TikTok
 (`shopia_aba_alvo`); as outras ficam quietas. Duas abas comentando seria a
@@ -83,7 +96,7 @@ segura o ritmo. A extensão não inventa texto.
 
 `/api/ext/entrar` (login → token), `/api/ext/licenca`, `/api/ext/conta`,
 `/api/ext/sessao`, `/api/ext/responder`, `/api/ext/eventos`,
-`/api/ext/seletores`, `/api/ext/telemetria` e `/api/ext/venda` (só vira push
+`/api/ext/seletores`, `/api/ext/telemetria`, `/api/ext/fluxos`, `/api/ext/relatorio` e `/api/ext/venda` (só vira push
 no celular do próprio vendedor; **não** entra no ranking nem no faturamento).
 
 ## O que ficou de fora de propósito

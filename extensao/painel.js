@@ -287,6 +287,11 @@ function pintarAuto() {
   }
   if (document.activeElement !== $("textoAviso")) $("textoAviso").value = m.textoAviso ?? "";
   const moderando = m.alertar || m.avisar;
+  const fl = auto.fluxos ?? {};
+  interruptor("togFluxos", fl.ativo);
+  interruptor("togPerguntas", fl.perguntas !== false);
+  badge("bFluxos", fl.ativo ? "Ativo" : "Inativo", fl.ativo ? "bon" : "boff");
+
   badge("bModeracao", moderando ? (m.alertar && m.avisar ? "Ativo" : m.alertar ? "Alertas" : "Avisos") : "Inativo", moderando ? "bon" : "boff");
 
   pintarIaLerTela();
@@ -352,12 +357,144 @@ function pintarHistorico(hist) {
   box.innerHTML = hist
     .slice(0, 10)
     .map(
-      (h) => `<div class="hitem">
+      (h, i) => `<div class="hitem">
         <div class="htop"><span class="hdate">${esc(h.data)} · ${esc(h.inicio)} → ${esc(h.fim)}</span><span class="hdur">${esc(h.horas)}h</span></div>
         <div class="hmeta"><span>${ic("timer")}${esc(h.minutos)} min</span><span>${ic("activity")}${esc(h.scans)} scans</span><span>${ic("bell")}${esc(h.alertas)} alertas</span><span>${ic("eye")}${esc(h.viewers)}</span><span>${ic("cart")}${esc(h.vendas)}</span></div>
+        ${h.stats ? `<div class="hmeta"><span>${ic("click")}${esc(h.stats.cliques)} cliques</span><span>${ic("cart")}${esc(h.stats.carrinhos)} carrinhos</span><span>${ic("reply")}${esc(h.stats.fluxos)} respostas</span><span>${ic("message-question")}${esc(h.stats.perguntas)} sem resposta</span></div>
+        <button class="hver" data-relatorio="${i}">Ver relatório</button>` : ""}
       </div>`,
     )
     .join("");
+  box.querySelectorAll("[data-relatorio]").forEach((b) =>
+    b.addEventListener("click", () => mostrarRelatorio(hist[Number(b.dataset.relatorio)], false)),
+  );
+}
+
+// ===========================================================================
+// RELATÓRIO DA LIVE
+// ===========================================================================
+
+/** A leitura do número: o que fazer com ele na próxima live. */
+function dicasDoRelatorio(st) {
+  const dicas = [];
+  if (st.perguntas > 0) dicas.push(`${st.perguntas} pergunta(s) ficaram sem resposta — crie um fluxo para cada uma (abaixo).`);
+  if (st.cliques >= 10 && st.carrinhos === 0) dicas.push("Muitos cliques e nenhum carrinho: reveja preço, frete ou a descrição do produto.");
+  if (st.carrinhos >= 3 && st.compras === 0) dicas.push("Gente pôs no carrinho e não finalizou: anuncie um cupom ou frete para fechar.");
+  if (st.reclamacoes > 0) dicas.push(`${st.reclamacoes} reclamação(ões) no chat: responda no pós-venda antes da próxima live.`);
+  if (!dicas.length) dicas.push("Live sem alertas. Repita o que funcionou.");
+  return dicas;
+}
+
+function mostrarRelatorio(rel, agora = true) {
+  if (!rel) return;
+  $("relatorio")?.remove();
+  const st = { cliques: 0, carrinhos: 0, compras: 0, reclamacoes: 0, avisos: 0, comentarios: 0, fluxos: 0, perguntas: 0, picoViewers: 0, ...(rel.stats ?? {}) };
+  const celula = (valor, rotulo, alerta = false) => `<div class="${alerta ? "alerta" : ""}"><b>${esc(valor)}</b><span>${esc(rotulo)}</span></div>`;
+  const ov = document.createElement("div");
+  ov.id = "relatorio";
+  ov.innerHTML = `<div class="rl-fundo"></div><div class="rl-card" role="dialog" aria-label="Relatório da live">
+    <div class="rl-h">${ic("chart-bar")}<span>${agora ? "Live encerrada" : "Relatório da live"}</span></div>
+    <div class="rl-sub">${esc(rel.data)} · ${esc(rel.inicio)} → ${esc(rel.fim)} · ${esc(rel.minutos)} min</div>
+    <div class="rl-grade">
+      ${celula(rel.vendas ?? "—", "Vendas")}
+      ${celula(st.carrinhos, "Carrinhos")}
+      ${celula(st.cliques, "Cliques")}
+      ${celula(st.picoViewers || rel.viewers || "—", "Pico espect.")}
+      ${celula(st.fluxos, "Respostas")}
+      ${celula(st.comentarios, "Comentários")}
+      ${celula(st.perguntas, "Sem resposta", st.perguntas > 0)}
+      ${celula(st.reclamacoes, "Reclamações", st.reclamacoes > 0)}
+      ${celula(st.avisos, "Links/contatos", st.avisos > 0)}
+    </div>
+    ${rel.gmv ? `<div class="fdesc">GMV atribuído: <b>${esc(rel.gmv)}</b></div>` : ""}
+    ${dicasDoRelatorio(st).map((d) => `<div class="rl-dica">${esc(d)}</div>`).join("")}
+    ${(rel.perguntas ?? []).length ? `<div class="mini-lbl">Perguntas sem resposta</div>
+      <div class="eventos perguntas">${rel.perguntas.map((q, i) => `<div class="ev">${ic("message-question")}<span>${q.nome ? `<small>${esc(q.nome)}</small> ` : ""}${esc(q.texto)}</span><button data-criar="${i}">Criar fluxo</button></div>`).join("")}</div>` : ""}
+    <button class="btn bghost" id="rlFechar">${rotulo("x", "Fechar")}</button>
+  </div>`;
+  document.body.appendChild(ov);
+  const fechar = () => ov.remove();
+  $("rlFechar").addEventListener("click", fechar);
+  ov.querySelector(".rl-fundo").addEventListener("click", fechar);
+  ov.querySelectorAll("[data-criar]").forEach((b) =>
+    b.addEventListener("click", () => criarFluxoPara(rel.perguntas[Number(b.dataset.criar)]?.texto)),
+  );
+}
+
+// ===========================================================================
+// FLUXOS DE RESPOSTA
+// ===========================================================================
+
+function criarFluxoPara(texto) {
+  api.abrirNoSite(`/fluxos?gatilho=${encodeURIComponent(String(texto ?? "").slice(0, 60))}`);
+}
+
+function pintarInfoFluxos(f) {
+  const n = f?.lista?.length ?? 0;
+  $("fluxosInfo").textContent = f?.em
+    ? `${n} fluxo(s) ligado(s) no app · atualizado às ${new Date(f.em).toLocaleTimeString("pt-BR").slice(0, 5)}`
+    : "Nenhum fluxo carregado ainda — crie no app e toque em Atualizar.";
+}
+
+let totaisFluxo = { respostas: 0, perguntas: 0 };
+
+function pintarRespostaDeFluxo(d) {
+  if (d.ok) totaisFluxo.respostas += 1;
+  $("totFluxos").textContent = totaisFluxo.respostas;
+  const lista = $("listaEventosFluxos");
+  lista.querySelector(".vazio")?.remove();
+  const texto = d.ok
+    ? `${d.nome}: ${d.quem ? `@${d.quem} ` : ""}"${d.pergunta ?? ""}" → ${d.texto}`
+    : `${d.nome}: não saiu (${d.motivo})`;
+  lista.prepend(linhaDeEvento(d.ok ? "reply" : "alert", texto, d.ok ? "" : "ruim"));
+  while (lista.children.length > 40) lista.lastChild.remove();
+}
+
+function pintarPergunta(d) {
+  totaisFluxo.perguntas += 1;
+  $("totPerguntas").textContent = totaisFluxo.perguntas;
+  const lista = $("listaPerguntas");
+  lista.querySelector(".vazio")?.remove();
+  const linha = linhaDeEvento("message-question", `${d.nome ? `${d.nome}: ` : ""}${d.texto}`, "alerta");
+  const btn = document.createElement("button");
+  btn.textContent = "Criar fluxo";
+  btn.addEventListener("click", () => criarFluxoPara(d.texto));
+  linha.appendChild(btn);
+  lista.prepend(linha);
+  while (lista.children.length > 30) lista.lastChild.remove();
+}
+
+// ===========================================================================
+// TESTAR ANTES DA LIVE
+// ===========================================================================
+
+async function diagnosticar() {
+  const btn = $("btnDiagnostico");
+  const box = $("diagBox");
+  btn.disabled = true;
+  btn.innerHTML = rotulo("refresh", "Testando…");
+  box.hidden = false;
+  box.innerHTML = '<div class="fdesc">Conferindo servidor, aba da live, chat e botão de fixar…</div>';
+  const d = (await enviar({ tipo: "diagnostico" })) ?? {};
+  const a = d.aba ?? null;
+  const itens = [
+    [d.servidor ? "ok" : "ruim", "Conta conectada ao servidor", d.servidor ? null : `Motivo: ${d.motivo ?? "sem resposta"}`],
+    [d.plano === true ? "ok" : d.plano === false ? "ruim" : "meio", "Plano ativo", d.plano === true ? d.planoNome : d.plano === false ? "Assine ou renove no app" : "Não consegui conferir agora"],
+    [d.abasTikTok ? "ok" : "ruim", "Aba do TikTok aberta", d.abasTikTok ? null : "Abra a página da sua live neste Chrome"],
+    [a?.pagina ? "ok" : "ruim", "Página da live", a ? a.endereco : "A aba não respondeu — recarregue a página da live"],
+    [a?.live ? "ok" : "meio", "Live detectada", a?.live ? a.motivoLive : "Se ainda não começou a transmitir, tudo bem"],
+    [a?.campo ? (a.digita ? "ok" : "meio") : "ruim", "Campo do chat", a?.campo ? (a.digita ? `Escreveu e apagou sem enviar — envia ${a.botao === "pronto" ? "pelo botão" : "pelo Enter"}` : "Achei o campo, mas ele não aceitou o texto") : "Não achei o campo do chat"],
+    [a?.fixar ? "ok" : "meio", "Botão de fixar produto", a?.fixar ? `${a.fixar} produto(s) na lista` : "Abra a lista de produtos (ou ensine em Central)"],
+    [a?.mensagens ? "ok" : "meio", "Leitura do chat", a?.mensagens ? `${a.mensagens} mensagem(ns) lida(s)` : "Nenhuma mensagem ainda — normal antes de começar"],
+    [d.fluxos ? "ok" : "meio", "Fluxos de resposta", d.fluxos ? `${d.fluxos} ligado(s) no app` : d.fluxos === 0 ? "Nenhum fluxo ligado no app" : "Não consegui buscar"],
+  ];
+  const ruins = itens.filter((i) => i[0] === "ruim").length;
+  box.innerHTML = `<div class="diag-topo"><span>Teste antes da live</span><button class="btn bghost mini" id="diagFechar">${ic("x")}</button></div>
+    ${itens.map(([st, t, det]) => `<div class="diag-item ${st}">${ic(st === "ok" ? "check" : st === "ruim" ? "x" : "alert")}<div>${esc(t)}${det ? `<small>${esc(det)}</small>` : ""}</div></div>`).join("")}
+    <div class="diag-res ${ruins ? "ruim" : "ok"}">${ruins ? `${ruins} item(ns) para resolver antes de ligar.` : "Tudo pronto. Pode ligar a extensão."}</div>`;
+  $("diagFechar").addEventListener("click", () => (box.hidden = true));
+  btn.disabled = false;
+  btn.innerHTML = rotulo("clipboard-check", "Testar antes da live");
 }
 
 async function recarregarTudo() {
@@ -375,6 +512,7 @@ async function recarregarTudo() {
   const local = await chrome.storage.local.get([api.CHAVES.historico, api.CHAVES.bloqueados]);
   pintarHistorico(local[api.CHAVES.historico] ?? []);
   pintarBloqueados(local[api.CHAVES.bloqueados] ?? []);
+  pintarInfoFluxos(await api.lerLocal(api.CHAVES.fluxos));
 }
 
 // ===========================================================================
@@ -822,6 +960,28 @@ function ligarEventos() {
     salvarAuto({ carrinho: { intervalo: Math.min(Math.max(Number(e.target.value) || 60, 15), 3600) } }),
   );
 
+  // Testar antes da live
+  $("btnDiagnostico").addEventListener("click", diagnosticar);
+
+  // Fluxos de resposta
+  $("togFluxos").addEventListener("click", async () => {
+    const ligar = !auto.fluxos?.ativo;
+    if (ligar && !ciclo.ativo) return toast("Ligue a extensão primeiro — os fluxos rodam com ela ligada.");
+    await salvarAuto({ fluxos: { ativo: ligar } });
+    if (ligar) {
+      const r = await enviar({ tipo: "fluxos_atualizar" });
+      pintarInfoFluxos(r?.fluxos);
+      if (!r?.fluxos?.lista?.length) toast("Nenhum fluxo ligado no app ainda. Crie em Fluxos, no app.");
+    }
+  });
+  $("togPerguntas").addEventListener("click", () => salvarAuto({ fluxos: { perguntas: auto.fluxos?.perguntas === false } }));
+  $("btnEditarFluxos").addEventListener("click", () => api.abrirNoSite("/fluxos"));
+  $("btnAtualizarFluxos").addEventListener("click", async () => {
+    const r = await enviar({ tipo: "fluxos_atualizar" });
+    pintarInfoFluxos(r?.fluxos);
+    toast(r?.fluxos ? `${r.fluxos.lista.length} fluxo(s) ligado(s) no app.` : "Não consegui buscar os fluxos agora.");
+  });
+
   // Moderação (segura: alerta e avisa, nunca silencia nem bloqueia)
   const listaDe = (id, max = 100) => linhas($(id).value).map((l) => l.slice(0, 60)).slice(0, max);
   $("togAlertar").addEventListener("click", () => {
@@ -911,6 +1071,14 @@ chrome.runtime.onMessage.addListener((m) => {
       break;
     case "relatorio":
       void chrome.storage.local.get(api.CHAVES.historico).then((r) => pintarHistorico(r[api.CHAVES.historico] ?? []));
+      mostrarRelatorio(m.rel, true);
+      totaisFluxo = { respostas: 0, perguntas: 0 };
+      break;
+    case "fluxo_aviso":
+      pintarRespostaDeFluxo(m.dados ?? {});
+      break;
+    case "pergunta_aviso":
+      pintarPergunta(m.dados ?? {});
       break;
     case "carrinho_aviso":
       pintarEventoCarrinho(m.evento ?? {}, m.totais);
@@ -961,6 +1129,7 @@ chrome.storage.onChanged.addListener((mudancas, area) => {
     auto = mudancas[api.CHAVES.auto].newValue ?? auto;
     pintarAuto();
   }
+  if (mudancas[api.CHAVES.fluxos]) pintarInfoFluxos(mudancas[api.CHAVES.fluxos].newValue);
   if (mudancas[api.CHAVES.cfg]) {
     cfg = mudancas[api.CHAVES.cfg].newValue ?? cfg;
     pintarCfg();

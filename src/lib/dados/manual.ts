@@ -3,6 +3,8 @@ import { bd } from "@/lib/db";
 import { modoDemo } from "@/lib/env";
 import { ErroDominio } from "./erros";
 import { comDemo, numeroDe } from "./comum";
+import { fluxoQueCasa } from "@/lib/fluxos";
+import { fluxosAtivos } from "./fluxos";
 
 /**
  * O manual do produto: o que a Shopia sabe responder.
@@ -309,9 +311,15 @@ export async function perguntasSemResposta(
        and (select id from casar_tema(${perfilId}, e.texto)) is null
      group by lower(btrim(e.texto))
      order by count(*) desc, max(e.criado_em) desc
-     limit ${limite}
+     limit ${limite * 3}
   `;
-  return linhas.map((l) => ({
+  // E nenhum FLUXO responde: o fluxo criado a partir desta lista tira a
+  // pergunta dela na hora, sem esperar a próxima live.
+  const fluxos = await fluxosAtivos(perfilId);
+  return linhas
+    .filter((l) => !fluxoQueCasa(fluxos, l.texto))
+    .slice(0, limite)
+    .map((l) => ({
     texto: l.texto,
     vezes: numeroDe(l.vezes),
     ultimaEm: l.ultima.toISOString(),
