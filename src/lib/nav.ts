@@ -17,6 +17,7 @@ import {
   Trophy,
   User,
   UserCog,
+  Workflow,
   Zap,
 } from "lucide-react";
 import type { Papel } from "./roles";
@@ -89,6 +90,7 @@ export const NAVEGACAO: readonly GrupoNav[] = [
       { href: "/inicio", rotulo: "Início", icone: House, descricao: "Onde você está no caminho até a live" },
       { href: "/criar", rotulo: "Preparar live", icone: Sparkles, destaque: true, descricao: "Do produto ao manual, em 3 passos" },
       { href: "/manual", rotulo: "Manual", icone: BookOpenCheck, descricao: "O que a Shopia responde no chat" },
+      { href: "/fluxos", rotulo: "Fluxos", icone: Workflow, descricao: "Quando comentarem X, responder Y — a extensão executa" },
       {
         href: "/automacoes",
         rotulo: "Automações",
