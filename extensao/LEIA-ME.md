@@ -1,4 +1,4 @@
-# Extensão Shopia (3.0.2)
+# Extensão Shopia (3.1.0)
 
 Painel lateral no formato da extensão de referência (LiveFox), com a paleta
 verde da Shopia. Liga e cuida da live no TikTok Shop: timer de encerramento,
@@ -37,6 +37,7 @@ planos), `↺` (reset), `⏻` (encerrar a live agora) e o selo ATIVO/INATIVO.
 | Proteção Contra Violação | Ao ver o aviso do TikTok: encerra na hora, ou continua por N minutos e encerra |
 | Comentários Automáticos | Uma mensagem por linha, em rodízio, com intervalo aleatório entre mín. e máx. |
 | Bloqueio por Nome | Bloqueia quem entra com palavra da lista no nome (palavra inteira) |
+| Carrinho e Cliques | No painel de produtos da live: avisa quem adicionou ao carrinho (pela Atividade, com o nome) e quando os cliques/carrinhos de um produto sobem (pelos contadores do cartão). Opcional: comentar no chat com `{nome}` e `{produto}`, com intervalo mínimo |
 | Log de Eventos | Tudo que aconteceu, em tempo real |
 
 **Aba Central:** threshold e intervalo de scan, som de venda, "ensinar" o

@@ -264,7 +264,30 @@ function pintarAuto() {
   $("bloqueioStatus").hidden = !b.ativo;
   $("bloqueadosBox").hidden = !b.ativo && !$("bloqueadosLista").dataset.tem;
 
+  const k = auto.carrinho ?? {};
+  interruptor("togCarrinho", k.ativo);
+  interruptor("togComentarCarrinho", k.comentarCarrinho);
+  interruptor("togComentarClique", k.comentarClique);
+  if (document.activeElement !== $("textoCarrinho")) $("textoCarrinho").value = k.textoCarrinho ?? "";
+  if (document.activeElement !== $("textoClique")) $("textoClique").value = k.textoClique ?? "";
+  if (document.activeElement !== $("intervaloCarrinho")) $("intervaloCarrinho").value = k.intervalo ?? 60;
+  badge("bCarrinho", k.ativo ? "Ativo" : "Inativo", k.ativo ? "bon" : "boff");
+
   pintarIaLerTela();
+}
+
+function pintarEventoCarrinho(evento, totais) {
+  if (totais) {
+    $("totClique").textContent = totais.clique ?? 0;
+    $("totCarrinho").textContent = totais.carrinho ?? 0;
+    $("totCompra").textContent = totais.compra ?? 0;
+  }
+  const lista = $("listaEventosCarrinho");
+  lista.querySelector(".vazio")?.remove();
+  const linha = document.createElement("div");
+  linha.textContent = `${new Date().toLocaleTimeString("pt-BR")} · ${evento.frase ?? evento.tipo}`;
+  lista.prepend(linha);
+  while (lista.children.length > 40) lista.lastChild.remove();
 }
 
 function pintarBloqueados(lista) {
@@ -746,6 +769,23 @@ function ligarEventos() {
     a.click();
   });
 
+  // Carrinho e cliques
+  $("togCarrinho").addEventListener("click", () => {
+    if (!auto.carrinho?.ativo && !ciclo.ativo) return toast("Ligue a extensão primeiro — o monitor de carrinho roda com ela ligada.");
+    return salvarAuto({ carrinho: { ativo: !auto.carrinho?.ativo } });
+  });
+  $("togComentarCarrinho").addEventListener("click", () =>
+    salvarAuto({ carrinho: { comentarCarrinho: !auto.carrinho?.comentarCarrinho, textoCarrinho: $("textoCarrinho").value.trim().slice(0, 150) } }),
+  );
+  $("togComentarClique").addEventListener("click", () =>
+    salvarAuto({ carrinho: { comentarClique: !auto.carrinho?.comentarClique, textoClique: $("textoClique").value.trim().slice(0, 150) } }),
+  );
+  $("textoCarrinho").addEventListener("change", (e) => salvarAuto({ carrinho: { textoCarrinho: e.target.value.trim().slice(0, 150) } }));
+  $("textoClique").addEventListener("change", (e) => salvarAuto({ carrinho: { textoClique: e.target.value.trim().slice(0, 150) } }));
+  $("intervaloCarrinho").addEventListener("change", (e) =>
+    salvarAuto({ carrinho: { intervalo: Math.min(Math.max(Number(e.target.value) || 60, 15), 3600) } }),
+  );
+
   // Log
   $("btnLimparLog").addEventListener("click", async () => {
     await chrome.storage.session.remove("shopia_log").catch(() => {});
@@ -813,6 +853,9 @@ chrome.runtime.onMessage.addListener((m) => {
     case "relatorio":
       void chrome.storage.local.get(api.CHAVES.historico).then((r) => pintarHistorico(r[api.CHAVES.historico] ?? []));
       break;
+    case "carrinho_aviso":
+      pintarEventoCarrinho(m.evento ?? {}, m.totais);
+      break;
     case "bloqueados":
       pintarBloqueados(m.lista ?? []);
       break;
@@ -844,6 +887,21 @@ chrome.runtime.onMessage.addListener((m) => {
       break;
     default:
       break;
+  }
+});
+
+// Os interruptores mudam também fora do painel (timer, violação, o app
+// mandando desligar): o painel aberto acompanha o storage em vez de mostrar
+// o estado de quando abriu.
+chrome.storage.onChanged.addListener((mudancas, area) => {
+  if (area !== "local") return;
+  if (mudancas[api.CHAVES.auto]) {
+    auto = mudancas[api.CHAVES.auto].newValue ?? auto;
+    pintarAuto();
+  }
+  if (mudancas[api.CHAVES.cfg]) {
+    cfg = mudancas[api.CHAVES.cfg].newValue ?? cfg;
+    pintarCfg();
   }
 });
 

@@ -210,6 +210,14 @@ export const AUTO_PADRAO = {
   lerTela: false,
   comentarios: { ativo: false, mensagens: [], min: 30, max: 90 },
   bloqueio: { ativo: false, palavras: [] },
+  carrinho: {
+    ativo: false,
+    comentarCarrinho: false,
+    textoCarrinho: "{nome}, vi que você colocou no carrinho! Finaliza agora que o estoque voa 🛒",
+    comentarClique: false,
+    textoClique: "Tem gente de olho no {produto}! 👀 Toca na sacolinha e garante o seu",
+    intervalo: 60,
+  },
 };
 
 async function lerAuto() {
@@ -219,6 +227,7 @@ async function lerAuto() {
     ...a,
     comentarios: { ...AUTO_PADRAO.comentarios, ...(a.comentarios ?? {}) },
     bloqueio: { ...AUTO_PADRAO.bloqueio, ...(a.bloqueio ?? {}) },
+    carrinho: { ...AUTO_PADRAO.carrinho, ...(a.carrinho ?? {}) },
   };
 }
 
@@ -236,6 +245,7 @@ async function gravarAutoAgora(parcial) {
     ...parcial,
     comentarios: { ...atual.comentarios, ...(parcial.comentarios ?? {}) },
     bloqueio: { ...atual.bloqueio, ...(parcial.bloqueio ?? {}) },
+    carrinho: { ...atual.carrinho, ...(parcial.carrinho ?? {}) },
   };
   await api.gravarLocal({ [api.CHAVES.auto]: novo });
   await escolherAbaAlvo();
@@ -364,8 +374,14 @@ async function sessaoFechadaLaFora(erro) {
 async function desligarTudo(motivo) {
   await pararCiclo(motivo);
   const auto = await lerAuto();
-  if (auto.lerTela || auto.comentarios.ativo || auto.bloqueio.ativo || auto.fixar) {
-    await gravarAuto({ lerTela: false, fixar: false, comentarios: { ativo: false }, bloqueio: { ativo: false } });
+  if (auto.lerTela || auto.comentarios.ativo || auto.bloqueio.ativo || auto.fixar || auto.carrinho.ativo) {
+    await gravarAuto({
+      lerTela: false,
+      fixar: false,
+      comentarios: { ativo: false },
+      bloqueio: { ativo: false },
+      carrinho: { ativo: false },
+    });
   }
 }
 
@@ -506,8 +522,14 @@ async function pararCiclo(motivo = null) {
   // live. Antes os comentários automáticos tinham o próprio interruptor e
   // seguiam saindo com a extensão "desligada".
   const auto = await lerAuto();
-  if (auto.lerTela || auto.comentarios.ativo || auto.bloqueio.ativo || auto.fixar) {
-    await gravarAuto({ lerTela: false, fixar: false, comentarios: { ativo: false }, bloqueio: { ativo: false } });
+  if (auto.lerTela || auto.comentarios.ativo || auto.bloqueio.ativo || auto.fixar || auto.carrinho.ativo) {
+    await gravarAuto({
+      lerTela: false,
+      fixar: false,
+      comentarios: { ativo: false },
+      bloqueio: { ativo: false },
+      carrinho: { ativo: false },
+    });
     await log("Comentários, bloqueio, fixar automático e leitura do chat desligados", "inf");
   }
   await ajustarSessao();
@@ -822,6 +844,14 @@ chrome.runtime.onMessage.addListener((mensagem, remetente, responder) => {
         await api.gravarLocal({ [api.CHAVES.bloqueados]: novo });
         avisarPainel({ tipo: "bloqueados", lista: novo });
         await log(`🚫 Bloqueado: ${mensagem.dados?.usuario} (palavra "${mensagem.dados?.palavra}")`, "warn");
+        responder({ ok: true });
+        break;
+      }
+
+      case "carrinho_evento": {
+        const ev = mensagem.evento ?? {};
+        avisarPainel({ tipo: "carrinho_aviso", evento: ev, totais: mensagem.totais ?? null });
+        await log(ev.frase ?? "Evento de carrinho", ev.tipo === "clique" ? "inf" : "ok");
         responder({ ok: true });
         break;
       }

@@ -992,6 +992,195 @@
   }
 
   // =========================================================================
+  // CARRINHO E CLIQUES
+  //
+  // Duas fontes no painel da live (shop.tiktok.com/streamer/live/...):
+  //   1. o painel "Atividade", que lista QUEM fez o quê — "Fulano adicionou
+  //      ao carrinho" — cada item um div[type] com avatar e o nome;
+  //   2. os contadores de cada cartão de produto — "Cliques 9 |
+  //      Adicionado ao carrinho 1" — que dizem EM QUAL produto, mas não quem.
+  // A atividade dá o nome; o contador garante que nada passa batido quando o
+  // filtro da atividade não mostra aquele tipo de evento.
+  // =========================================================================
+
+  const ACOES_DA_ATIVIDADE = [
+    { tipo: "carrinho", re: /adicionou (ao|no) carrinho|colocou no carrinho|adicionar ao carrinho|added (it |this )?to (the )?cart|add(ed)? to cart|agreg[óo] al carrito/i },
+    { tipo: "compra", re: /comprou|fez (um )?pedido|purchased|bought|placed an order|realiz[óo] un pedido/i },
+    { tipo: "clique", re: /clicou|tocou no produto|est[áa] (vendo|olhando)|viu o produto|visualizou o produto|is viewing|viewed the product|clicked|tapped|est[áa] viendo/i },
+  ];
+  const ROTULO_CLIQUES = /^(cliques|clicks|clics)$/i;
+  const ROTULO_CARRINHO = /^(adicionado ao carrinho|adicionados ao carrinho|added to cart|add to cart|agregado al carrito)$/i;
+
+  const vistosAtividade = new Map();
+  let atividadePronta = false;
+  const contadoresProduto = new Map();
+  let contadoresProntos = false;
+  let lacoCarrinho = null;
+  let ultimoComentarioCarrinho = 0;
+  let ultimoComentarioClique = 0;
+  const totais = { carrinho: 0, clique: 0, compra: 0 };
+  /** Eventos com nome dos últimos segundos: o contador que sobe depois não repete o aviso. */
+  let recentesComNome = [];
+
+  function itensDaAtividade() {
+    return [...document.querySelectorAll("div[type]")].filter(
+      (el) => el.querySelector('[data-tid="m4b_avatar"],img') && (el.textContent || "").length < 160,
+    );
+  }
+
+  function lerItemDaAtividade(el) {
+    const nomeEl = el.querySelector('[data-tid="m4b_overflow_text_signle"]');
+    const nome = textoDe(nomeEl);
+    const tudo = textoDe(el);
+    const acao = (nome ? tudo.replace(nome, "") : tudo).trim();
+    const achou = ACOES_DA_ATIVIDADE.find((a) => a.re.test(acao));
+    return achou ? { tipo: achou.tipo, nome: nome || null, acao } : null;
+  }
+
+  /** O cartão do produto: o ancestral do contador que tem o botão de fixar. */
+  function cartaoDoProduto(el) {
+    let atual = el;
+    for (let i = 0; i < 10 && atual; i++) {
+      atual = atual.parentElement;
+      if (!atual) break;
+      const botoes = [...atual.querySelectorAll("button")].map((b) => textoDe(b).toLowerCase());
+      if (botoes.some((t) => ehFixar(t) || ehDesafixar(t))) return atual;
+    }
+    return null;
+  }
+
+  function nomeDoProduto(cartao) {
+    if (!cartao) return null;
+    const candidato = [...cartao.querySelectorAll("span,div,a")].find((e) => {
+      if (e.children.length) return false;
+      const t = (e.textContent || "").trim();
+      return t.length > 8 && !/^R\$|^\$|estoque|stock|cliques|clicks|carrinho|cart|vendid|sold|fixar|pin/i.test(t);
+    });
+    const nome = (candidato?.textContent || "").trim();
+    return nome ? (nome.length > 40 ? `${nome.slice(0, 40)}…` : nome) : null;
+  }
+
+  function valorAoLado(rotulo) {
+    const valor = rotulo.nextElementSibling ?? rotulo.parentElement?.lastElementChild;
+    const n = Number.parseInt((valor?.textContent || "").replace(/\D/g, ""), 10);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function lerContadoresDeProduto() {
+    const lidos = new Map();
+    for (const el of document.querySelectorAll("div,span")) {
+      if (el.children.length) continue;
+      const t = (el.textContent || "").trim();
+      const tipo = ROTULO_CLIQUES.test(t) ? "clique" : ROTULO_CARRINHO.test(t) ? "carrinho" : null;
+      if (!tipo) continue;
+      const valor = valorAoLado(el);
+      if (valor === null) continue;
+      const cartao = cartaoDoProduto(el);
+      const produto = nomeDoProduto(cartao) ?? "produto";
+      lidos.set(`${produto}|${tipo}`, { produto, tipo, valor });
+    }
+    return lidos;
+  }
+
+  function preencher(modelo, nome, produto) {
+    return String(modelo || "")
+      .replaceAll("{nome}", nome || "")
+      .replaceAll("{produto}", produto || "o produto")
+      .replace(/\s+/g, " ")
+      .replace(/^[\s,]+/, "")
+      .trim();
+  }
+
+  async function reagir(evento) {
+    const c = auto.carrinho ?? {};
+    totais[evento.tipo] = (totais[evento.tipo] ?? 0) + (evento.quantos ?? 1);
+    const quem = evento.nome ? `${evento.nome} ` : "";
+    const frase =
+      evento.tipo === "carrinho"
+        ? `🛒 ${quem || "Alguém "}adicionou ao carrinho${evento.produto ? `: ${evento.produto}` : ""}`
+        : evento.tipo === "compra"
+          ? `💰 ${quem || "Alguém "}comprou${evento.produto ? `: ${evento.produto}` : ""}`
+          : `👆 ${quem || ""}${quem ? "clicou" : "Clique"} no produto${evento.produto ? `: ${evento.produto}` : ""}`;
+    avisoNaTela(frase, evento.tipo === "clique" ? "info" : "ok", 3500);
+    if (evento.tipo !== "clique") caixaRegistradora();
+    void pedir({ tipo: "carrinho_evento", evento: { ...evento, frase }, totais: { ...totais } });
+
+    // Comentário no chat, com intervalo mínimo entre um e outro: cada clique
+    // virar comentário seria spam — e spam é o que o TikTok mais pune.
+    const agora = Date.now();
+    const intervalo = Math.max(15, Number(c.intervalo) || 60) * 1000;
+    if (evento.tipo === "carrinho" && c.comentarCarrinho && c.textoCarrinho && agora - ultimoComentarioCarrinho > intervalo) {
+      if (c.textoCarrinho.includes("{nome}") && !evento.nome) return;
+      ultimoComentarioCarrinho = agora;
+      const texto = preencher(c.textoCarrinho, evento.nome, evento.produto);
+      const r = await escreverNoChat(texto.slice(0, 150));
+      void pedir({ tipo: "comentario_feito", ok: r.ok, motivo: r.motivo ?? null, texto });
+    }
+    if (evento.tipo === "clique" && c.comentarClique && c.textoClique && agora - ultimoComentarioClique > intervalo) {
+      if (c.textoClique.includes("{nome}") && !evento.nome) return;
+      ultimoComentarioClique = agora;
+      const texto = preencher(c.textoClique, evento.nome, evento.produto);
+      const r = await escreverNoChat(texto.slice(0, 150));
+      void pedir({ tipo: "comentario_feito", ok: r.ok, motivo: r.motivo ?? null, texto });
+    }
+  }
+
+  function voltaDoCarrinho() {
+    if (!auto.carrinho?.ativo || !podeAgir()) return;
+    const agora = Date.now();
+    recentesComNome = recentesComNome.filter((e) => agora - e.em < 20000);
+
+    // 1. A atividade: quem fez o quê.
+    for (const el of itensDaAtividade()) {
+      const item = lerItemDaAtividade(el);
+      if (!item) continue;
+      const chave = `${item.tipo}|${item.nome}|${item.acao}`;
+      const visto = vistosAtividade.get(chave);
+      vistosAtividade.set(chave, agora);
+      // O que já estava na tela quando ligou não é novidade; e o mesmo item
+      // na lista virtual não é evento novo antes de 10 minutos.
+      if (!atividadePronta || (visto && agora - visto < 600000)) continue;
+      recentesComNome.push({ tipo: item.tipo, em: agora });
+      void reagir(item);
+    }
+    atividadePronta = true;
+    if (vistosAtividade.size > 2000) vistosAtividade.clear();
+
+    // 2. Os contadores por produto: em qual produto, e quantos.
+    const lidos = lerContadoresDeProduto();
+    for (const [chave, atual] of lidos) {
+      const antes = contadoresProduto.get(chave);
+      contadoresProduto.set(chave, atual);
+      if (!contadoresProntos || !antes || atual.valor <= antes.valor) continue;
+      let quantos = atual.valor - antes.valor;
+      // O que a atividade já avisou com o nome (nos últimos 20 s) não repete.
+      while (quantos > 0) {
+        const i = recentesComNome.findIndex((e) => e.tipo === atual.tipo);
+        if (i === -1) break;
+        recentesComNome.splice(i, 1);
+        quantos--;
+      }
+      if (quantos <= 0) continue;
+      void reagir({ tipo: atual.tipo, nome: null, produto: atual.produto, quantos });
+    }
+    contadoresProntos = true;
+  }
+
+  function sincronizarCarrinho() {
+    const ligado = auto.carrinho?.ativo && podeAgir();
+    if (ligado && !lacoCarrinho) {
+      atividadePronta = false;
+      contadoresProntos = false;
+      voltaDoCarrinho();
+      lacoCarrinho = setInterval(voltaDoCarrinho, 2000);
+    }
+    if (!ligado && lacoCarrinho) {
+      clearInterval(lacoCarrinho);
+      lacoCarrinho = null;
+    }
+  }
+
+  // =========================================================================
   // VENDAS E MÉTRICAS DA TELA
   // =========================================================================
 
@@ -1016,15 +1205,31 @@
     return null;
   }
 
+  /**
+   * O cartão de métrica do painel da live: um rótulo ("Espectadores atuais")
+   * e, logo ao lado, o valor. Mais firme que procurar número perto do texto.
+   */
+  function metricaDoCartao(rotulo, todas) {
+    const label = todas.find((el) => rotulo.test((el.textContent || "").trim()));
+    const valor = label?.nextElementSibling ?? null;
+    const texto = (valor?.textContent || "").replace(/\s+/g, " ").trim();
+    return texto && texto.length < 24 ? texto : null;
+  }
+
   function lerMetricas() {
     const todas = folhas();
     const viewers =
-      textoDe(document.querySelector('[data-e2e="person-count"]')) || valorPerto(/espectadores|viewers/i, /^\d[\d.,]*[kKmM]?$/, todas);
+      textoDe(document.querySelector('[data-e2e="person-count"]')) ||
+      metricaDoCartao(/^(espectadores atuais|espectadores|current viewers|viewers|espectadores actuales)$/i, todas) ||
+      valorPerto(/espectadores|viewers/i, /^\d[\d.,]*[kKmM]?$/, todas);
     const vendasEl = [...document.querySelectorAll('div[style*="line-clamp"]')].find(
       (el) => el.children.length === 0 && /^\d+$/.test((el.textContent || "").trim()),
     );
-    const vendas = vendasEl ? vendasEl.textContent.trim() : null;
-    const gmv = valorPerto(/gmv/i, /R\$[\s\d.,]+/, todas);
+    const vendas =
+      metricaDoCartao(/^(itens atribu[íi]dos vendidos|itens vendidos|items sold|attributed items sold|art[íi]culos vendidos)$/i, todas) ??
+      (vendasEl ? vendasEl.textContent.trim() : null);
+    const gmv =
+      metricaDoCartao(/^(gmv atribu[íi]do|attributed gmv|gmv)$/i, todas) ?? valorPerto(/gmv/i, /R\$[\s\d.,]+/, todas);
 
     let ultimoValor = null;
     let novaVendaAtividade = false;
@@ -1282,6 +1487,7 @@
     sincronizarMetricas();
     sincronizarComentarios();
     sincronizarBloqueio();
+    sincronizarCarrinho();
     if (morto) return;
     if (auto.fixar && podeAgir() && !lacoFixar) agendarFixar(true);
     if ((!auto.fixar || !podeAgir()) && lacoFixar) {
@@ -1393,7 +1599,7 @@
   function desmontar() {
     if (morto) return;
     morto = true;
-    for (const t of [lacoBarra, lacoLeitura, lacoDespejo, lacoBloqueio, lacoMetricas, pilulaTimer, lacoVida]) {
+    for (const t of [lacoBarra, lacoLeitura, lacoDespejo, lacoBloqueio, lacoMetricas, lacoCarrinho, pilulaTimer, lacoVida]) {
       clearInterval(t);
     }
     clearTimeout(lacoFixar);
