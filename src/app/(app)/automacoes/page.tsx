@@ -113,9 +113,11 @@ export default async function AutomacoesPage() {
           <strong>O que mora no painel da extensão, e não aqui:</strong> fixar produto
           (agora, automático e modo cupom), comentários automáticos em rodízio, bloqueio por
           nome, som de venda, timer de encerramento e proteção contra violação. Os avisos
-          desta tela são uma lista a mais, enviada pelo servidor — se ligar os dois, o chat
-          recebe as duas. Nada daqui sai sem a extensão ligada; reações e respostas exigem{" "}
-          <strong>✦ IA → Ler a tela</strong> ligado.
+          desta tela só vão ao chat com a extensão ligada <strong>e</strong>{" "}
+          <strong>Comentários Automáticos</strong> ligado no painel dela — desligou lá, eles
+          param. O primeiro de cada aviso sai depois do intervalo dele, contado do início da
+          live, e não no minuto em que ela abre. Reações e respostas exigem{" "}
+          <strong>IA → Ler a tela</strong> ligado.
         </Alerta>
 
         <AvisosProgramados

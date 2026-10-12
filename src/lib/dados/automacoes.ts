@@ -441,13 +441,20 @@ export async function proximaTarefa(
     (LinhaAviso & { segundos_desde: number | null })[]
   >`
     select a.id, a.tipo, a.texto, a.intervalo_s, a.ativo, a.ordem,
-           (select extract(epoch from (now() - max(e.criado_em)))::int
-              from live_eventos e
-             where e.perfil_id = ${perfilId}
-               and e.live_sessao_id = ${sessaoId}
-               and e.tipo = 'aviso'
-               and e.dados->>'aviso_id' = a.id::text) as segundos_desde
+           -- Sem nenhum envio nesta live, conta desde o INÍCIO dela. Antes o
+           -- "nunca enviado" valia como vencido, e todo aviso saía no minuto em
+           -- que a live abria — um atrás do outro, antes de alguém chegar.
+           extract(epoch from (now() - coalesce(
+             (select max(e.criado_em)
+                from live_eventos e
+               where e.perfil_id = ${perfilId}
+                 and e.live_sessao_id = ${sessaoId}
+                 and e.tipo = 'aviso'
+                 and e.dados->>'aviso_id' = a.id::text),
+             s.inicio
+           )))::int as segundos_desde
       from avisos_programados a
+      join live_sessoes s on s.id = ${sessaoId} and s.perfil_id = ${perfilId}
      where a.perfil_id = ${perfilId} and a.ativo
      order by a.tipo, a.ordem, a.criado_em
   `;

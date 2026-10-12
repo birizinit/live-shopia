@@ -1,4 +1,4 @@
-# Extensão Shopia (3.2.0)
+# Extensão Shopia (3.2.1)
 
 Painel lateral no formato da extensão de referência (LiveFox), com a paleta
 verde da Shopia. Liga e cuida da live no TikTok Shop: timer de encerramento,
@@ -38,7 +38,7 @@ barra e nos avisos da página) — nenhum emoji na interface.
 | Fixar produto | Agora, ou automático (refixa a cada 18–30 s) |
 | Tem cupom na lista | Pula o 1º item (o card do cupom) e fixa o de baixo |
 | Proteção Contra Violação | Ao ver o aviso do TikTok: encerra na hora, ou continua por N minutos e encerra |
-| Comentários Automáticos | Uma mensagem por linha, em rodízio, com intervalo aleatório entre mín. e máx. |
+| Comentários Automáticos | Uma mensagem por linha, em rodízio, com intervalo aleatório entre mín. e máx. Também é a chave dos avisos cadastrados no app (Automações): com isto desligado, eles não saem; ligado, o primeiro de cada um espera o intervalo dele a partir do início da live |
 | Moderação do Chat | Modo seguro: ninguém é silenciado nem bloqueado pelo texto. **Alertar reclamações** ("não chegou", "golpe"…): som, aviso na página e na lista do painel, para você responder. **Avisar no chat**: link, telefone ou palavra proibida recebe um aviso educado (`{nome}`), uma vez por pessoa na live e no máximo um a cada 20 s. Lista "Nunca moderar"; mensagens com tag Host/moderador e o que a própria Shopia escreveu são ignoradas |
 | Bloqueio por Nome | Bloqueia quem entra com palavra da lista no nome (palavra inteira) |
 | Carrinho e Cliques | No painel de produtos da live: avisa quem adicionou ao carrinho (pela Atividade, com o nome) e quando os cliques/carrinhos de um produto sobem (pelos contadores do cartão). Opcional: comentar no chat com `{nome}` e `{produto}`, com intervalo mínimo |

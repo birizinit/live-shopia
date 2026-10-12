@@ -1847,7 +1847,7 @@
         if (mensagem.ancora) comecarAAprender(mensagem.ancora, mensagem.instrucao ?? "Clique no botão que você quer ensinar.");
         return;
       case "programado_escrever":
-        if (mensagem.texto) {
+        if (mensagem.texto && podeAgir() && auto.comentarios?.ativo) {
           void escreverNoChat(String(mensagem.texto).slice(0, 150)).then((r) =>
             pedir({
               tipo: "programado_feito",

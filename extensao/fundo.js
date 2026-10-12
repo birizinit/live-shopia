@@ -418,6 +418,11 @@ function contarEspectadores(texto) {
 async function rodarProgramado() {
   const sessaoId = await api.lerLocal(api.CHAVES.sessao);
   if (!sessaoId) return;
+  // A extensão manda: os avisos cadastrados no app só vão ao chat com a
+  // extensão ligada E "Comentários Automáticos" ligado. Antes eles saíam
+  // sozinhos em toda live, sem nada no painel dizendo de onde vinham.
+  const [ciclo, auto] = await Promise.all([lerCiclo(), lerAuto()]);
+  if (!ciclo.ativo || !auto.comentarios.ativo) return;
   let tarefa;
   try {
     tarefa = await api.proximaTarefa(sessaoId);
