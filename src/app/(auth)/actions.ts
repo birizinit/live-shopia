@@ -23,24 +23,28 @@ export type EstadoForm = {
 const SENHA_MINIMA = 8;
 
 const esquemaEntrar = z.object({
-  email: z.string().min(1, "Informe o e-mail"),
+  email: z.string().min(1, "Informe o e-mail ou o usuário"),
   senha: z.string().min(1, "Informe a senha"),
 });
 
 const esquemaCadastro = z
   .object({
     nome: z.string().min(2, "Informe seu nome"),
+    // Opcional: sem ele, o banco deriva do e-mail e resolve colisão
+    // (criar_perfil). O cadastro pede só nome, e-mail e senha.
     usuario: z
       .string()
-      .min(3, "Mínimo de 3 caracteres")
-      .max(24, "Máximo de 24 caracteres")
-      .regex(/^[a-z0-9_.]+$/i, "Use apenas letras, números, ponto e _"),
+      .max(24, "Usuário: máximo de 24 caracteres")
+      .regex(/^[a-z0-9_.]*$/i, "Usuário: use apenas letras, números, ponto e _")
+      .optional(),
     email: z.email("E-mail inválido"),
-    senha: z.string().min(SENHA_MINIMA, `Mínimo de ${SENHA_MINIMA} caracteres`),
-    confirmacao: z.string(),
+    senha: z.string().min(SENHA_MINIMA, `A senha precisa de ao menos ${SENHA_MINIMA} caracteres`),
+    // Só confere quando o formulário manda (o de redefinir manda; o de
+    // cadastro troca a confirmação pelo "mostrar senha").
+    confirmacao: z.string().optional(),
     ref: z.string().optional(),
   })
-  .refine((d) => d.senha === d.confirmacao, {
+  .refine((d) => d.confirmacao === undefined || d.senha === d.confirmacao, {
     path: ["confirmacao"],
     message: "As senhas não conferem",
   });
@@ -99,20 +103,27 @@ export async function entrar(
     redirect(proximo);
   }
 
-  const linhas = await bd()<{ id: string; senha_hash: string }[]>`
-    select id, senha_hash from perfis where lower(email) = lower(${dados.email})
-  `;
+  // E-mail ou @usuário — o mesmo que a extensão aceita no login dela.
+  const porUsuario = !dados.email.includes("@") || dados.email.startsWith("@");
+  const linhas = porUsuario
+    ? await bd()<{ id: string; senha_hash: string }[]>`
+        select id, senha_hash from perfis where lower(usuario) = lower(${dados.email.replace(/^@/, "")})
+      `
+    : await bd()<{ id: string; senha_hash: string }[]>`
+        select id, senha_hash from perfis where lower(email) = lower(${dados.email})
+      `;
   const perfil = linhas[0];
 
   // Mensagem e tempo de resposta iguais nos dois casos: dizer "este e-mail não
   // existe" — ou só responder mais rápido — entrega a lista de clientes.
+  const incorreto = porUsuario ? "Usuário ou senha incorretos" : "E-mail ou senha incorretos";
   if (!perfil) {
     await gastarTempoDeConferencia(dados.senha);
-    return { erro: "E-mail ou senha incorretos", campos: { email: dados.email } };
+    return { erro: incorreto, campos: { email: dados.email } };
   }
 
   if (!(await conferirSenha(perfil.senha_hash, dados.senha))) {
-    return { erro: "E-mail ou senha incorretos", campos: { email: dados.email } };
+    return { erro: incorreto, campos: { email: dados.email } };
   }
 
   await criarSessao(perfil.id);
@@ -125,10 +136,11 @@ export async function cadastrar(
 ): Promise<EstadoForm> {
   const dados = {
     nome: String(formData.get("nome") ?? "").trim(),
-    usuario: String(formData.get("usuario") ?? "").trim().toLowerCase(),
+    // "@sualoja" é como todo mundo escreve o @ do TikTok.
+    usuario: String(formData.get("usuario") ?? "").trim().replace(/^@+/, "").toLowerCase() || undefined,
     email: String(formData.get("email") ?? "").trim(),
     senha: String(formData.get("senha") ?? ""),
-    confirmacao: String(formData.get("confirmacao") ?? ""),
+    confirmacao: formData.has("confirmacao") ? String(formData.get("confirmacao") ?? "") : undefined,
     ref: String(formData.get("ref") ?? "").trim() || undefined,
   };
 
@@ -137,20 +149,20 @@ export async function cadastrar(
     // Senha nunca volta para o formulário.
     return {
       erro: primeiroErro(parsed.error),
-      campos: { nome: dados.nome, usuario: dados.usuario, email: dados.email },
+      campos: { nome: dados.nome, usuario: dados.usuario ?? "", email: dados.email },
     };
   }
 
   if (!(await dentroDoLimite("cadastro", dados.email, 5, 3600))) {
     return {
       erro: EXCESSO,
-      campos: { nome: dados.nome, usuario: dados.usuario, email: dados.email },
+      campos: { nome: dados.nome, usuario: dados.usuario ?? "", email: dados.email },
     };
   }
 
   if (modoDemo) {
     const { entrarDemo } = await import("@/lib/demo");
-    await entrarDemo(dados.usuario, dados.nome);
+    await entrarDemo(dados.usuario ?? dados.email.split("@")[0]!, dados.nome);
     redirect(ROTA_POS_LOGIN);
   }
 
@@ -162,7 +174,7 @@ export async function cadastrar(
     // transação só — ver db/migrations/0001.
     const linhas = await bd()<{ id: string }[]>`
       select id from criar_perfil(
-        ${dados.email}, ${senhaHash}, ${dados.nome}, ${dados.usuario}, ${dados.ref ?? null}
+        ${dados.email}, ${senhaHash}, ${dados.nome}, ${dados.usuario ?? null}, ${dados.ref ?? null}
       )
     `;
     perfilId = linhas[0]!.id;
@@ -171,7 +183,7 @@ export async function cadastrar(
     if (detalhe.includes("perfis_email_unico")) {
       return {
         erro: "Já existe uma conta com este e-mail",
-        campos: { nome: dados.nome, usuario: dados.usuario, email: dados.email },
+        campos: { nome: dados.nome, usuario: dados.usuario ?? "", email: dados.email },
       };
     }
     throw erro;

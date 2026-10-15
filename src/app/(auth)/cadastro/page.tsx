@@ -12,7 +12,7 @@ export default async function CadastroPage(props: PageProps<"/cadastro">) {
     <>
       <h1 className="text-2xl font-bold">Criar conta</h1>
       <p className="mt-1 mb-8 text-sm text-fg-muted">
-        Leva menos de um minuto.
+        Leva 30 segundos. Você prepara a live e liga a extensão em seguida.
       </p>
       <FormCadastro indicacao={indicacao} convite={codigoConvite} />
     </>

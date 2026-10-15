@@ -4,10 +4,10 @@ import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { modoDemo } from "@/lib/env";
 
 const ARGUMENTOS = [
-  "Responde os comentários usando só o que você escreveu — nunca inventa.",
-  "Boas-vindas pelo nome e produto fixado na tela, sem você parar a live.",
-  "Quando não sabe responder, ela cala e te mostra depois o que faltou.",
-  "Roda só no navegador: nada para instalar no computador.",
+  "Responde o chat com as suas respostas — marcando a pessoa, no tempo que você escolher.",
+  "Fixa o produto, avisa quem pôs no carrinho e cada venda no seu celular.",
+  "Encerra a live no horário ou ao primeiro aviso de violação do TikTok.",
+  "Só o Chrome: nada para instalar no computador.",
 ];
 
 export default function AuthLayout({ children }: LayoutProps<"/">) {
@@ -71,7 +71,7 @@ export default function AuthLayout({ children }: LayoutProps<"/">) {
           <div className="w-full max-w-sm">
             {modoDemo && (
               <p className="mb-6 rounded-md border border-warning bg-warning-soft px-3 py-2 text-xs text-warning">
-                <strong>Modo demo.</strong> Sem Supabase configurado: qualquer
+                <strong>Modo demo.</strong> Sem banco configurado: qualquer
                 e-mail entra. Use <code className="font-[family-name:var(--font-mono)]">demo@</code>,{" "}
                 <code className="font-[family-name:var(--font-mono)]">afiliado@</code> ou{" "}
                 <code className="font-[family-name:var(--font-mono)]">gerente@</code> para

@@ -38,16 +38,6 @@ export const PAGINAS = {
     ],
     api: ["GET /ranking"],
   },
-  "/aulas": {
-    titulo: "Aulas",
-    descricao: "Treinamento em vídeo e primeiros passos.",
-    fase: 7,
-    entrega: [
-      "Módulos com vídeos incorporados",
-      "Trilha de onboarding com progresso salvo",
-    ],
-    api: ["GET /aulas"],
-  },
   "/extensao": {
     titulo: "Extensão",
     descricao: "Download, instalação e conta conectada da extensão do Chrome.",

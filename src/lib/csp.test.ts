@@ -29,6 +29,6 @@ test("desenvolvimento libera eval para o React e não força https", () => {
   assert.ok(!politica.includes("upgrade-insecure-requests"));
 });
 
-test("aulas em vídeo continuam abrindo", () => {
-  assert.match(diretiva(politicaDeConteudo("n", false), "frame-src"), /youtube-nocookie\.com/);
+test("nenhum iframe externo é permitido", () => {
+  assert.equal(diretiva(politicaDeConteudo("n", false), "frame-src"), "frame-src 'none'");
 });

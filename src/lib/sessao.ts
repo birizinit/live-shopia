@@ -1,7 +1,11 @@
 import "server-only";
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { modoDemo } from "./env";
 import { temPapel, type Papel } from "./roles";
+
+/** O mesmo nome de auth/sessoes.ts — repetido para não carregar o banco aqui. */
+const COOKIE_SESSAO = "shopia_sessao";
 
 export type Usuario = {
   id: string;
@@ -36,7 +40,15 @@ export async function obterUsuario(): Promise<Usuario | null> {
 export async function exigirUsuario(destino?: string): Promise<Usuario> {
   const usuario = await obterUsuario();
   if (!usuario) {
-    redirect(destino ? `/login?proximo=${encodeURIComponent(destino)}` : "/login");
+    const params = new URLSearchParams();
+    if (destino) params.set("proximo", destino);
+    // Cookie presente mas sessão inválida (expirou, revogada, senha trocada):
+    // o proxy manda quem tem cookie de /login para /inicio, e /inicio manda de
+    // volta para /login — o navegador desiste com "redirecionamentos demais".
+    // Com `expirou`, o proxy apaga o cookie morto em vez de redirecionar.
+    if (!modoDemo && (await cookies()).has(COOKIE_SESSAO)) params.set("expirou", "1");
+    const query = params.toString();
+    redirect(query ? `/login?${query}` : "/login");
   }
   return usuario;
 }

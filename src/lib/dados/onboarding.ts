@@ -390,8 +390,8 @@ function exemploDoTour(): EstadoTour {
       chave: "ajuda",
       titulo: "Onde pedir ajuda e como retomar este tour",
       corpo:
-        "As Aulas trazem o passo a passo em vídeo, inclusive a instalação da extensão, que é onde mais gente trava. E este tour fica salvo na sua CONTA, não no navegador: dá para sair no meio e continuar amanhã, de outro aparelho, do ponto onde parou.",
-      rotaAlvo: "/aulas",
+        "A página Extensão tem o passo a passo de instalação, e o botão “Testar antes da live”, no painel da extensão, confere tudo antes de você entrar ao vivo. E este tour fica salvo na sua CONTA, não no navegador: dá para sair no meio e continuar amanhã, de outro aparelho, do ponto onde parou.",
+      rotaAlvo: "/extensao",
       ordem: 60,
       obrigatorio: false,
       exigeAceite: false,

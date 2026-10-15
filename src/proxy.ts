@@ -62,6 +62,14 @@ export function proxy(request: NextRequest) {
   }
 
   if (temCookie && ehAutenticacao(pathname)) {
+    // A página achou o cookie e não achou a sessão (ver exigirUsuario): o
+    // cookie está morto. Apagar e mostrar o login — redirecionar para
+    // /inicio aqui seria o laço /login ↔ /inicio.
+    if (request.nextUrl.searchParams.has("expirou")) {
+      const resposta = seguir(request);
+      resposta.cookies.delete(cookie);
+      return resposta;
+    }
     return NextResponse.redirect(new URL(ROTA_POS_LOGIN, request.url));
   }
 
