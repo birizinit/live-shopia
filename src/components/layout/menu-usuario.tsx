@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { Bell, ChevronDown, CreditCard, LogOut, User as UserIcon, Zap } from "lucide-react";
 import { sair } from "@/app/(auth)/actions";
+import { ThemeToggle } from "@/components/theme/theme-toggle";
 import { Badge } from "@/components/ui/badge";
 import type { Papel } from "@/lib/roles";
 import { cn } from "@/lib/utils";
@@ -111,7 +112,14 @@ export function MenuUsuario({
             </Link>
           ))}
 
-          <form action={sair}>
+          {/* O tema mora aqui: na barra do topo eram três botões a mais em toda
+              tela, para uma escolha que se faz uma vez. */}
+          <div className="flex items-center justify-between gap-2 border-t border-border px-4 py-2.5">
+            <span className="text-sm text-fg-muted">Tema</span>
+            <ThemeToggle />
+          </div>
+
+          <form action={sair} className="border-t border-border">
             <button
               type="submit"
               role="menuitem"

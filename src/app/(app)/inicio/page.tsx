@@ -1,16 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, Check, Compass, Radio, Sparkles, Zap } from "lucide-react";
+import { ArrowRight, Check, Compass } from "lucide-react";
 import { dispensarCartaoTour } from "@/app/(app)/bem-vindo/actions";
 import { PageHeader } from "@/components/layout/page-header";
 import { Alerta } from "@/components/ui/alerta";
 import { Card } from "@/components/ui/card";
-import { Indicador } from "@/components/ui/indicador";
 import { formatarDuracao } from "@/lib/caracteres";
 import { jornadaDaLive, type JornadaDaLive } from "@/lib/dados/criacao";
 import { resumoTour, type ResumoTour } from "@/lib/dados/onboarding";
 import { exigirUsuario } from "@/lib/sessao";
-import { cn, numero } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Início" };
 
@@ -52,11 +51,11 @@ function montarPassos(j: JornadaDaLive): Passo[] {
       },
     },
     {
-      titulo: "Monte o manual",
+      titulo: "Escreva as respostas",
       feito: j.manual.pronto,
       texto: j.manual.pronto
         ? `${j.manual.perguntas} ${j.manual.perguntas === 1 ? "pergunta" : "perguntas"} que ela sabe responder${j.manual.semResposta > 0 ? ` — e ${j.manual.semResposta} que a sua audiência fez e ficou sem resposta.` : "."}`
-        : "As perguntas que a audiência faz e o que responder. A Shopia nunca inventa: se não está no manual, ela cala.",
+        : "No Manual (o que perguntam e o que responder) ou em Fluxos (quando comentarem X, responder Y). A Shopia nunca inventa.",
       acao: {
         href: "/manual",
         rotulo: j.manual.pronto
@@ -88,15 +87,14 @@ function montarPassos(j: JornadaDaLive): Passo[] {
       acao: j.live.noAr ? { href: "/live", rotulo: "Acompanhar" } : null,
       extra: j.live.noAr ? null : (
         <ol className="mt-2 list-decimal space-y-1 pl-5 text-sm text-fg-muted">
-          <li>Comece a transmissão e deixe a página da sua live aberta no Chrome.</li>
+          <li>Abra a página da sua live no Chrome e clique no ícone da Shopia.</li>
           <li>
-            Clique no ícone da Shopia e toque em{" "}
-            <strong className="text-fg">Ligar a extensão</strong> — defina o timer de
-            encerramento se quiser que ela encerre sozinha.
+            Toque em <strong className="text-fg">Testar antes da live</strong> e depois em{" "}
+            <strong className="text-fg">Ligar a extensão</strong>.
           </li>
           <li>
-            Para responder o chat, abra <strong className="text-fg">✦ IA</strong> e ligue{" "}
-            <strong className="text-fg">Ler a tela</strong>.
+            Ligue <strong className="text-fg">Fluxos de resposta</strong> — ou{" "}
+            <strong className="text-fg">IA → Ler a tela</strong> para responder pelo manual.
           </li>
           {!j.riscoAceito && (
             <li>
@@ -270,41 +268,6 @@ export default async function InicioPage() {
 
       {tour.pendente && !tour.cartaoDispensado && <CartaoTour resumo={tour} />}
 
-      <div className="mt-6 grid gap-4 sm:grid-cols-3">
-        <Card className="flex items-center gap-3">
-          <span className="grid size-10 shrink-0 place-items-center rounded-md bg-primary-soft text-primary-soft-fg">
-            <Sparkles className="size-5" aria-hidden />
-          </span>
-          <div className="min-w-0">
-            <p className="text-xs text-fg-subtle">Plano</p>
-            <p className="truncate font-semibold">{usuario.plano ?? "Sem plano"}</p>
-          </div>
-        </Card>
-
-        <Link href="/creditos" className="block">
-          <Card className="flex items-center gap-3 transition-colors duration-[--dur-fast] hover:bg-surface-hover">
-            <span className="grid size-10 shrink-0 place-items-center rounded-md bg-primary-soft text-primary-soft-fg">
-              <Zap className="size-5" aria-hidden />
-            </span>
-            <div className="min-w-0">
-              <p className="text-xs text-fg-subtle">Créditos</p>
-              <p className="num truncate font-semibold">{numero(usuario.creditos)}</p>
-            </div>
-          </Card>
-        </Link>
-
-        <Link href="/live" className="block">
-          <Card className="flex items-center gap-3 transition-colors duration-[--dur-fast] hover:bg-surface-hover">
-            <span className="grid size-10 shrink-0 place-items-center rounded-md bg-bg-subtle text-fg-subtle">
-              <Radio className="size-5" aria-hidden />
-            </span>
-            <div className="min-w-0">
-              <p className="text-xs text-fg-subtle">Live</p>
-              <Indicador estado={jornada.live.noAr ? "no_ar" : "fora_do_ar"} />
-            </div>
-          </Card>
-        </Link>
-      </div>
     </>
   );
 }

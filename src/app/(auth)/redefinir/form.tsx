@@ -5,7 +5,8 @@ import { useActionState } from "react";
 import { redefinirSenha, type EstadoForm } from "../actions";
 import { Alerta } from "@/components/ui/alerta";
 import { Button } from "@/components/ui/button";
-import { Campo, Input } from "@/components/ui/input";
+import { CampoSenha } from "@/components/ui/campo-senha";
+import { Campo } from "@/components/ui/input";
 
 const INICIAL: EstadoForm = {};
 
@@ -33,10 +34,9 @@ export function FormRedefinir({ token }: { token: string }) {
       {estado.erro && <Alerta tom="erro">{estado.erro}</Alerta>}
 
       <Campo rotulo="Nova senha" htmlFor="senha" dica="Mínimo de 8 caracteres">
-        <Input
+        <CampoSenha
           id="senha"
           name="senha"
-          type="password"
           autoComplete="new-password"
           placeholder="••••••••"
           minLength={8}
@@ -46,10 +46,9 @@ export function FormRedefinir({ token }: { token: string }) {
       </Campo>
 
       <Campo rotulo="Confirmar nova senha" htmlFor="confirmacao">
-        <Input
+        <CampoSenha
           id="confirmacao"
           name="confirmacao"
-          type="password"
           autoComplete="new-password"
           placeholder="••••••••"
           minLength={8}

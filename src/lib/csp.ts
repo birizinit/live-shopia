@@ -20,7 +20,8 @@ export function politicaDeConteudo(nonce: string, desenvolvimento: boolean): str
     "media-src 'self' blob: data:",
     "font-src 'self'",
     "connect-src 'self'",
-    "frame-src https://www.youtube-nocookie.com https://www.youtube.com",
+    // Nenhum iframe: o único era o vídeo das Aulas, que saíram.
+    "frame-src 'none'",
     // 'strict-dynamic' ignora 'self' em script-src; sem isto o sw.js do push
     // deixaria de registrar.
     "worker-src 'self'",

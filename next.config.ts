@@ -23,6 +23,14 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: CABECALHOS_DE_SEGURANCA }];
   },
+  async redirects() {
+    // A seção Aulas saiu (0032). Link antigo — e-mail, favorito — cai no
+    // Início em vez de num 404.
+    return [
+      { source: "/aulas", destination: "/inicio", permanent: false },
+      { source: "/aulas/:slug*", destination: "/inicio", permanent: false },
+    ];
+  },
   experimental: {
     /**
      * Cache de arquivo do Turbopack DESLIGADO no build.
