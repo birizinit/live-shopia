@@ -1,83 +1,94 @@
 /* Painel lateral da Shopia.
    Layout espelhado no da LiveFox (cards recolhíveis, barra de status, timer
-   grande, barra inferior), com a paleta da Shopia: verde da marca em
-   design/tokens.css, tema escuro e claro. O escuro é o padrão visual — vidro
-   fosco sobre fundo quase preto — e o claro segue o sistema. */
+   grande, barra inferior), com a paleta e a fonte do TikTok — vermelho
+   #FE2C55, ciano #25F4EE, escuro #121212 e TikTok Sans (fontes/, OFL) —, as
+   mesmas de design/tokens.css. O escuro é o padrão; o claro segue o sistema. */
+
+@font-face {
+  font-family: "TikTok Sans";
+  src: url("fontes/tiktok-sans-latin.woff2") format("woff2");
+  font-weight: 300 900;
+  font-style: normal;
+  font-display: swap;
+}
 
 :root {
   color-scheme: dark;
-  --bg: #0A100D;
-  --bg2: #111915;
-  --surface: rgba(21, 30, 25, .78);
-  --card: rgba(21, 30, 25, .62);
-  --border: rgba(50, 213, 131, .18);
-  --border2: rgba(50, 213, 131, .34);
-  --text: #F6FAF7;
-  --sub: #C0D1C7;
-  --muted: #90A699;
+  /* Escuro do TikTok: #121212 de fundo, superfícies em degraus de cinza */
+  --bg: #121212;
+  --bg2: #1B1B1B;
+  --surface: rgba(28, 28, 30, .86);
+  --card: rgba(32, 32, 34, .72);
+  --border: rgba(255, 255, 255, .09);
+  --border2: rgba(255, 255, 255, .16);
+  --text: #F1F1F2;
+  --sub: #CFCFD2;
+  --muted: #9B9BA1;
 
-  --primary: #32D583;
-  --primary-rgb: 50, 213, 131;
-  --pdim: rgba(50, 213, 131, .16);
-  --ok: #32D583;
-  --okdim: rgba(50, 213, 131, .16);
-  --red: #FDA29B;
-  --red-forte: #F04438;
-  --red-rgb: 240, 68, 56;
-  --rdim: rgba(240, 68, 56, .16);
-  --warn: #FDB022;
-  --warn-rgb: 253, 176, 34;
-  --blue: #84CAFF;
+  /* Vermelho #FE2C55 e ciano #25F4EE: as duas cores do TikTok */
+  --primary: #FE2C55;
+  --primary-rgb: 254, 44, 85;
+  --pdim: rgba(254, 44, 85, .14);
+  --cyan: #25F4EE;
+  --cyan-rgb: 37, 244, 238;
+  --ok: #3BE0A6;
+  --okdim: rgba(59, 224, 166, .14);
+  --red: #FF8FA6;
+  --red-forte: #FE2C55;
+  --red-rgb: 254, 44, 85;
+  --rdim: rgba(254, 44, 85, .14);
+  --warn: #FFC233;
+  --warn-rgb: 255, 194, 51;
+  --blue: #8AB8FF;
 
-  --grad-a: #6CE9A6;
-  --grad-b: #32D583;
-  --grad-c: #12B76A;
-  --grad: linear-gradient(135deg, var(--grad-a), var(--grad-b) 55%, var(--grad-c));
-  --on-grad: #042E1C;
+  --grad-a: #FF4D6D;
+  --grad-b: #FE2C55;
+  --grad-c: #E8174A;
+  --grad: linear-gradient(135deg, var(--grad-a), var(--grad-b) 50%, var(--grad-c));
+  --duo: linear-gradient(90deg, #25F4EE, #FE2C55);
+  --on-grad: #FFFFFF;
 
-  --font: "Public Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font: "TikTok Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
   --fundo-luz:
-    radial-gradient(130% 80% at 100% -10%, rgba(50, 213, 131, .16), transparent 55%),
-    radial-gradient(120% 80% at -10% 110%, rgba(18, 183, 106, .12), transparent 55%),
-    radial-gradient(90% 70% at 50% 45%, rgba(108, 233, 166, .07), transparent 60%);
-  --sombra: 0 8px 24px rgba(0, 0, 0, .28);
+    radial-gradient(120% 70% at 100% -10%, rgba(254, 44, 85, .14), transparent 55%),
+    radial-gradient(110% 70% at -10% 110%, rgba(37, 244, 238, .09), transparent 55%);
+  --sombra: 0 8px 24px rgba(0, 0, 0, .35);
 }
 
 @media (prefers-color-scheme: light) {
   :root {
     color-scheme: light;
-    --bg: #F6FAF7;
-    --bg2: #EDF3EF;
-    --surface: rgba(255, 255, 255, .86);
-    --card: rgba(255, 255, 255, .9);
-    --border: #DCE7E0;
-    --border2: #C0D1C7;
-    --text: #151E19;
-    --sub: #3A4A41;
-    --muted: #4E6157;
+    --bg: #F8F8F8;
+    --bg2: #FFFFFF;
+    --surface: rgba(255, 255, 255, .92);
+    --card: rgba(255, 255, 255, .96);
+    --border: #E3E3E4;
+    --border2: #C6C6C9;
+    --text: #161823;
+    --sub: #3D3E44;
+    --muted: #57585E;
 
-    --primary: #027A48;
-    --primary-rgb: 2, 122, 72;
-    --pdim: rgba(2, 122, 72, .1);
-    --ok: #039855;
-    --okdim: rgba(3, 152, 85, .1);
-    --red: #D92D20;
-    --red-forte: #D92D20;
-    --red-rgb: 217, 45, 32;
-    --rdim: rgba(217, 45, 32, .08);
-    --warn: #DC6803;
-    --warn-rgb: 220, 104, 3;
-    --blue: #1570EF;
+    --primary: #FE2C55;
+    --primary-rgb: 254, 44, 85;
+    --pdim: rgba(254, 44, 85, .08);
+    --cyan: #00A8A3;
+    --cyan-rgb: 0, 168, 163;
+    --ok: #00915F;
+    --okdim: rgba(0, 145, 95, .09);
+    --red: #C4103D;
+    --red-forte: #E8174A;
+    --red-rgb: 232, 23, 74;
+    --rdim: rgba(232, 23, 74, .07);
+    --warn: #C46A00;
+    --warn-rgb: 196, 106, 0;
+    --blue: #1F6FEB;
 
-    --grad-a: #039855;
-    --grad-b: #027A48;
-    --grad-c: #05603A;
     --on-grad: #FFFFFF;
     --fundo-luz:
-      radial-gradient(130% 80% at 100% -10%, rgba(18, 183, 106, .12), transparent 55%),
-      radial-gradient(120% 80% at -10% 110%, rgba(2, 122, 72, .08), transparent 55%);
-    --sombra: 0 6px 18px rgba(21, 30, 25, .08);
+      radial-gradient(120% 70% at 100% -10%, rgba(254, 44, 85, .07), transparent 55%),
+      radial-gradient(110% 70% at -10% 110%, rgba(37, 244, 238, .08), transparent 55%);
+    --sombra: 0 6px 18px rgba(22, 24, 35, .08);
   }
 }
 

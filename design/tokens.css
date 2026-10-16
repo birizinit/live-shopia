@@ -1,7 +1,14 @@
 /* =============================================================
    Shopia — Design Tokens
-   Paleta verde · tema claro e escuro
+   Paleta e styleguide do TikTok · tema claro e escuro
    -------------------------------------------------------------
+   Vermelho #FE2C55 e ciano #25F4EE são as duas cores do TikTok; o texto
+   escuro é o #161823 que o TikTok usa, e o escuro é o #121212 da versão web.
+   A fonte é a TikTok Sans (OFL, src/app/fonts.ts).
+
+   O logo continua o da Shopia: a paleta é do TikTok, a marca não — a
+   Shopia não é um produto oficial do TikTok.
+
    Camada 1 — primitivas: escalas cruas. NÃO usar direto na UI.
    Camada 2 — semânticas: o que os componentes consomem.
    Trocar o tema = redefinir só a camada 2.
@@ -10,52 +17,57 @@
 :root {
   /* ---------- Camada 1 — primitivas ---------- */
 
-  /* Verde da marca */
-  --green-50:  #ECFDF3;
-  --green-100: #D1FADF;
-  --green-200: #A6F4C5;
-  --green-300: #6CE9A6;
-  --green-400: #32D583;
-  --green-500: #12B76A;
-  --green-600: #039855;
-  --green-700: #027A48;
-  --green-800: #05603A;
-  --green-900: #054F31;
-  --green-950: #032B1C;
+  /* Vermelho TikTok */
+  --red-50:  #FFF0F3;
+  --red-100: #FFE0E7;
+  --red-200: #FFC2CF;
+  --red-300: #FF8FA6;
+  --red-400: #FF5C7C;
+  --red-500: #FE2C55;   /* o vermelho do TikTok */
+  --red-600: #E8174A;
+  --red-700: #C4103D;
+  --red-800: #9E0D33;
+  --red-900: #6E0A25;
 
-  /* Neutros com leve viés verde (evita cinza "sujo" ao lado da marca) */
-  --gray-50:  #F6FAF7;
-  --gray-100: #EDF3EF;
-  --gray-200: #DCE7E0;
-  --gray-300: #C0D1C7;
-  --gray-400: #90A699;
-  --gray-500: #6A8073;
-  --gray-600: #4E6157;
-  --gray-700: #3A4A41;
-  --gray-800: #26322C;
-  --gray-900: #151E19;
-  --gray-950: #0A100D;
+  /* Ciano TikTok */
+  --cyan-300: #7AF8F4;
+  --cyan-400: #25F4EE;  /* o ciano do TikTok */
+  --cyan-600: #00B8B3;
+  --cyan-700: #008F8B;
+
+  /* Neutros do TikTok (base #161823) */
+  --gray-50:  #F8F8F8;
+  --gray-100: #F1F1F2;
+  --gray-200: #E3E3E4;
+  --gray-300: #C6C6C9;
+  --gray-400: #A2A2A6;
+  --gray-500: #7A7B80;
+  --gray-600: #57585E;
+  --gray-700: #3D3E44;
+  --gray-800: #2A2A2A;
+  --gray-850: #1F1F1F;
+  --gray-900: #161823;
+  --gray-950: #121212;
 
   /* Feedback */
-  --amber-400: #FDB022;
-  --amber-600: #DC6803;
-  --red-300:   #FDA29B;
-  --red-500:   #F04438;
-  --red-600:   #D92D20;
-  --blue-300:  #84CAFF;
-  --blue-500:  #2E90FA;
-  --blue-600:  #1570EF;
+  --green-500: #0BBF7E;
+  --green-600: #00915F;
+  --green-300: #5FE3B3;
+  --amber-400: #FFC233;
+  --amber-600: #C46A00;
+  --blue-300:  #8AB8FF;
+  --blue-600:  #1F6FEB;
 
-  /* Tipografia */
-  --font-display: "Bricolage Grotesque", "Trebuchet MS", ui-sans-serif, system-ui, sans-serif;
-  --font-sans: "Public Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* Tipografia — tudo TikTok Sans, como no app do TikTok */
+  --font-display: "TikTok Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: "TikTok Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
-  /* Raio */
+  /* Raio: o TikTok usa cantos bem arredondados e botões em pílula leve */
   --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
-  --radius-xl: 20px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
   --radius-full: 999px;
 
   /* Movimento */
@@ -66,8 +78,8 @@
   /* ---------- Camada 2 — semânticas (TEMA CLARO = padrão) ---------- */
   color-scheme: light;
 
-  --bg:             var(--gray-50);
-  --bg-subtle:      var(--gray-100);
+  --bg:             #FFFFFF;
+  --bg-subtle:      var(--gray-50);
   --surface:        #FFFFFF;
   --surface-raised: #FFFFFF;
   --surface-hover:  var(--gray-100);
@@ -80,35 +92,36 @@
   --text-subtle:    var(--gray-500);
   --text-inverse:   #FFFFFF;
 
-  --primary:        var(--green-700);   /* 5.4:1 com texto branco */
-  --primary-hover:  var(--green-800);
-  --primary-active: var(--green-900);
+  --primary:        var(--red-500);
+  --primary-hover:  var(--red-600);
+  --primary-active: var(--red-700);
   --primary-fg:     #FFFFFF;
-  --primary-soft:   var(--green-50);
-  --primary-soft-fg:var(--green-800);
-  --primary-border: var(--green-200);
+  --primary-soft:   var(--red-50);
+  --primary-soft-fg:var(--red-700);   /* texto sobre o rosa: 6:1 */
+  --primary-border: var(--red-200);
 
-  --accent:         var(--green-500);   /* gráficos, barras, destaques */
-  --accent-2:       var(--green-300);
+  --accent:         var(--red-500);   /* gráficos, barras, destaques */
+  --accent-2:       var(--cyan-400);
 
   --success:        var(--green-600);
-  --success-soft:   var(--green-50);
+  --success-soft:   #E8FBF3;
   --warning:        var(--amber-600);
-  --warning-soft:   #FFFAEB;
-  --danger:         var(--red-600);
-  --danger-soft:    #FEF3F2;
+  --warning-soft:   #FFF7E6;
+  --danger:         var(--red-700);
+  --danger-soft:    var(--red-50);
   --info:           var(--blue-600);
-  --info-soft:      #EFF8FF;
+  --info-soft:      #EEF4FF;
 
-  --ring:           var(--green-500);
-  --overlay:        rgb(10 16 13 / 0.45);
+  --ring:           var(--red-500);
+  --overlay:        rgb(22 24 35 / 0.5);
 
-  --shadow-sm: 0 1px 2px rgb(10 16 13 / 0.06);
-  --shadow-md: 0 4px 12px rgb(10 16 13 / 0.08);
-  --shadow-lg: 0 16px 40px rgb(10 16 13 / 0.12);
+  --shadow-sm: 0 1px 2px rgb(22 24 35 / 0.06);
+  --shadow-md: 0 4px 12px rgb(22 24 35 / 0.08);
+  --shadow-lg: 0 16px 40px rgb(22 24 35 / 0.12);
 
-  /* Gradiente de marca (hero, botão principal da landing) */
-  --brand-gradient: linear-gradient(135deg, var(--green-600) 0%, var(--green-800) 100%);
+  /* Gradiente de marca (botão principal, destaques) e o par ciano/vermelho */
+  --brand-gradient: linear-gradient(135deg, #FF4D6D 0%, var(--red-500) 45%, var(--red-600) 100%);
+  --brand-duo: linear-gradient(90deg, var(--cyan-400) 0%, var(--red-500) 100%);
 }
 
 /* ---------- TEMA ESCURO ----------
@@ -120,47 +133,48 @@
     color-scheme: dark;
 
     --bg:             var(--gray-950);
-    --bg-subtle:      #070B09;
-    --surface:        var(--gray-900);
+    --bg-subtle:      #0B0B0B;
+    --surface:        var(--gray-850);
     --surface-raised: var(--gray-800);
-    --surface-hover:  #1B241E;
+    --surface-hover:  #2F2F2F;
 
-    --border:         var(--gray-800);
-    --border-strong:  var(--gray-700);
+    --border:         #2F2F2F;
+    --border-strong:  #3D3D3D;
 
-    --text:           var(--gray-50);
-    --text-muted:     #A8BCB0;
-    --text-subtle:    var(--gray-400);
+    --text:           #F1F1F2;
+    --text-muted:     #B4B4B8;
+    --text-subtle:    #8A8B91;
     --text-inverse:   var(--gray-950);
 
-    --primary:        var(--green-400);   /* 7.8:1 com --primary-fg */
-    --primary-hover:  var(--green-300);
-    --primary-active: var(--green-200);
-    --primary-fg:     #042E1C;
-    --primary-soft:   #0E2B1E;
-    --primary-soft-fg:var(--green-300);
-    --primary-border: #17402B;
+    --primary:        var(--red-500);
+    --primary-hover:  var(--red-400);
+    --primary-active: var(--red-300);
+    --primary-fg:     #FFFFFF;
+    --primary-soft:   #3A1420;
+    --primary-soft-fg:var(--red-300);
+    --primary-border: #5A1F2E;
 
-    --accent:         var(--green-400);
-    --accent-2:       var(--green-600);
+    --accent:         var(--red-500);
+    --accent-2:       var(--cyan-400);
 
-    --success:        var(--green-400);
-    --success-soft:   #0E2B1E;
+    --success:        var(--green-300);
+    --success-soft:   #0C2A1F;
     --warning:        var(--amber-400);
-    --warning-soft:   #2E1F05;
+    --warning-soft:   #2E2205;
     --danger:         var(--red-300);
-    --danger-soft:    #34110E;
+    --danger-soft:    #3A1420;
     --info:           var(--blue-300);
-    --info-soft:      #0C2440;
+    --info-soft:      #0F2140;
 
-    --ring:           var(--green-400);
-    --overlay:        rgb(0 0 0 / 0.65);
+    --ring:           var(--red-500);
+    --overlay:        rgb(0 0 0 / 0.7);
 
     --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
     --shadow-md: 0 4px 12px rgb(0 0 0 / 0.5);
     --shadow-lg: 0 16px 40px rgb(0 0 0 / 0.6);
 
-    --brand-gradient: linear-gradient(135deg, var(--green-500) 0%, var(--green-800) 100%);
+    --brand-gradient: linear-gradient(135deg, #FF4D6D 0%, var(--red-500) 45%, var(--red-600) 100%);
+    --brand-duo: linear-gradient(90deg, var(--cyan-400) 0%, var(--red-500) 100%);
   }
 }
 
@@ -169,63 +183,64 @@
   color-scheme: dark;
 
   --bg:             var(--gray-950);
-  --bg-subtle:      #070B09;
-  --surface:        var(--gray-900);
+  --bg-subtle:      #0B0B0B;
+  --surface:        var(--gray-850);
   --surface-raised: var(--gray-800);
-  --surface-hover:  #1B241E;
+  --surface-hover:  #2F2F2F;
 
-  --border:         var(--gray-800);
-  --border-strong:  var(--gray-700);
+  --border:         #2F2F2F;
+  --border-strong:  #3D3D3D;
 
-  --text:           var(--gray-50);
-  --text-muted:     #A8BCB0;
-  --text-subtle:    var(--gray-400);
+  --text:           #F1F1F2;
+  --text-muted:     #B4B4B8;
+  --text-subtle:    #8A8B91;
   --text-inverse:   var(--gray-950);
 
-  --primary:        var(--green-400);
-  --primary-hover:  var(--green-300);
-  --primary-active: var(--green-200);
-  --primary-fg:     #042E1C;
-  --primary-soft:   #0E2B1E;
-  --primary-soft-fg:var(--green-300);
-  --primary-border: #17402B;
+  --primary:        var(--red-500);
+  --primary-hover:  var(--red-400);
+  --primary-active: var(--red-300);
+  --primary-fg:     #FFFFFF;
+  --primary-soft:   #3A1420;
+  --primary-soft-fg:var(--red-300);
+  --primary-border: #5A1F2E;
 
-  --accent:         var(--green-400);
-  --accent-2:       var(--green-600);
+  --accent:         var(--red-500);
+  --accent-2:       var(--cyan-400);
 
-  --success:        var(--green-400);
-  --success-soft:   #0E2B1E;
+  --success:        var(--green-300);
+  --success-soft:   #0C2A1F;
   --warning:        var(--amber-400);
-  --warning-soft:   #2E1F05;
+  --warning-soft:   #2E2205;
   --danger:         var(--red-300);
-  --danger-soft:    #34110E;
+  --danger-soft:    #3A1420;
   --info:           var(--blue-300);
-  --info-soft:      #0C2440;
+  --info-soft:      #0F2140;
 
-  --ring:           var(--green-400);
-  --overlay:        rgb(0 0 0 / 0.65);
+  --ring:           var(--red-500);
+  --overlay:        rgb(0 0 0 / 0.7);
 
   --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
   --shadow-md: 0 4px 12px rgb(0 0 0 / 0.5);
   --shadow-lg: 0 16px 40px rgb(0 0 0 / 0.6);
 
-  --brand-gradient: linear-gradient(135deg, var(--green-500) 0%, var(--green-800) 100%);
+  --brand-gradient: linear-gradient(135deg, #FF4D6D 0%, var(--red-500) 45%, var(--red-600) 100%);
+  --brand-duo: linear-gradient(90deg, var(--cyan-400) 0%, var(--red-500) 100%);
 }
 
 /* ---------- Séries de gráfico (dashboard de vendas) ----------
-   Ordem pensada para leitura sequencial; a 1ª é sempre a marca. */
+   A 1ª é o vermelho do TikTok, a 2ª o ciano. */
 :root {
-  --chart-1: var(--green-600);
-  --chart-2: #0E9384;   /* teal */
-  --chart-3: #6172F3;   /* indigo */
+  --chart-1: var(--red-500);
+  --chart-2: var(--cyan-700);
+  --chart-3: #6172F3;
   --chart-4: var(--amber-600);
-  --chart-5: #7A5AF8;   /* violet */
+  --chart-5: #7A5AF8;
   --chart-6: var(--gray-400);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
-    --chart-1: var(--green-400);
-    --chart-2: #2ED3B7;
+    --chart-1: var(--red-500);
+    --chart-2: var(--cyan-400);
     --chart-3: #8098F9;
     --chart-4: var(--amber-400);
     --chart-5: #A48AFB;
@@ -233,8 +248,8 @@
   }
 }
 :root[data-theme="dark"] {
-  --chart-1: var(--green-400);
-  --chart-2: #2ED3B7;
+  --chart-1: var(--red-500);
+  --chart-2: var(--cyan-400);
   --chart-3: #8098F9;
   --chart-4: var(--amber-400);
   --chart-5: #A48AFB;

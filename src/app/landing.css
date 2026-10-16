@@ -8,7 +8,7 @@
 @keyframes lp-flutua { 0%, 100% { transform: translate3d(0, 0, 0); } 50% { transform: translate3d(0, -18px, 0); } }
 @keyframes lp-deriva { 0%, 100% { transform: translate3d(0, 0, 0) scale(1); } 50% { transform: translate3d(30px, 20px, 0) scale(1.08); } }
 @keyframes lp-pulso { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
-@keyframes lp-onda { 0% { box-shadow: 0 0 0 0 rgb(18 183 106 / .45); } 100% { box-shadow: 0 0 0 14px rgb(18 183 106 / 0); } }
+@keyframes lp-onda { 0% { box-shadow: 0 0 0 0 rgb(254 44 85 / .45); } 100% { box-shadow: 0 0 0 14px rgb(254 44 85 / 0); } }
 @keyframes lp-letreiro { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 @keyframes lp-brilho { from { transform: translateX(-120%) skewX(-20deg); } to { transform: translateX(220%) skewX(-20deg); } }
 @keyframes lp-digita { 0%, 80%, 100% { opacity: .25; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-2px); } }

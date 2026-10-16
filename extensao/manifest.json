@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Shopia — Assistente de Live para TikTok Shop",
-  "version": "3.3.0",
+  "version": "3.4.0",
   "description": "Liga e cuida da sua live no TikTok Shop: timer de encerramento, proteção contra violação, fixar produto, comentários automáticos, bloqueio por nome, aviso de venda e respostas no chat.",
   "permissions": [
     "storage",
@@ -50,7 +50,8 @@
       "resources": [
         "seletores.js",
         "produtos.js",
-        "fluxos.js"
+        "fluxos.js",
+        "fontes/tiktok-sans-latin.woff2"
       ],
       "matches": [
         "*://*.tiktok.com/*"

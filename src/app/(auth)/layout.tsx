@@ -15,26 +15,20 @@ export default function AuthLayout({ children }: LayoutProps<"/">) {
     <div className="grid min-h-dvh lg:grid-cols-[1fr_minmax(0,520px)]">
       {/* Painel de marca — só no desktop, onde sobra espaço para ele. */}
       <aside className="relative hidden overflow-hidden p-10 lg:flex lg:flex-col lg:justify-between">
+        <div className="absolute inset-0 -z-10 bg-[#121212]" aria-hidden />
         <div
-          className="absolute inset-0 -z-10"
-          style={{ background: "var(--brand-gradient)" }}
+          className="absolute -top-32 -left-24 -z-10 size-[420px] rounded-full opacity-40 blur-3xl"
+          style={{ background: "radial-gradient(circle, #25F4EE 0%, transparent 65%)" }}
           aria-hidden
         />
-        <Link href="/" className="relative">
-          <span className="inline-flex items-center gap-2 text-white">
-            <svg viewBox="0 0 512 512" className="size-8 rounded-[10px]" aria-hidden>
-              <rect width="512" height="512" rx="116" fill="rgb(255 255 255 / 0.16)" />
-              <g stroke="#fff" strokeWidth="34" strokeLinecap="round" fill="none">
-                <path d="M146 216v80" />
-                <path d="M212 168v176" />
-                <path d="M278 136v240" />
-                <path d="M344 192v128" />
-              </g>
-            </svg>
-            <span className="font-[family-name:var(--font-display)] text-xl font-bold">
-              Shopia
-            </span>
-          </span>
+        <div
+          className="absolute -right-24 -bottom-32 -z-10 size-[460px] rounded-full opacity-45 blur-3xl"
+          style={{ background: "radial-gradient(circle, #FE2C55 0%, transparent 65%)" }}
+          aria-hidden
+        />
+        <Link href="/" className="relative inline-flex items-center gap-2 text-white">
+          <Logo comTexto={false} className="[&_svg]:size-8" />
+          <span className="text-xl font-bold">Shopia</span>
         </Link>
 
         <div className="relative max-w-md">
@@ -45,7 +39,7 @@ export default function AuthLayout({ children }: LayoutProps<"/">) {
             {ARGUMENTOS.map((texto) => (
               <li key={texto} className="flex gap-3 text-sm text-white/85">
                 <span
-                  className="mt-1.5 size-1.5 shrink-0 rounded-full bg-white/70"
+                  className="mt-1.5 size-1.5 shrink-0 rounded-full bg-[#FE2C55]"
                   aria-hidden
                 />
                 {texto}
