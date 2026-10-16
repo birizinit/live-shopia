@@ -23,9 +23,10 @@
    fallbacks originais — os componentes continuam lendo --font-sans etc.
    ------------------------------------------------------------------------- */
 :root {
-  --font-display: var(--next-font-display), "Bricolage Grotesque", "Trebuchet MS",
-    ui-sans-serif, system-ui, sans-serif;
-  --font-sans: var(--next-font-sans), "Public Sans", ui-sans-serif, system-ui,
+  /* Uma família só, como no TikTok: título e texto em TikTok Sans. */
+  --font-display: var(--next-font-sans), "TikTok Sans", ui-sans-serif, system-ui,
+    -apple-system, "Segoe UI", sans-serif;
+  --font-sans: var(--next-font-sans), "TikTok Sans", ui-sans-serif, system-ui,
     -apple-system, "Segoe UI", sans-serif;
   --font-mono: var(--next-font-mono), "IBM Plex Mono", ui-monospace, "SF Mono",
     Menlo, monospace;
@@ -101,7 +102,7 @@
 
 /* -------------------------------------------------------------------------
    Compatibilidade shadcn/ui — `npx shadcn@latest add <componente>` já sai
-   verde nos dois temas porque os nomes dele apontam para os nossos tokens.
+   nas cores do TikTok nos dois temas porque os nomes dele apontam para os nossos tokens.
    ------------------------------------------------------------------------- */
 :root {
   --background: var(--bg);
@@ -142,8 +143,8 @@
 
   h1, h2, h3, h4 {
     font-family: var(--font-display);
-    font-weight: 600;
-    letter-spacing: -0.02em;
+    font-weight: 700;
+    letter-spacing: -0.015em;
     text-wrap: balance;
   }
 

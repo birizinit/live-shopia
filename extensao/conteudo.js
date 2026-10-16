@@ -85,7 +85,7 @@
   // INTERFACE NA PÁGINA: barra de status, avisos e a pílula da violação
   // =========================================================================
 
-  const COR = { ok: "#32D583", warn: "#FDB022", err: "#F04438", info: "#84CAFF" };
+  const COR = { ok: "#25F4EE", warn: "#FFC233", err: "#FE2C55", info: "#8AB8FF" };
 
   // Ícones de traço (24×24), os mesmos do painel. Texto fixo nosso — nada
   // vindo da página entra aqui.
@@ -104,7 +104,8 @@
   const svg = (nome, px = 14) =>
     `<svg viewBox="0 0 24 24" width="${px}" height="${px}" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;display:block">${ICONE[nome] ?? ""}</svg>`;
   const ICONE_DO_TOM = { ok: "check", warn: "alert", err: "shield-alert", info: "info" };
-  const FONTE = "600 12px/1.4 system-ui,-apple-system,'Segoe UI',sans-serif";
+  const FAMILIA = "'TikTok Sans',TikTokFont,system-ui,-apple-system,'Segoe UI',sans-serif";
+  const FONTE = `600 12px/1.4 ${FAMILIA}`;
 
   let hud = null;
   function caixaDeAvisos() {
@@ -123,7 +124,7 @@
     const cor = COR[tom] ?? COR.ok;
     el.innerHTML = `<span style="color:${cor};margin-top:1px">${svg(ICONE_DO_TOM[tom] ?? "check")}</span><span></span>`;
     el.lastElementChild.textContent = texto;
-    el.style.cssText = `display:flex;gap:8px;align-items:flex-start;background:rgba(10,16,13,.96);color:#F6FAF7;border-radius:10px;padding:9px 12px;font:${FONTE};font-size:11.5px;box-shadow:0 6px 24px rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.08);border-left:3px solid ${cor};min-width:180px;max-width:320px;`;
+    el.style.cssText = `display:flex;gap:8px;align-items:flex-start;background:rgba(18,18,18,.96);color:#F1F1F2;border-radius:10px;padding:9px 12px;font:${FONTE};font-size:11.5px;box-shadow:0 6px 24px rgba(0,0,0,.45);border:1px solid rgba(255,255,255,.08);border-left:3px solid ${cor};min-width:180px;max-width:320px;`;
     caixa.appendChild(el);
     setTimeout(() => el.remove(), ms);
   }
@@ -140,21 +141,22 @@
     const st = document.createElement("style");
     st.id = "shopia-estilo";
     st.textContent = `
+      @font-face{font-family:'TikTok Sans';src:url(${chrome.runtime.getURL("fontes/tiktok-sans-latin.woff2")}) format('woff2');font-weight:300 900;font-display:swap}
       @keyframes shopiaPisca{0%,100%{opacity:1}50%{opacity:.3}}
-      #shopia-sb{position:fixed;top:0;left:0;right:0;height:28px;z-index:2147483646;display:flex;align-items:center;gap:12px;padding:0 14px;background:rgba(10,16,13,.94);border-bottom:1px solid rgba(50,213,131,.3);font:600 10px/1 system-ui,-apple-system,'Segoe UI',sans-serif;color:#90A699;letter-spacing:.2px;pointer-events:none;backdrop-filter:blur(8px)}
+      #shopia-sb{position:fixed;top:0;left:0;right:0;height:28px;z-index:2147483646;display:flex;align-items:center;gap:12px;padding:0 14px;background:rgba(18,18,18,.94);border-bottom:1px solid rgba(254,44,85,.3);font:600 10px/1 ${FAMILIA};color:#A2A2A6;letter-spacing:.2px;pointer-events:none;backdrop-filter:blur(8px)}
       #shopia-sb .sep{width:1px;height:14px;background:rgba(255,255,255,.12)}
       #shopia-sb .rot{color:rgba(255,255,255,.4)}
-      #shopia-sb .ponto{width:6px;height:6px;border-radius:50%;background:#32D583;animation:shopiaPisca .8s infinite}
+      #shopia-sb .ponto{width:6px;height:6px;border-radius:50%;background:#FE2C55;animation:shopiaPisca .8s infinite}
       #shopia-sb .mono{font-family:ui-monospace,Menlo,monospace;letter-spacing:1px}
-      #shopia-pop{position:fixed;z-index:2147483646;display:flex;align-items:center;gap:8px;padding:8px 10px 8px 12px;border-radius:999px;background:rgba(10,16,13,.95);border:1px solid rgba(50,213,131,.35);box-shadow:0 8px 28px rgba(0,0,0,.45);font:600 11px/1 system-ui,-apple-system,'Segoe UI',sans-serif;color:#F6FAF7;cursor:grab;user-select:none;backdrop-filter:blur(8px)}
+      #shopia-pop{position:fixed;z-index:2147483646;display:flex;align-items:center;gap:8px;padding:8px 10px 8px 12px;border-radius:999px;background:rgba(18,18,18,.95);border:1px solid rgba(254,44,85,.35);box-shadow:0 8px 28px rgba(0,0,0,.45);font:600 11px/1 ${FAMILIA};color:#F1F1F2;cursor:grab;user-select:none;backdrop-filter:blur(8px)}
       #shopia-pop.arrastando{cursor:grabbing}
-      #shopia-pop .ponto{width:8px;height:8px;border-radius:50%;background:#32D583;box-shadow:0 0 8px #32D583;animation:shopiaPisca .8s infinite}
-      #shopia-pop .ponto.off{background:#90A699;box-shadow:none;animation:none}
+      #shopia-pop .ponto{width:8px;height:8px;border-radius:50%;background:#FE2C55;box-shadow:0 0 8px #FE2C55;animation:shopiaPisca .8s infinite}
+      #shopia-pop .ponto.off{background:#A2A2A6;box-shadow:none;animation:none}
       #shopia-pop .sep{width:1px;height:14px;background:rgba(255,255,255,.14)}
-      #shopia-pop .ico{color:#90A699;display:flex}
+      #shopia-pop .ico{color:#A2A2A6;display:flex}
       #shopia-sb .rot svg{display:inline-block;vertical-align:middle}
-      #shopia-pop .num{font-size:12px;font-weight:800;font-family:ui-monospace,Menlo,monospace;color:#6CE9A6}
-      #shopia-pop button{width:24px;height:24px;border-radius:50%;border:1px solid rgba(50,213,131,.35);background:rgba(50,213,131,.12);color:#F6FAF7;cursor:pointer;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center}
+      #shopia-pop .num{font-size:12px;font-weight:800;font-family:ui-monospace,Menlo,monospace;color:#25F4EE}
+      #shopia-pop button{width:24px;height:24px;border-radius:50%;border:1px solid rgba(254,44,85,.35);background:rgba(254,44,85,.12);color:#F1F1F2;cursor:pointer;font-size:12px;line-height:1;display:flex;align-items:center;justify-content:center}
       #shopia-pop button.cinza{border-color:rgba(255,255,255,.15);background:rgba(255,255,255,.06)}
       #shopia-pop button.alerta{border-color:#F04438;background:rgba(240,68,56,.2)}
     `;
@@ -174,10 +176,10 @@
       barra = document.createElement("div");
       barra.id = "shopia-sb";
       barra.innerHTML = `
-        <div style="display:flex;align-items:center;gap:5px"><div class="ponto"></div><span data-c="st" style="color:#32D583;letter-spacing:.5px">MONITORANDO</span></div>
+        <div style="display:flex;align-items:center;gap:5px"><div class="ponto"></div><span data-c="st" style="color:#25F4EE;letter-spacing:.5px">MONITORANDO</span></div>
         <div class="sep"></div><span class="rot">ABA TIKTOK</span><span data-c="aba"></span>
         <div class="sep"></div><span class="rot">LIVE</span><span data-c="live"></span>
-        <div class="sep"></div><span class="rot">${svg("timer", 12)}</span><span data-c="timer" class="mono" style="color:#6CE9A6"></span>
+        <div class="sep"></div><span class="rot">${svg("timer", 12)}</span><span data-c="timer" class="mono" style="color:#25F4EE"></span>
         <div class="sep"></div><span data-c="scan" class="rot"></span>
         <div class="sep"></div><span style="display:flex;align-items:center;gap:5px"><span data-c="prot-ico">${svg("shield", 12)}</span><span data-c="prot"></span></span>`;
       document.documentElement.appendChild(barra);
@@ -187,7 +189,7 @@
     c("st").textContent = ciclo.violacao?.ativa ? "VIOLAÇÃO" : pausado ? "TIMER PAUSADO" : "MONITORANDO";
     c("st").style.color = ciclo.violacao?.ativa ? COR.err : pausado ? COR.warn : COR.ok;
     c("aba").textContent = "Conectada";
-    c("aba").style.color = "#6CE9A6";
+    c("aba").style.color = "#25F4EE";
     c("live").textContent = ciclo.liveAtiva ? "Detectada" : "—";
     c("live").style.color = ciclo.liveAtiva ? COR.ok : "#888";
     c("timer").textContent = relogio();
@@ -1855,7 +1857,7 @@
       "position:fixed", "z-index:2147483647", "left:50%", "top:30px", "transform:translateX(-50%)",
       "max-width:min(90vw,460px)", "padding:12px 16px", "border-radius:10px", `font:${FONTE}`, "font-size:14px",
       "color:#fff", "box-shadow:0 8px 24px rgba(0,0,0,.35)", "text-align:center",
-      `background:${tom === "ok" ? "#027A48" : tom === "erro" ? "#B42318" : "#0A100D"}`,
+      `background:${tom === "ok" ? "#00915F" : tom === "erro" ? "#C4103D" : "#121212"}`,
     ].join(";");
     document.documentElement.appendChild(avisoAprender);
   }

@@ -187,6 +187,11 @@ export default async function LandingPage() {
             style={{ background: "radial-gradient(circle, var(--accent) 0%, transparent 65%)" }}
             aria-hidden
           />
+          <div
+            className="lp-deriva absolute top-40 -left-40 -z-10 size-[420px] rounded-full opacity-20 blur-3xl [animation-delay:-8s]"
+            style={{ background: "radial-gradient(circle, var(--accent-2) 0%, transparent 65%)" }}
+            aria-hidden
+          />
 
           <div className="mx-auto grid max-w-6xl items-center gap-14 px-5 pt-14 pb-20 lg:grid-cols-[1.05fr_1fr] lg:pt-20 lg:pb-28">
             <div>
@@ -429,7 +434,7 @@ export default async function LandingPage() {
               <p className="mt-4 max-w-lg text-white/80">Crie a conta, cadastre as respostas e ligue a extensão. Em 10 minutos o chat é com a Shopia.</p>
               <Link
                 href={destino}
-                className="mt-8 inline-flex h-12 items-center gap-2 rounded-lg bg-white px-6 text-base font-semibold text-[color:var(--green-800)] shadow-lg transition-transform hover:-translate-y-0.5"
+                className="mt-8 inline-flex h-12 items-center gap-2 rounded-lg bg-white px-6 text-base font-semibold text-[color:var(--red-700)] shadow-lg transition-transform hover:-translate-y-0.5"
               >
                 {rotuloCta}
                 <ArrowRight className="size-4" aria-hidden />

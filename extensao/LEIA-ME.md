@@ -1,7 +1,9 @@
-# Extensão Shopia (3.3.0)
+# Extensão Shopia (3.4.0)
 
-Painel lateral no formato da extensão de referência (LiveFox), com a paleta
-verde da Shopia. Liga e cuida da live no TikTok Shop: timer de encerramento,
+Painel lateral no formato da extensão de referência (LiveFox), com a paleta e
+a fonte do TikTok: vermelho `#FE2C55`, ciano `#25F4EE`, escuro `#121212` e
+TikTok Sans (em `fontes/`, licença OFL — `fontes/OFL.txt`). O logo é o da
+Shopia; a Shopia não é um produto oficial do TikTok. Liga e cuida da live no TikTok Shop: timer de encerramento,
 proteção contra violação, fixar produto (com modo cupom), comentários
 automáticos, fluxos de resposta, moderação do chat, bloqueio por nome, aviso de venda no celular e respostas no chat
 pelo manual.
